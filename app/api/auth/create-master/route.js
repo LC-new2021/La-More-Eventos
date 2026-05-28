@@ -6,6 +6,15 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    console.log("DEBUG DATABASE_URL PROCESSO:", process.env.DATABASE_URL ? "Configurado" : "Ausente");
+    console.log("DEBUG NODE_ENV PROCESSO:", process.env.NODE_ENV);
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json({
+        success: false,
+        error: "DATABASE_URL está ausente do process.env no Next.js runtime",
+        envKeys: Object.keys(process.env).filter(k => !k.includes("KEY") && !k.includes("SECRET") && !k.includes("TOKEN"))
+      }, { status: 500 });
+    }
     const hash = await bcrypt.hash('lamore2026', 10);
     const usuario = await prisma.usuario.upsert({
       where: { email: 'master@lamore.com' },
