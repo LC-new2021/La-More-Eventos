@@ -103,6 +103,7 @@ export default function MasterUsuarios() {
     const method = usuarioParaEditar ? 'PATCH' : 'POST';
  
     try {
+      console.log("Enviando dados de salvamento do usuário:", { nome, email, role, eventoId });
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -124,7 +125,10 @@ export default function MasterUsuarios() {
           pagbankKey
         })
       });
+      console.log("Resposta recebida com status:", res.status);
       const result = await res.json();
+      console.log("Resultado retornado do JSON:", result);
+      
       if (result.error) {
         setError(result.error);
       } else {
@@ -143,6 +147,7 @@ export default function MasterUsuarios() {
         carregarDados();
       }
     } catch (e) {
+      console.error("Erro capturado no handleSubmit:", e);
       setError(usuarioParaEditar ? 'Erro ao atualizar usuário' : 'Erro ao criar usuário');
     } finally {
       setSalvando(false);
