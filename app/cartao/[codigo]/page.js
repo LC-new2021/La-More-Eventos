@@ -1,0 +1,587 @@
+"use client";
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+
+function maskCpf(cpf) {
+  if (!cpf) return '';
+  const clean = cpf.replace(/\D/g, '');
+  if (clean.length !== 11) return cpf;
+  return `${clean.slice(0, 3)}.***.***-${clean.slice(9)}`;
+}
+
+function maskPhone(phone) {
+  if (!phone) return '';
+  const clean = phone.replace(/\D/g, '');
+  if (clean.length === 11) {
+    return `(${clean.slice(0, 2)}) *****-${clean.slice(7)}`;
+  }
+  if (clean.length === 10) {
+    return `(${clean.slice(0, 2)}) ****-${clean.slice(6)}`;
+  }
+  return phone;
+}
+
+export default function CartaoPage() {
+  const { codigo } = useParams();
+  const router = useRouter();
+  const [cartao, setCartao] = useState(null);
+  const [erro, setErro] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  // Online Recharge States
+  const [abrirRecarga, setAbrirRecarga] = useState(false);
+  const [valorRecarga, setValorRecarga] = useState('50');
+  const [metodoRecarga, setMetodoRecarga] = useState('PIX'); // 'PIX' or 'CARD'
+  
+  // Card Inputs
+  const [cardName, setCardName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
+  
+  // Payment Processing States
+  const [processando, setProcessando] = useState(false);
+  const [pixPayload, setPixPayload] = useState('');
+  const [pixQrCodeUrl, setPixQrCodeUrl] = useState('');
+  const [passoRecarga, setPassoRecarga] = useState('valor'); // 'valor', 'pagando', 'sucesso'
+  const [recargaErro, setRecargaErro] = useState('');
+
+  useEffect(() => {
+    carregarCartao();
+  }, [codigo]);
+
+  // Polling for Pix recharge payment check
+  useEffect(() => {
+    let interval;
+    if (abrirRecarga && passoRecarga === 'pagando' && metodoRecarga === 'PIX') {
+      const initialBalance = cartao?.saldo || 0;
+      interval = setInterval(() => {
+        fetch(`/api/cartao/${codigo}`)
+          .then(r => r.json())
+          .then(data => {
+            if (!data.error && data.saldo > initialBalance) {
+              setCartao(data);
+              setPassoRecarga('sucesso');
+              clearInterval(interval);
+            }
+          })
+          .catch(console.error);
+      }, 4000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [abrirRecarga, passoRecarga, metodoRecarga, codigo, cartao]);
+
+  const carregarCartao = () => {
+    fetch(`/api/cartao/${codigo}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) setErro(data.error);
+        else setCartao(data);
+      })
+      .catch(() => setErro('Erro ao carregar cartão'))
+      .finally(() => setLoading(false));
+  };
+
+  const handleBack = () => {
+    if (typeof window !== 'undefined') {
+      if (window.history.length > 1) {
+        router.back();
+      } else {
+        router.push('/pos');
+      }
+    }
+  };
+
+  const processarPagamentoOnline = async (e) => {
+    e.preventDefault();
+    setProcessando(true);
+    setRecargaErro('');
+
+    try {
+      if (metodoRecarga === 'PIX') {
+        const res = await fetch('/api/pagamentos/pix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            valor: parseFloat(valorRecarga),
+            clienteNome: cartao.cliente.nome,
+            cpf: cartao.cliente.cpf || '00000000000',
+            eventoId: cartao.eventoId,
+            cartaoCodigo: cartao.codigo
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Erro ao gerar Pix');
+        }
+        setPixPayload(data.pixPayload);
+        // Usar um externalReference customizado para identificar no webhook
+        // Para simular pagamento fácil, podemos mudar a URL se for teste
+        setPixQrCodeUrl(data.qrCodeUrl);
+        
+        // Se for ambiente de simulação/teste, fornece um botão para pagar rápido
+        setPassoRecarga('pagando');
+      } else {
+        // Cartão de Crédito
+        const res = await fetch('/api/pagamentos/cartao', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            valor: parseFloat(valorRecarga),
+            clienteNome: cartao.cliente.nome,
+            cpf: cartao.cliente.cpf || '00000000000',
+            eventoId: cartao.eventoId,
+            cardName,
+            cardNumber,
+            cardExpiry,
+            cardCvc,
+            cartaoCodigo: cartao.codigo
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Erro na transação de cartão');
+        }
+        if (data.confirmado) {
+          setPassoRecarga('sucesso');
+          carregarCartao();
+        } else {
+          throw new Error('A transação não foi aprovada pela operadora.');
+        }
+      }
+    } catch (err) {
+      setRecargaErro(err.message);
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  // Simulação rápida para desenvolvedor (Pix Simulado)
+  const simularWebhookPix = async () => {
+    setProcessando(true);
+    try {
+      const mockAsaasWebhookUrl = `/api/webhooks/asaas`;
+      const res = await fetch(mockAsaasWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'PAYMENT_RECEIVED',
+          payment: {
+            id: 'mock_pay_123',
+            externalReference: `RECARGA_PIX_${cartao.codigo}`,
+            value: parseFloat(valorRecarga)
+          }
+        })
+      });
+      if (res.ok) {
+        setPassoRecarga('sucesso');
+        carregarCartao();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-[#0F1C3F] flex items-center justify-center">
+      <p className="text-white text-2xl font-bold">Carregando cartão digital...</p>
+    </div>
+  );
+
+  if (erro) return (
+    <div className="min-h-screen bg-red-600 flex flex-col items-center justify-center p-6 text-center">
+      <span className="text-8xl mb-4">💳</span>
+      <h1 className="text-3xl font-black text-white">{erro}</h1>
+      <p className="text-red-200 mt-2 font-semibold">Verifique se o código está correto ou se o cartão foi emitido.</p>
+      <button 
+        onClick={handleBack} 
+        className="mt-6 bg-white text-red-600 font-bold px-6 py-2.5 rounded-xl"
+      >
+        ← Voltar
+      </button>
+    </div>
+  );
+
+  const dataFormatada = (d) => new Date(d).toLocaleString('pt-BR');
+  const isFestaBarco = (cartao.evento.nome || '').toLowerCase().includes('barco') || (cartao.evento.nome || '').toLowerCase().includes('summer');
+  const cardUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(cardUrl)}`;
+
+  return (
+    <div className="min-h-screen bg-[#0F1C3F] p-5 flex flex-col justify-between relative">
+      <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center">
+        
+        {/* BOTÃO VOLTAR */}
+        <div className="mb-4">
+          <button 
+            onClick={handleBack} 
+            className="flex items-center gap-2 text-blue-300 hover:text-white font-bold transition-colors text-base"
+          >
+            ← Voltar
+          </button>
+        </div>
+
+        {/* CABEÇALHO DO EVENTO */}
+        <div className="text-center mb-6">
+          <p className="text-blue-300 font-bold text-xs uppercase tracking-widest">Cartão de Consumação</p>
+          <h2 className="text-2xl font-black text-white mt-1">{cartao.evento.nome}</h2>
+        </div>
+
+        {/* CARTÃO VIRTUAL PREMIUM */}
+        <div className="relative w-full min-h-[280px] rounded-[2rem] p-6 text-white overflow-hidden shadow-2xl transition-transform hover:scale-[1.02] duration-300 border border-white/10 flex flex-col justify-between bg-gradient-to-br from-[#1E3A8A] via-[#0D9488] to-[#0F172A] mb-4">
+          
+          {/* Marca d'água */}
+          {isFestaBarco ? (
+            <div className="absolute right-[25%] bottom-[-15%] text-[14rem] opacity-5 select-none pointer-events-none font-bold italic rotate-[-12deg]">⚓</div>
+          ) : (
+            <div className="absolute right-[25%] bottom-[-15%] text-[14rem] opacity-5 select-none pointer-events-none font-bold italic rotate-[-12deg]">🎫</div>
+          )}
+
+          {/* Top: Chip (left) and Brand Header (right) */}
+          <div className="flex justify-between items-center z-10">
+            <div className="w-12 h-9 bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 rounded-lg border border-amber-300/40 relative overflow-hidden flex items-center justify-center opacity-90">
+              <div className="absolute inset-y-0 left-1/3 w-[1px] bg-amber-600/30" />
+              <div className="absolute inset-y-0 right-1/3 w-[1px] bg-amber-600/30" />
+              <div className="absolute inset-x-0 top-1/2 h-[1px] bg-amber-600/30" />
+            </div>
+            <div className="text-right">
+              <h1 className="text-xl font-black tracking-wider leading-none">La More Eventos</h1>
+              <p className="text-[9px] text-teal-200 font-bold tracking-widest mt-0.5 uppercase">Cartão Digital Oficial</p>
+            </div>
+          </div>
+
+          {/* Mid: Saldo (left) and QR Code (right) */}
+          <div className="flex justify-between items-center z-10 my-2">
+            <div>
+              <p className="text-[10px] text-teal-100/70 font-black uppercase tracking-wider">Saldo Disponível</p>
+              <p className="text-3xl font-black tracking-tight">R$ {cartao.saldo.toFixed(2).replace('.', ',')}</p>
+            </div>
+            {cartao.status === 'ATIVO' && (
+              <div className="bg-white p-1 rounded-xl shadow-lg border border-white/10 shrink-0">
+                <img src={qrCodeUrl} alt="QR Code Consumação" className="w-32 h-32" />
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Card (Client Info) */}
+          <div className="flex justify-between items-end z-10">
+            <div className="max-w-[70%]">
+              <p className="text-[10px] text-teal-100/70 font-black uppercase tracking-wider">Cliente</p>
+              <p className="text-lg font-bold truncate leading-tight">{cartao.cliente.nome}</p>
+              <div className="flex gap-3 text-[10px] text-teal-200 mt-0.5 font-semibold">
+                {cartao.cliente.cpf && <span>CPF: {maskCpf(cartao.cliente.cpf)}</span>}
+                {cartao.cliente.celular && <span>Tel: {maskPhone(cartao.cliente.celular)}</span>}
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] text-teal-100/50 font-black uppercase tracking-wider">Código</p>
+              <p className="text-base font-black tracking-widest">{cartao.codigo}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* STATUS BAR */}
+        <div className={`rounded-2xl p-3 text-center mb-4 font-black text-sm shadow-md ${
+          cartao.status === 'ATIVO' ? 'bg-green-500/20 text-green-300 border border-green-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+        }`}>
+          {cartao.status === 'ATIVO' ? '● CARTÃO DIGITAL ATIVO' : '🔒 CARTÃO BLOQUEADO / INATIVO'}
+        </div>
+
+        {/* RECARGA RAPIDA ONLINE */}
+        {cartao.status === 'ATIVO' && (
+          <div className="bg-white/5 rounded-3xl p-5 border border-white/5 shadow-inner mb-4 flex flex-col gap-3">
+            <h3 className="text-white font-black text-lg flex items-center gap-2"><span>⚡</span> Recarga Rápida Online</h3>
+            <p className="text-xs text-blue-200">Adicione saldo ao seu cartão de consumação instantaneamente via Pix ou Cartão de Crédito.</p>
+            <button 
+              onClick={() => {
+                setAbrirRecarga(true);
+                setPassoRecarga('valor');
+                setRecargaErro('');
+              }} 
+              className="w-full bg-[#0D9488] hover:bg-[#0F766E] text-white font-black py-4 rounded-2xl transition-all shadow-lg text-lg flex items-center justify-center gap-2"
+              style={{ minHeight: "52px" }}
+            >
+              💳 Recarregar Saldo
+            </button>
+          </div>
+        )}
+
+        {/* HISTÓRICO DE MOVIMENTAÇÕES */}
+        {cartao.movimentacoes.length > 0 && (
+          <div className="bg-white/5 rounded-3xl p-5 border border-white/5 shadow-inner mb-6">
+            <h3 className="text-white font-black text-lg mb-3 flex items-center gap-2">
+              <span>🧾</span> Histórico de Uso
+            </h3>
+            <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
+              {cartao.movimentacoes.map((m) => (
+                <div key={m.id} className="flex justify-between items-center py-2.5 border-b border-white/5 last:border-0">
+                  <div>
+                    <p className="text-white font-bold text-sm">{m.descricao || m.produto?.nome || m.tipo}</p>
+                    <p className="text-blue-300/60 text-xs font-semibold">{dataFormatada(m.criadaEm)}</p>
+                  </div>
+                  <p className={`font-black text-base ${m.tipo === 'RECARGA' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {m.tipo === 'RECARGA' ? '+' : '-'} R$ {m.valor.toFixed(2).replace('.', ',')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* TERMOS DE USO OBRIGATÓRIOS (BOTTOM) */}
+      <div className="max-w-md mx-auto w-full text-center py-4 border-t border-white/10">
+        <p className="text-[11px] text-blue-200/60 font-bold leading-normal">
+          * Em caso de saldo não consumido, não haverá devolução e o valor restante será doado.
+        </p>
+        <p className="text-[10px] text-blue-300/40 mt-1">
+          La More Eventos © {new Date().getFullYear()}
+        </p>
+      </div>
+
+      {/* MODAL DE RECARGA */}
+      {abrirRecarga && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white text-gray-900 rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl flex flex-col relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            
+            {/* Fechar */}
+            <button 
+              onClick={() => setAbrirRecarga(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 font-black text-xl"
+            >
+              ✕
+            </button>
+
+            {passoRecarga === 'valor' && (
+              <>
+                <h3 className="text-2xl font-black text-[#1E3A8A] mb-4">Escolha o Valor</h3>
+                
+                {/* Campo Valor */}
+                <div className="bg-gray-50 border-2 border-gray-100 rounded-3xl p-5 text-center mb-6">
+                  <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Valor da Recarga</p>
+                  <div className="flex justify-center items-center gap-1">
+                    <span className="text-3xl font-black text-[#1E3A8A]">R$</span>
+                    <input 
+                      type="number" 
+                      value={valorRecarga} 
+                      onChange={(e) => setValorRecarga(e.target.value)}
+                      className="text-4xl font-black text-[#1E3A8A] bg-transparent outline-none w-32 text-center"
+                      placeholder="0,00"
+                    />
+                  </div>
+                </div>
+
+                {/* Grid valores fixos */}
+                <div className="grid grid-cols-3 gap-2 mb-6">
+                  {['30', '50', '100', '150', '200', '300'].map(v => (
+                    <button 
+                      key={v}
+                      onClick={() => setValorRecarga(v)}
+                      className={`py-3 rounded-2xl font-black transition-colors ${
+                        valorRecarga === v 
+                          ? 'bg-[#0D9488] text-white' 
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      R$ {v}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Selecionar Método */}
+                <h4 className="font-black text-gray-900 mb-3">Método de Pagamento</h4>
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <button 
+                    onClick={() => setMetodoRecarga('PIX')}
+                    className={`py-4 rounded-2xl border-2 font-black flex flex-col items-center gap-1 ${
+                      metodoRecarga === 'PIX'
+                        ? 'border-[#1E3A8A] bg-[#1E3A8A]/5 text-[#1E3A8A]'
+                        : 'border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    <span className="text-2xl">🟢</span>
+                    <span className="text-sm">Pix Dinâmico</span>
+                  </button>
+                  <button 
+                    onClick={() => setMetodoRecarga('CARD')}
+                    className={`py-4 rounded-2xl border-2 font-black flex flex-col items-center gap-1 ${
+                      metodoRecarga === 'CARD'
+                        ? 'border-[#1E3A8A] bg-[#1E3A8A]/5 text-[#1E3A8A]'
+                        : 'border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    <span className="text-2xl">💳</span>
+                    <span className="text-sm">Cartão de Crédito</span>
+                  </button>
+                </div>
+
+                {recargaErro && <p className="text-red-500 font-bold text-sm mb-4 text-center">{recargaErro}</p>}
+
+                <button 
+                  onClick={processarPagamentoOnline}
+                  disabled={processando || !valorRecarga || parseFloat(valorRecarga) <= 5}
+                  className="w-full bg-[#1E3A8A] hover:bg-[#152A66] text-white font-black py-4 rounded-2xl transition-all shadow-lg text-lg flex items-center justify-center gap-2"
+                  style={{ minHeight: "52px" }}
+                >
+                  {processando ? 'Processando...' : 'Avançar para Pagamento →'}
+                </button>
+                <p className="text-[10px] text-gray-400 text-center mt-2">Valor mínimo de recarga online: R$ 5,00</p>
+              </>
+            )}
+
+            {passoRecarga === 'pagando' && metodoRecarga === 'PIX' && (
+              <div className="text-center">
+                <h3 className="text-2xl font-black text-gray-900 mb-1">Aguardando Pagamento</h3>
+                <p className="text-xs text-gray-400 mb-6">Pague o Pix para creditar o cartão</p>
+
+                {pixQrCodeUrl ? (
+                  <img src={pixQrCodeUrl} alt="QR Code Pix" className="w-48 h-48 mx-auto mb-4 border border-gray-100 rounded-2xl p-2" />
+                ) : (
+                  <div className="w-48 h-48 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center text-4xl">⚡</div>
+                )}
+
+                <div className="mb-6">
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Código Copia e Cola</p>
+                  <input 
+                    type="text"
+                    readOnly
+                    value={pixPayload}
+                    onClick={(e) => {
+                      e.target.select();
+                      navigator.clipboard.writeText(pixPayload);
+                      alert('Pix Copia e Cola copiado para a área de transferência!');
+                    }}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono text-center cursor-pointer select-all truncate"
+                    title="Clique para copiar"
+                  />
+                  <p className="text-[9px] text-gray-400 mt-1">Toque no campo acima para copiar</p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <button 
+                    onClick={simularWebhookPix}
+                    disabled={processando}
+                    className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-3 rounded-xl transition-all"
+                  >
+                    {processando ? 'Processando...' : '⚡ Confirmar Pix (Simulação)'}
+                  </button>
+                  <button 
+                    onClick={() => setPassoRecarga('valor')}
+                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold py-3 rounded-xl transition-all"
+                  >
+                    Voltar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {passoRecarga === 'pagando' && metodoRecarga === 'CARD' && (
+              <form onSubmit={processarPagamentoOnline} className="space-y-4">
+                <h3 className="text-2xl font-black text-gray-900 mb-1">Dados do Cartão</h3>
+                <p className="text-xs text-gray-400 mb-4">Pagamento 100% seguro via Asaas</p>
+
+                <div>
+                  <label className="block text-gray-500 font-bold mb-1 text-xs">Nome Impresso no Cartão</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={cardName} 
+                    onChange={e => setCardName(e.target.value)} 
+                    placeholder="JOAO S SILVA" 
+                    className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-4 py-2.5 font-semibold transition-all text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-500 font-bold mb-1 text-xs">Número do Cartão</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={cardNumber} 
+                    onChange={e => setCardNumber(e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim().slice(0, 19))} 
+                    placeholder="0000 0000 0000 0000" 
+                    className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-4 py-2.5 font-semibold transition-all text-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-gray-500 font-bold mb-1 text-xs">Validade</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={cardExpiry} 
+                      onChange={e => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2, 4);
+                        setCardExpiry(val.slice(0, 5));
+                      }} 
+                      placeholder="MM/AA" 
+                      className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-4 py-2.5 font-semibold transition-all text-sm text-center"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 font-bold mb-1 text-xs">Código (CVC)</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={cardCvc} 
+                      onChange={e => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))} 
+                      placeholder="123" 
+                      className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-4 py-2.5 font-semibold transition-all text-sm text-center"
+                    />
+                  </div>
+                </div>
+
+                {recargaErro && <p className="text-red-500 font-bold text-xs text-center">{recargaErro}</p>}
+
+                <div className="flex gap-2 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setPassoRecarga('valor')}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold py-3.5 rounded-xl transition-all"
+                  >
+                    Voltar
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={processando}
+                    className="flex-1 bg-green-500 hover:bg-green-600 text-white font-black py-3.5 rounded-xl transition-all"
+                  >
+                    {processando ? 'Processando...' : 'Pagar Agora'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {passoRecarga === 'sucesso' && (
+              <div className="text-center py-6">
+                <span className="text-6xl block mb-4">🎉</span>
+                <h3 className="text-2xl font-black text-[#1E3A8A] mb-2">Recarga Aprovada!</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Seus créditos de <span className="font-bold text-gray-900">R$ {parseFloat(valorRecarga).toFixed(2).replace('.', ',')}</span> já foram adicionados ao seu saldo.
+                </p>
+                <button 
+                  onClick={() => {
+                    setAbrirRecarga(false);
+                    carregarCartao();
+                  }}
+                  className="w-full bg-[#1E3A8A] text-white font-black py-4 rounded-xl shadow-lg"
+                >
+                  Visualizar Meu Saldo
+                </button>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

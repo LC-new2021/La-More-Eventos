@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// role: "MASTER" | "ORGANIZADOR" | "CAIXA" | "OPERADOR_BAR"
+model Usuario {
+  id        String   @id @default(cuid())
+  nome      String
+  email     String   @unique
+  senha     String
+  role      String   @default("OPERADOR_BAR")
+  ativo     Boolean  @default(true)
+  eventoId  String?
+  evento    Evento?  @relation(fields: [eventoId], references: [id])
+  movimentacoes Movimentacao[]
+  razaoSocial   String?
+  cnpj          String?
+  ie            String?
+  endereco      String?
+  telefone      String?
+  gatewayActive String?  @default("ASAAS")
+  asaasToken    String?
+  asaasUrl      String?
+  pagbankToken  String?
+  pagbankKey    String?
+  criadoEm DateTime @default(now())
+}
+
+// status: "CONFIGURANDO" | "ATIVO" | "ENCERRADO" | "CANCELADO"
+model Evento {
+  id                String   @id @default(cuid())
+  nome              String
+  data              DateTime
+  local             String?
+  status            String   @default("CONFIGURANDO")
+  taxaMasterPercent Float?
+  bilheteriaEventoId String?
+  organizadorId     String?
+  metodosPagamentoJson String?
+  cartoes       Cartao[]
+  produtos      Produto[]
+  usuarios      Usuario[]
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
+model Cliente {
+  id       String  @id @default(cuid())
+  nome     String
+  cpf      String?
+  celular  String?
+  email    String?
+  cartoes  Cartao[]
+  criadoEm DateTime @default(now())
+}
+
+// status: "ATIVO" | "BLOQUEADO" | "ENCERRADO"
+model Cartao {
+  id        String  @id @default(cuid())
+  codigo    String  @unique
+  saldo     Float   @default(0)
+  status    String  @default("ATIVO")
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id])
+  eventoId  String
+  evento    Evento  @relation(fields: [eventoId], references: [id])
+  movimentacoes Movimentacao[]
+  criadoEm DateTime @default(now())
+  @@unique([clienteId, eventoId])
+}
+
+// tipo: "RECARGA" | "DEBITO" | "ESTORNO"
+model Movimentacao {
+  id        String   @id @default(cuid())
+  tipo      String
+  valor     Float
+  descricao String?
+  cartaoId  String
+  cartao    Cartao  @relation(fields: [cartaoId], references: [id])
+  produtoId  String?
+  produto    Produto? @relation(fields: [produtoId], references: [id])
+  operadorId String?
+  operador   Usuario? @relation(fields: [operadorId], references: [id])
+  gatewayId      String?
+  gatewayStatus  String?
+  valorTaxaMaster Float?
+  criadaEm DateTime @default(now())
+}
+
+model Produto {
+  id       String  @id @default(cuid())
+  nome     String
+  preco    Float
+  grupo    String
+  ativo    Boolean @default(true)
+  imagem   String?
+  eventoId String
+  evento   Evento @relation(fields: [eventoId], references: [id])
+  movimentacoes Movimentacao[]
+  criadoEm DateTime @default(now())
+}

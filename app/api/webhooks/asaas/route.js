@@ -1,0 +1,57 @@
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+
+export async function POST(req) {
+  try {
+    const body = await req.json();
+
+    // Eventos enviados pelo Asaas:
+    // PAYMENT_CONFIRMED ou PAYMENT_RECEIVED indicam sucesso
+    if (body.event === "PAYMENT_RECEIVED" || body.event === "PAYMENT_CONFIRMED") {
+      const payment = body.payment;
+      const paymentId = payment.id;
+      const txid = payment.externalReference;
+      const valor = payment.value;
+
+      console.log(`[Asaas Webhook] Pagamento Confirmado. ID Asaas: ${paymentId}, Ref Interna: ${txid}, Valor: R$ ${valor}`);
+
+      if (txid && txid.startsWith("RECARGA_PIX_")) {
+        const codigo = txid.replace("RECARGA_PIX_", "").toUpperCase();
+        
+        const cartao = await prisma.cartao.findUnique({
+          where: { codigo }
+        });
+
+        if (cartao) {
+          const evento = await prisma.evento.findUnique({ where: { id: cartao.eventoId } });
+          const taxaPct = evento?.taxaMasterPercent || 0;
+          const valorTaxaMaster = (valor * taxaPct) / 100;
+
+          await prisma.$transaction([
+            prisma.cartao.update({
+              where: { id: cartao.id },
+              data: { saldo: { increment: valor } }
+            }),
+            prisma.movimentacao.create({
+              data: {
+                tipo: 'RECARGA',
+                valor: valor,
+                descricao: `Recarga Pix Online (Asaas)`,
+                cartaoId: cartao.id,
+                gatewayId: paymentId,
+                gatewayStatus: "CONFIRMADO",
+                valorTaxaMaster
+              }
+            })
+          ]);
+          console.log(`[Asaas Webhook] Cartão ${codigo} recarregado com R$ ${valor} via Pix.`);
+        }
+      }
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (e) {
+    console.error("Erro no webhook do Asaas:", e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
