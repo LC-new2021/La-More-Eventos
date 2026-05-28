@@ -9,10 +9,10 @@ export const authOptions = {
       name: "Credenciais",
       credentials: {
         email: { label: "Email", type: "email" },
-        senha: { label: "Senha", type: "password" },
+        password: { label: "Senha", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.senha) return null;
+        if (!credentials?.email || !credentials?.password) return null;
 
         const usuario = await prisma.usuario.findUnique({
           where: { email: credentials.email },
@@ -20,7 +20,7 @@ export const authOptions = {
 
         if (!usuario || !usuario.ativo) return null;
 
-        const senhaValida = await bcrypt.compare(credentials.senha, usuario.senha);
+        const senhaValida = await bcrypt.compare(credentials.password, usuario.senha);
         if (!senhaValida) return null;
 
         return {
@@ -60,3 +60,4 @@ export const authOptions = {
 
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
+
