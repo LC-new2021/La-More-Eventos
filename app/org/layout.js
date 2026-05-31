@@ -68,7 +68,9 @@ export default function OrgLayout({ children }) {
       <aside className="fixed left-0 top-0 h-full w-64 bg-[#1D3461] text-white flex flex-col z-10">
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">🎯</span>
+            <div className="w-10 h-10 bg-white rounded-xl shadow-md overflow-hidden p-1 flex items-center justify-center shrink-0 border border-white/10">
+              <img src="/logo.png?v=3" alt="La More Logo" className="w-full h-full object-contain" />
+            </div>
             <div>
               <h1 className="font-black text-lg leading-tight">Retaguarda</h1>
               <p className="text-blue-200 text-sm font-semibold">Produtor</p>
