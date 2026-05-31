@@ -19,7 +19,7 @@ export default function AcessosPage() {
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-10 pt-6">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-xl mb-4 overflow-hidden p-1 border border-gray-200">
-            <img src="/logo.png" alt="La More Automação Logo" className="w-full h-full object-contain" />
+            <img src="/logo.png?v=3" alt="La More Automação Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-4xl font-black text-[#1D3461]">La More Eventos</h1>
           {session?.user?.nome && <p className="text-gray-500 text-lg font-semibold mt-1">Olá, {session.user.nome}!</p>}

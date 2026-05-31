@@ -535,7 +535,7 @@ export default function ProdutosPage() {
       {/* MODAL: PRODUTO */}
       {modalProduto && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in duration-200 scrollbar-thin">
             <h3 className="text-3xl font-black text-[#1D3461] mb-6">
               {produtoEditando ? "✏️ Editar Produto" : "➕ Novo Produto"}
             </h3>
@@ -637,7 +637,7 @@ export default function ProdutosPage() {
       {/* MODAL: PAGAMENTO */}
       {modalPagamento && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in duration-200 scrollbar-thin">
             <h3 className="text-3xl font-black text-[#1D3461] mb-6">
               ➕ Novo Método de Pagamento
             </h3>

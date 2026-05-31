@@ -45,7 +45,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl mb-4 shadow-xl overflow-hidden p-1">
-            <img src="/logo.png" alt="La More Automação Logo" className="w-full h-full object-contain" />
+            <img src="/logo.png?v=3" alt="La More Automação Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-4xl font-black text-white">La More</h1>
           <p className="text-blue-300 text-lg font-semibold mt-1">Sistema de Eventos</p>
