@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { signOut } from 'next-auth/react';
 
 const menuItens = [
   { href: "/master/eventos", emoji: "🎪", titulo: "Eventos", desc: "Criar e gerenciar todos os eventos da plataforma" },
@@ -70,12 +71,18 @@ export default function MasterDashboard() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10 space-y-2">
           <div className="px-4 py-3 bg-yellow-500/20 rounded-2xl">
             <p className="text-yellow-300 text-xs font-black uppercase tracking-widest">Perfil</p>
-            <p className="text-white font-bold text-lg">👑 Master Admin</p>
+            <p className="text-white font-bold text-base">👑 Master Admin</p>
           </div>
-          <Link href="/acessos" className="flex items-center gap-2 px-4 py-3 mt-2 text-blue-200 hover:text-white transition-colors font-semibold font-semibold">
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-200 hover:text-white rounded-2xl font-bold text-sm transition-all cursor-pointer"
+          >
+            Sair do Sistema →
+          </button>
+          <Link href="/acessos" className="flex items-center justify-center gap-2 px-4 py-1.5 text-blue-200 hover:text-white transition-colors font-semibold text-sm">
             ← Portal de Acessos
           </Link>
         </div>

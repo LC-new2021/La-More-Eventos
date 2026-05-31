@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 
 const menuItens = [
@@ -139,9 +139,15 @@ export default function OrgLayout({ children }) {
             <p className="text-blue-300 text-xs font-black uppercase tracking-widest">Perfil</p>
             <p className="text-white font-bold text-base">🎯 Produtor</p>
           </div>
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-200 hover:text-white rounded-2xl font-bold text-sm transition-all cursor-pointer"
+          >
+            Sair do Sistema →
+          </button>
           <Link
             href="/acessos"
-            className="flex items-center gap-2 px-4 py-2 text-blue-200 hover:text-white transition-colors font-semibold text-base"
+            className="flex items-center justify-center gap-2 px-4 py-1.5 text-blue-200 hover:text-white transition-colors font-semibold text-sm"
           >
             ← Portal de Acessos
           </Link>
