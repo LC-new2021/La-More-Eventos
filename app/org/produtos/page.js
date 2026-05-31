@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 export default function ProdutosPage() {
   const { data: session } = useSession();
@@ -15,10 +17,16 @@ export default function ProdutosPage() {
   const [modalProduto, setModalProduto] = useState(false);
   const [produtoEditando, setProdutoEditando] = useState(null);
 
+  // Importar Planilha
+  const [modalImportar, setModalImportar] = useState(false);
+  const [produtosParaImportar, setProdutosParaImportar] = useState([]);
+  const [importando, setImportando] = useState(false);
+
   // Forms
   const [nome, setNome] = useState("");
   const [preco, setPreco] = useState("");
   const [grupo, setGrupo] = useState("Bebidas");
+  const [imagem, setImagem] = useState("📦");
   const [novoGrupo, setNovoGrupo] = useState("");
   const [mostrarNovoGrupoInput, setMostrarNovoGrupoInput] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -118,11 +126,114 @@ export default function ProdutosPage() {
     }
   };
 
+  const baixarTemplateExcel = () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Modelo de Produtos");
+    sheet.addRow(["Nome", "Preço", "Categoria", "Ícone (Emoji)"]);
+    sheet.addRow(["Heineken 600ml", 18.00, "Bebidas", "🍺"]);
+    sheet.addRow(["Hambúrguer Gourmet", 35.50, "Food", "🍔"]);
+    sheet.addRow(["Batata Frita", 20.00, "Food", "🍟"]);
+    sheet.addRow(["Coca-Cola Lata", 8.00, "Bebidas", "🥤"]);
+    sheet.addRow(["Água Mineral", 5.00, "Bebidas", "🥤"]);
+    sheet.addRow(["Sorvete de Casquinha", 12.00, "Sobremesas", "🍦"]);
+    
+    sheet.columns = [
+      { width: 25 },
+      { width: 12 },
+      { width: 15 },
+      { width: 15 }
+    ];
+
+    workbook.xlsx.writeBuffer().then(buffer => {
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      saveAs(blob, "Modelo_Importacao_Produtos.xlsx");
+    });
+  };
+
+  const handleImportExcel = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const buffer = event.target.result;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        const worksheet = workbook.worksheets[0];
+
+        const importedProducts = [];
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // Pula cabeçalho
+
+          const nomeVal = row.getCell(1).value;
+          const nome = nomeVal?.toString() || nomeVal?.text || "";
+          
+          const precoVal = row.getCell(2).value;
+          const preco = typeof precoVal === 'object' ? parseFloat(precoVal?.result || 0) : parseFloat(precoVal || 0);
+          
+          const grupoVal = row.getCell(3).value;
+          const grupo = grupoVal?.toString() || grupoVal?.text || "Outros";
+          
+          const imagemVal = row.getCell(4).value;
+          const imagem = imagemVal?.toString() || imagemVal?.text || "📦";
+
+          if (nome && !isNaN(preco)) {
+            importedProducts.push({ nome, preco, grupo, imagem });
+          }
+        });
+
+        if (importedProducts.length === 0) {
+          alert("Nenhum produto válido encontrado na planilha. Verifique o formato do modelo.");
+          return;
+        }
+
+        setProdutosParaImportar(importedProducts);
+        setModalImportar(true);
+      } catch (err) {
+        console.error("Erro ao processar planilha:", err);
+        alert("Ocorreu um erro ao ler a planilha. Verifique se o arquivo está no formato XLSX.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = ""; // Reseta o input de arquivo
+  };
+
+  const confirmarImportacao = async () => {
+    if (produtosParaImportar.length === 0 || !eventoId) return;
+    setImportando(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/produtos/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          produtos: produtosParaImportar,
+          eventoId
+        })
+      });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setModalImportar(false);
+        setProdutosParaImportar([]);
+        carregarProdutos();
+      }
+    } catch (err) {
+      setError("Erro ao importar produtos em lote.");
+    } finally {
+      setImportando(false);
+    }
+  };
+
   const abrirNovoProduto = () => {
     setProdutoEditando(null);
     setNome("");
     setPreco("");
     setGrupo("Bebidas");
+    setImagem("📦");
     setNovoGrupo("");
     setMostrarNovoGrupoInput(false);
     setModalProduto(true);
@@ -133,6 +244,7 @@ export default function ProdutosPage() {
     setNome(p.nome);
     setPreco(p.preco.toString());
     setGrupo(p.grupo);
+    setImagem(p.imagem || "📦");
     setNovoGrupo("");
     setMostrarNovoGrupoInput(false);
     setModalProduto(true);
@@ -156,6 +268,7 @@ export default function ProdutosPage() {
           nome,
           preco: parseFloat(preco),
           grupo: grupoFinal,
+          imagem,
           eventoId
         })
       });
@@ -223,9 +336,35 @@ export default function ProdutosPage() {
           </p>
         </div>
         {aba === "produtos" && (
-          <button onClick={abrirNovoProduto} className="bg-[#1D3461] text-white font-black text-lg px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all" style={{ minHeight: "52px" }}>
-            + Novo Produto
-          </button>
+          <div className="flex gap-2 flex-wrap justify-end">
+            <button
+              onClick={baixarTemplateExcel}
+              className="bg-gray-100 text-gray-700 font-bold text-base px-4 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-1.5"
+              style={{ minHeight: "52px" }}
+              title="Baixar planilha modelo de importação"
+            >
+              📥 Modelo XLSX
+            </button>
+            <label
+              className="bg-green-600 text-white font-bold text-base px-5 py-3 rounded-2xl hover:bg-green-700 transition-all flex items-center gap-1.5 cursor-pointer"
+              style={{ minHeight: "52px" }}
+            >
+              <span>🟢</span> Importar XLSX
+              <input
+                type="file"
+                accept=".xlsx"
+                onChange={handleImportExcel}
+                className="hidden"
+              />
+            </label>
+            <button
+              onClick={abrirNovoProduto}
+              className="bg-[#1D3461] text-white font-black text-base px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all"
+              style={{ minHeight: "52px" }}
+            >
+              + Novo Produto
+            </button>
+          </div>
         )}
         {aba === "pagamentos" && (
           <button onClick={() => {
@@ -299,7 +438,7 @@ export default function ProdutosPage() {
               ) : (
                 produtosFiltrados.map((p) => (
                   <div key={p.id} className={`flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors ${!p.ativo ? "opacity-50" : ""}`}>
-                    <span className="text-3xl">📦</span>
+                    <span className="text-3xl">{p.imagem || "📦"}</span>
                     <div className="flex-1 min-w-0">
                       <p className="font-black text-gray-900 text-xl">{p.nome}</p>
                       <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-0.5 rounded-full">
@@ -457,6 +596,32 @@ export default function ProdutosPage() {
                 )}
               </div>
 
+              <div>
+                <label className="block font-black text-gray-700 text-base mb-2">Ícone (Emoji) *</label>
+                <div className="flex flex-wrap gap-2 mb-3 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                  {["🍺", "🍹", "🥤", "🍔", "🍕", "🍟", "🍿", "🍦", "🍰", "📦", "🎫", "👕"].map((emojiItem) => (
+                    <button
+                      key={emojiItem}
+                      type="button"
+                      onClick={() => setImagem(emojiItem)}
+                      className={`w-10 h-10 text-2xl flex items-center justify-center rounded-xl transition-all ${
+                        imagem === emojiItem ? "bg-[#1D3461] text-white scale-110 shadow-md" : "bg-white hover:bg-gray-200 text-gray-700 border border-gray-100"
+                      }`}
+                    >
+                      {emojiItem}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={imagem}
+                  onChange={(e) => setImagem(e.target.value)}
+                  placeholder="Ou digite outro emoji/ícone..."
+                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                />
+              </div>
+
               <div className="flex gap-3 mt-8 pt-4">
                 <button type="button" onClick={() => setModalProduto(false)} className="flex-1 bg-gray-100 text-gray-700 font-black text-base py-4 rounded-2xl" style={{ minHeight: "52px" }}>
                   Cancelar
@@ -542,6 +707,66 @@ export default function ProdutosPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: IMPORTAÇÃO PLANILHA */}
+      {modalImportar && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl animate-in fade-in duration-200">
+            <h3 className="text-3xl font-black text-[#1D3461] mb-2 flex items-center gap-2">
+              <span>📋</span> Confirmar Importação de Produtos
+            </h3>
+            <p className="text-gray-500 font-semibold mb-6">
+              Encontramos {produtosParaImportar.length} produtos válidos na sua planilha. Deseja importá-los para este evento?
+            </p>
+
+            <div className="border-2 border-gray-100 rounded-2xl overflow-hidden mb-6 max-h-60 overflow-y-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 font-bold text-xs uppercase tracking-wider">
+                    <th className="p-3">Ícone</th>
+                    <th className="p-3">Nome</th>
+                    <th className="p-3">Categoria</th>
+                    <th className="p-3 text-right">Preço</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 font-semibold text-sm">
+                  {produtosParaImportar.map((p, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="p-3 text-xl">{p.imagem}</td>
+                      <td className="p-3 text-gray-900 font-black">{p.nome}</td>
+                      <td className="p-3"><span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs">{p.grupo}</span></td>
+                      <td className="p-3 text-right text-gray-900">R$ {p.preco.toFixed(2).replace(".", ",")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-4 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalImportar(false);
+                  setProdutosParaImportar([]);
+                }}
+                disabled={importando}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-black px-6 py-3 rounded-2xl transition-all"
+                style={{ minHeight: "52px" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarImportacao}
+                disabled={importando}
+                className="bg-[#1D3461] hover:bg-blue-900 text-white font-black px-6 py-3 rounded-2xl transition-all disabled:opacity-50"
+                style={{ minHeight: "52px" }}
+              >
+                {importando ? "Importando..." : "✅ Confirmar e Importar"}
+              </button>
+            </div>
           </div>
         </div>
       )}

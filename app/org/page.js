@@ -69,7 +69,6 @@ export default function OrgDashboard() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Link href="/org/produtos" className="bg-[#1D3461] text-white font-black text-base px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all">+ Produto</Link>
           <Link href="/org/relatorios" className="bg-gray-100 text-gray-700 font-black text-base px-6 py-3 rounded-2xl hover:bg-gray-200 transition-all">📊 Exportar</Link>
         </div>
       </div>

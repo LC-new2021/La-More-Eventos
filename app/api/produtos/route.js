@@ -24,6 +24,7 @@ export async function POST(req) {
         preco: parseFloat(body.preco),
         grupo: body.grupo,
         eventoId: body.eventoId,
+        imagem: body.imagem || "📦",
         ativo: true,
       },
     });
