@@ -272,7 +272,15 @@ export default function BarApp() {
           <p className="text-blue-300 text-sm font-bold uppercase tracking-widest">Operador de Bar</p>
           <h1 className="text-2xl font-black text-white">La More Eventos</h1>
         </div>
-        <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-blue-300 text-sm font-bold">Sair</button>
+        <button 
+          onClick={async () => {
+            await signOut({ redirect: false });
+            window.location.href = "/login";
+          }} 
+          className="text-blue-300 text-sm font-bold cursor-pointer"
+        >
+          Sair
+        </button>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">

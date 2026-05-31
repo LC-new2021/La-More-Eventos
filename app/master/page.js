@@ -77,7 +77,10 @@ export default function MasterDashboard() {
             <p className="text-white font-bold text-base">👑 Master Admin</p>
           </div>
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={async () => {
+              await signOut({ redirect: false });
+              window.location.href = "/login";
+            }}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-200 hover:text-white rounded-2xl font-bold text-sm transition-all cursor-pointer"
           >
             Sair do Sistema →

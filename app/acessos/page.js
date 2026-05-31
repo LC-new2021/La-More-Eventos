@@ -54,7 +54,13 @@ export default function AcessosPage() {
 
           {/* Sair */}
           {session && (
-            <button onClick={() => signOut({ callbackUrl: "/login" })} className="w-full flex items-center justify-center gap-3 p-4 bg-white rounded-3xl border-2 border-gray-100 text-gray-500 font-bold hover:border-red-200 hover:text-red-500 transition-all">
+            <button 
+              onClick={async () => {
+                await signOut({ redirect: false });
+                window.location.href = "/login";
+              }} 
+              className="w-full flex items-center justify-center gap-3 p-4 bg-white rounded-3xl border-2 border-gray-100 text-gray-500 font-bold hover:border-red-200 hover:text-red-500 transition-all cursor-pointer"
+            >
               Sair do sistema →
             </button>
           )}

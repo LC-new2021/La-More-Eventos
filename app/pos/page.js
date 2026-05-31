@@ -503,7 +503,15 @@ export default function PosApp() {
           <p className="text-blue-300 text-base font-bold uppercase tracking-widest">Caixa de Entrada</p>
           <h1 className="text-3xl font-black text-white">POS La More</h1>
         </div>
-        <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-blue-300 font-bold text-lg">Sair</button>
+        <button 
+          onClick={async () => {
+            await signOut({ redirect: false });
+            window.location.href = "/login";
+          }} 
+          className="text-blue-300 font-bold text-lg cursor-pointer"
+        >
+          Sair
+        </button>
       </div>
 
       {/* Master Event Selector */}
