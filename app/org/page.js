@@ -7,16 +7,42 @@ export default function OrgDashboard() {
   const { data: session } = useSession();
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(true);
+  const [eventoId, setEventoId] = useState(null);
 
   useEffect(() => {
-    carregarDashboard();
-    const intervalo = setInterval(carregarDashboard, 30000); // atualiza a cada 30s
-    return () => clearInterval(intervalo);
-  }, []);
+    if (session) {
+      if (session.user.role === 'MASTER') {
+        const stored = localStorage.getItem("activeEventoId");
+        if (stored) {
+          setEventoId(stored);
+        } else {
+          fetch("/api/eventos")
+            .then((res) => res.json())
+            .then((data) => {
+              if (data && data.length > 0) {
+                localStorage.setItem("activeEventoId", data[0].id);
+                setEventoId(data[0].id);
+              }
+            });
+        }
+      } else {
+        setEventoId(session.user.eventoId);
+      }
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (eventoId) {
+      carregarDashboard();
+      const intervalo = setInterval(carregarDashboard, 30000); // atualiza a cada 30s
+      return () => clearInterval(intervalo);
+    }
+  }, [eventoId]);
 
   async function carregarDashboard() {
+    if (!eventoId) return;
     try {
-      const res = await fetch("/api/org/dashboard");
+      const res = await fetch(`/api/org/dashboard?eventoId=${eventoId}`);
       const data = await res.json();
       if (res.ok) setDados(data);
     } catch {}

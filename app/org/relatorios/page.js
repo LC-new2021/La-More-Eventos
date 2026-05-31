@@ -33,7 +33,29 @@ export default function RelatoriosPage() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
 
-  const eventoId = session?.user?.eventoId;
+  const [eventoId, setEventoId] = useState(null);
+
+  useEffect(() => {
+    if (session) {
+      if (session.user.role === 'MASTER') {
+        const stored = localStorage.getItem("activeEventoId");
+        if (stored) {
+          setEventoId(stored);
+        } else {
+          fetch("/api/eventos")
+            .then((res) => res.json())
+            .then((data) => {
+              if (data && data.length > 0) {
+                localStorage.setItem("activeEventoId", data[0].id);
+                setEventoId(data[0].id);
+              }
+            });
+        }
+      } else {
+        setEventoId(session.user.eventoId);
+      }
+    }
+  }, [session]);
 
   useEffect(() => {
     if (eventoId) {

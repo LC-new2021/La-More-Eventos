@@ -3,10 +3,16 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
-export async function GET() {
+export async function GET(req) {
   try {
     const session = await getServerSession(authOptions);
-    const eventoId = session?.user?.eventoId;
+    const { searchParams } = new URL(req.url);
+    let eventoId = session?.user?.eventoId;
+
+    if (session?.user?.role === 'MASTER') {
+      eventoId = searchParams.get('eventoId') || eventoId;
+    }
+
     if (!eventoId) return NextResponse.json({ error: 'Sem evento' }, { status: 400 });
 
     const [cartoes, movimentacoes, produtos] = await Promise.all([

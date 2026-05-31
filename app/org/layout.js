@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 
 const menuItens = [
   { href: "/org", emoji: "📊", titulo: "Dashboard", exact: true },
@@ -12,6 +14,53 @@ const menuItens = [
 
 export default function OrgLayout({ children }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const [evento, setEvento] = useState(null);
+  const [eventos, setEventos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const isMaster = session?.user?.role === 'MASTER';
+  const [eventoId, setEventoId] = useState(null);
+
+  useEffect(() => {
+    if (session) {
+      if (isMaster) {
+        const stored = localStorage.getItem("activeEventoId");
+        setEventoId(stored);
+        
+        // Buscar todos os eventos para a listagem do MASTER
+        fetch('/api/eventos')
+          .then(res => res.json())
+          .then(data => {
+            if (!data.error) {
+              setEventos(data);
+              if (!stored && data.length > 0) {
+                localStorage.setItem("activeEventoId", data[0].id);
+                setEventoId(data[0].id);
+                window.location.reload();
+              }
+            }
+          });
+      } else {
+        setEventoId(session.user.eventoId);
+      }
+    }
+  }, [session, isMaster]);
+
+  useEffect(() => {
+    if (eventoId) {
+      setLoading(true);
+      fetch(`/api/eventos/${eventoId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!data.error) setEvento(data);
+        })
+        .catch((err) => console.error("Erro ao buscar evento no layout:", err))
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, [eventoId]);
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -27,9 +76,34 @@ export default function OrgLayout({ children }) {
           </div>
           {/* Evento ativo */}
           <div className="mt-4 bg-white/10 rounded-2xl px-4 py-3">
-            <p className="text-blue-300 text-xs font-bold uppercase tracking-widest">Evento Ativo</p>
-            <p className="text-white font-black text-base truncate">Evento Demonstração</p>
-            <p className="text-blue-200 text-sm">15/06/2026</p>
+            <p className="text-blue-300 text-xs font-bold uppercase tracking-widest mb-1">Evento Ativo</p>
+            {isMaster ? (
+              <select
+                value={eventoId || ""}
+                onChange={(e) => {
+                  localStorage.setItem("activeEventoId", e.target.value);
+                  setEventoId(e.target.value);
+                  window.location.reload();
+                }}
+                className="w-full bg-[#152544] text-white rounded-xl px-2 py-1.5 font-bold text-sm outline-none border-2 border-white/10 focus:border-white/30 transition-all cursor-pointer"
+              >
+                <option value="">Selecione o Evento...</option>
+                {eventos.map((evt) => (
+                  <option key={evt.id} value={evt.id}>
+                    {evt.nome}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <p className="text-white font-black text-base truncate">
+                  {loading ? "Carregando..." : (evento ? evento.nome : "Sem evento vinculado")}
+                </p>
+                <p className="text-blue-200 text-sm">
+                  {evento?.data ? new Date(evento.data).toLocaleDateString('pt-BR') : "—"}
+                </p>
+              </>
+            )}
           </div>
         </div>
 

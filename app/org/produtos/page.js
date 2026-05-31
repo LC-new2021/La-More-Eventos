@@ -35,7 +35,29 @@ export default function ProdutosPage() {
   // Extracted unique groups from products list
   const grupos = [...new Set(["Bebidas", "Food", "Sobremesas", "Outros", ...produtos.map((p) => p.grupo).filter(Boolean)])];
 
-  const eventoId = session?.user?.eventoId;
+  const [eventoId, setEventoId] = useState(null);
+
+  useEffect(() => {
+    if (session) {
+      if (session.user.role === 'MASTER') {
+        const stored = localStorage.getItem("activeEventoId");
+        if (stored) {
+          setEventoId(stored);
+        } else {
+          fetch("/api/eventos")
+            .then((res) => res.json())
+            .then((data) => {
+              if (data && data.length > 0) {
+                localStorage.setItem("activeEventoId", data[0].id);
+                setEventoId(data[0].id);
+              }
+            });
+        }
+      } else {
+        setEventoId(session.user.eventoId);
+      }
+    }
+  }, [session]);
 
   useEffect(() => {
     if (eventoId) {

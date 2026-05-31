@@ -41,6 +41,20 @@ export const authOptions = {
         token.nome = user.nome;
         token.role = user.role;
         token.eventoId = user.eventoId;
+      } else if (token?.id) {
+        try {
+          const dbUser = await prisma.usuario.findUnique({
+            where: { id: token.id },
+            select: { role: true, eventoId: true, nome: true },
+          });
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.eventoId = dbUser.eventoId;
+            token.nome = dbUser.nome;
+          }
+        } catch (e) {
+          console.error("Erro ao sincronizar token JWT:", e);
+        }
       }
       return token;
     },
