@@ -14,7 +14,11 @@ export async function GET(req, { params }) {
       }
     });
     if (!evento) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
-    const gatewayActive = evento.usuarios?.[0]?.gatewayActive || "NENHUM";
+    
+    const dbGatewayActive = evento.usuarios?.[0]?.gatewayActive;
+    const hasGlobalAsaas = !!process.env.ASAAS_API_KEY;
+    const gatewayActive = dbGatewayActive || (hasGlobalAsaas ? "ASAAS" : "NENHUM");
+    
     const { usuarios, ...rest } = evento;
     return NextResponse.json({ ...rest, gatewayActive });
   } catch (e) {

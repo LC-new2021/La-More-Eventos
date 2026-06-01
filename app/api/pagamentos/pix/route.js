@@ -13,14 +13,6 @@ export async function POST(req) {
     const host = req.headers.get("host") || "";
     let asaasApiKey = process.env.ASAAS_API_KEY;
     let asaasUrl = process.env.ASAAS_API_URL;
-    
-    if (!asaasUrl) {
-      if (host.includes("localhost") || host.includes("127.0.0.1") || host.includes("3000") || host.includes("3001")) {
-        asaasUrl = "https://sandbox.asaas.com/api";
-      } else {
-        asaasUrl = "https://api.asaas.com";
-      }
-    }
 
     if (eventoId) {
       const evento = await prisma.evento.findUnique({
@@ -36,6 +28,20 @@ export async function POST(req) {
         asaasApiKey = produtor.asaasToken;
         if (produtor.asaasUrl) {
           asaasUrl = produtor.asaasUrl;
+        } else {
+          asaasUrl = ""; // Force auto-detection for the producer's token
+        }
+      }
+    }
+
+    if (!asaasUrl) {
+      if (asaasApiKey && asaasApiKey.trim().startsWith("$")) {
+        asaasUrl = "https://sandbox.asaas.com/api";
+      } else {
+        if (host.includes("localhost") || host.includes("127.0.0.1") || host.includes("3000") || host.includes("3001")) {
+          asaasUrl = "https://sandbox.asaas.com/api";
+        } else {
+          asaasUrl = "https://api.asaas.com";
         }
       }
     }
