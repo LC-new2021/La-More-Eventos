@@ -168,128 +168,95 @@ export default function MasterUsuarios() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <div className="fixed left-0 top-0 h-full w-64 bg-[#1D3461] text-white flex flex-col z-10">
-        <div className="p-6 border-b border-white/10">
-          <Link href="/master" className="flex flex-col text-left group cursor-pointer focus:outline-none w-full">
-            <h1 className="font-black text-xl leading-tight group-hover:text-blue-200 transition-colors">Lamore Eventos</h1>
-            <p className="text-blue-300 text-sm font-semibold mt-0.5">Painel Master</p>
-          </Link>
+    <div className="max-w-5xl mx-auto">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h2 className="text-4xl font-black text-[#1D3461] mb-2">Usuários e Operadores</h2>
+          <p className="text-gray-500 text-lg font-semibold">Gerencie os acessos de organizadores, caixas e operadores</p>
         </div>
-
-        <nav className="flex-1 p-4 space-y-2">
-          <Link href="/master" className="flex items-center gap-3 px-4 py-3 rounded-2xl text-blue-100 hover:bg-white/10 hover:text-white transition-all font-semibold text-lg">
-            <span>🏠</span> Dashboard
-          </Link>
-          <Link href="/master/eventos" className="flex items-center gap-3 px-4 py-3 rounded-2xl text-blue-100 hover:bg-white/10 hover:text-white transition-all font-semibold text-lg">
-            <span>🎪</span> Eventos
-          </Link>
-          <Link href="/master/usuarios" className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/10 text-white transition-all font-semibold text-lg">
-            <span>👥</span> Usuários
-          </Link>
-          <Link href="/master/financeiro" className="flex items-center gap-3 px-4 py-3 rounded-2xl text-blue-100 hover:bg-white/10 hover:text-white transition-all font-semibold text-lg">
-            <span>💰</span> Financeiro
-          </Link>
-        </nav>
-
-        <div className="p-4 border-t border-white/10">
-          <Link href="/acessos" className="flex items-center gap-2 px-4 py-3 text-blue-200 hover:text-white transition-colors font-semibold">
-            ← Portal de Acessos
-          </Link>
-        </div>
+        <button
+          onClick={abrirCriar}
+          className="bg-[#1D3461] hover:bg-[#112244] text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg text-lg flex items-center gap-2"
+        >
+          <span>➕</span> Novo Usuário
+        </button>
       </div>
 
-      {/* Conteúdo Principal */}
-      <div className="ml-64 p-8 flex-1">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-4xl font-black text-[#1D3461] mb-2">Usuários e Operadores</h2>
-              <p className="text-gray-500 text-lg font-semibold">Gerencie os acessos de organizadores, caixas e operadores</p>
-            </div>
-            <button
-              onClick={abrirCriar}
-              className="bg-[#1D3461] hover:bg-[#112244] text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg text-lg flex items-center gap-2"
-            >
-              <span>➕</span> Novo Usuário
-            </button>
-          </div>
+      {error && (
+        <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold flex items-center gap-3">
+          <span>⚠️</span> {error}
+        </div>
+      )}
 
-          {error && (
-            <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold flex items-center gap-3">
-              <span>⚠️</span> {error}
-            </div>
-          )}
-
-          {loading ? (
-            <div className="text-center py-12">
-              <p className="text-[#1D3461] text-xl font-bold">Carregando usuários...</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold">
-                    <th className="p-6">Nome</th>
-                    <th className="p-6">E-mail</th>
-                    <th className="p-6">Função</th>
-                    <th className="p-6">Evento Vinculado</th>
-                    <th className="p-6">Status</th>
-                    <th className="p-6">Ações</th>
+      {loading ? (
+        <div className="text-center py-12">
+          <p className="text-[#1D3461] text-xl font-bold">Carregando usuários...</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold">
+                  <th className="p-6">Nome</th>
+                  <th className="p-6">E-mail</th>
+                  <th className="p-6">Função</th>
+                  <th className="p-6">Evento Vinculado</th>
+                  <th className="p-6">Status</th>
+                  <th className="p-6">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {usuarios.map((u) => (
+                  <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="p-6 font-bold text-gray-900">{u.nome}</td>
+                    <td className="p-6 font-semibold text-gray-500">{u.email}</td>
+                    <td className="p-6">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${
+                        u.role === 'MASTER' ? 'bg-purple-100 text-purple-700' :
+                        u.role === 'ORGANIZADOR' ? 'bg-blue-100 text-blue-700' :
+                        u.role === 'CAIXA' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {u.role.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="p-6 font-bold text-gray-700">
+                      {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}
+                    </td>
+                    <td className="p-6">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                        u.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {u.ativo ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </td>
+                    <td className="p-6 flex gap-2">
+                      <button
+                        onClick={() => abrirEditar(u)}
+                        className="font-black text-sm px-4 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-100 hover:bg-gray-50"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        onClick={() => handleDeativar(u.id, u.ativo)}
+                        className={`font-black text-sm px-4 py-2 rounded-xl transition-all border-2 ${
+                          u.ativo
+                            ? 'text-red-600 border-red-100 hover:bg-red-50'
+                            : 'text-green-600 border-green-100 hover:bg-green-50'
+                        }`}
+                      >
+                        {u.ativo ? 'Desativar' : 'Reativar'}
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {usuarios.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="p-6 font-bold text-gray-900">{u.nome}</td>
-                      <td className="p-6 font-semibold text-gray-500">{u.email}</td>
-                      <td className="p-6">
-                        <span className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${
-                          u.role === 'MASTER' ? 'bg-purple-100 text-purple-700' :
-                          u.role === 'ORGANIZADOR' ? 'bg-blue-100 text-blue-700' :
-                          u.role === 'CAIXA' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-green-100 text-green-700'
-                        }`}>
-                          {u.role.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="p-6 font-bold text-gray-700">
-                        {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}
-                      </td>
-                      <td className="p-6">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${
-                          u.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                          {u.ativo ? 'Ativo' : 'Inativo'}
-                        </span>
-                      </td>
-                      <td className="p-6 flex gap-2">
-                        <button
-                          onClick={() => abrirEditar(u)}
-                          className="font-black text-sm px-4 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-100 hover:bg-gray-50"
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          onClick={() => handleDeativar(u.id, u.ativo)}
-                          className={`font-black text-sm px-4 py-2 rounded-xl transition-all border-2 ${
-                            u.ativo
-                              ? 'text-red-600 border-red-100 hover:bg-red-50'
-                              : 'text-green-600 border-green-100 hover:bg-green-50'
-                          }`}
-                        >
-                          {u.ativo ? 'Desativar' : 'Reativar'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
 
       {/* Modal Criar/Editar Usuário */}
       {mostrarModal && (

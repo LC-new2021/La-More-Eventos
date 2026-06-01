@@ -137,7 +137,7 @@ export default function OrgDashboard() {
       </div>
 
       {/* Atalhos */}
-      <div className="grid grid-cols-3 gap-4 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
         {[
           { href: "/org/produtos", emoji: "🍺", titulo: "Gerenciar Cardápio" },
           { href: "/org/operadores", emoji: "👥", titulo: "Ver Operadores" },

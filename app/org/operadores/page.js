@@ -196,37 +196,41 @@ export default function OperadoresPage() {
             operadores.map((op) => {
               const tipo = labels[op.role] || { label: "Outro", cor: "bg-gray-100 text-gray-700", emoji: "👤" };
               return (
-                <div key={op.id} className={`flex items-center gap-4 px-6 py-5 hover:bg-gray-50 transition-colors ${!op.ativo ? "opacity-50" : ""}`}>
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${tipo.cor}`}>
-                    {tipo.emoji}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-black text-gray-900 text-xl">{op.nome}</p>
-                    <p className="text-gray-500 font-semibold text-base">{op.email}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-xs font-black px-3 py-1 rounded-full ${tipo.cor}`}>
-                        {tipo.label}
-                      </span>
+                <div key={op.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-5 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${!op.ativo ? "opacity-50" : ""}`}>
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${tipo.cor} shrink-0`}>
+                      {tipo.emoji}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-black text-gray-900 text-xl truncate">{op.nome}</p>
+                      <p className="text-gray-500 font-semibold text-base truncate">{op.email}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-xs font-black px-3 py-1 rounded-full ${tipo.cor}`}>
+                          {tipo.label}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 self-end sm:self-center shrink-0">
                     <button
                       onClick={() => abrirEditar(op)}
-                      className="px-4 py-2 rounded-2xl font-black text-base bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"
+                      className="px-4 py-2 rounded-2xl font-black text-base bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all flex items-center gap-1"
                       style={{ minHeight: "44px" }}
                     >
-                      ✏️ Editar
+                      <span>✏️</span>
+                      <span className="hidden sm:inline">Editar</span>
                     </button>
                     <button
                       onClick={() => toggleAtivo(op)}
-                      className={`px-4 py-2 rounded-2xl font-black text-base transition-all ${
+                      className={`px-4 py-2 rounded-2xl font-black text-base transition-all flex items-center gap-1 ${
                         op.ativo
                           ? "bg-green-100 text-green-700 hover:bg-green-200"
                           : "bg-red-50 text-red-500 hover:bg-red-100"
                       }`}
                       style={{ minHeight: "44px" }}
                     >
-                      {op.ativo ? "✅ Ativo" : "❌ Inativo"}
+                      <span>{op.ativo ? "✅" : "❌"}</span>
+                      <span className="hidden sm:inline">{op.ativo ? "Ativo" : "Inativo"}</span>
                     </button>
                   </div>
                 </div>

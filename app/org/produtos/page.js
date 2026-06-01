@@ -325,7 +325,7 @@ export default function ProdutosPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* HEADER */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-4xl font-black text-[#1D3461]">Cardápio & Pagamentos</h2>
           <p className="text-gray-500 text-lg font-semibold mt-1">
@@ -437,38 +437,43 @@ export default function ProdutosPage() {
                 <p className="text-center text-gray-400 font-semibold text-lg py-12">Nenhum produto cadastrado.</p>
               ) : (
                 produtosFiltrados.map((p) => (
-                  <div key={p.id} className={`flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors ${!p.ativo ? "opacity-50" : ""}`}>
-                    <span className="text-3xl">{p.imagem || "📦"}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-gray-900 text-xl">{p.nome}</p>
-                      <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-0.5 rounded-full">
-                        {p.grupo}
-                      </span>
+                  <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
+                    <div className="flex items-center gap-4 flex-1">
+                      <span className="text-3xl shrink-0">{p.imagem || "📦"}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-black text-gray-900 text-xl truncate">{p.nome}</p>
+                        <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-0.5 rounded-full inline-block mt-0.5">
+                          {p.grupo}
+                        </span>
+                      </div>
+                      <p className="font-black text-[#1D3461] text-2xl shrink-0 text-right sm:w-32">
+                        R$ {p.preco.toFixed(2).replace(".", ",")}
+                      </p>
                     </div>
-                    <p className="font-black text-[#1D3461] text-2xl w-32 text-right">
-                      R$ {p.preco.toFixed(2).replace(".", ",")}
-                    </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                       <button
                         onClick={() => toggleAtivoProduto(p)}
                         className={`px-4 py-2 rounded-2xl font-black text-base transition-all ${p.ativo ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-500 hover:bg-red-100"}`}
                         style={{ minHeight: "44px" }}
                       >
-                        {p.ativo ? "✅ Ativo" : "❌ Inativo"}
+                        <span>{p.ativo ? "✅" : "❌"}</span>
+                        <span className="hidden sm:inline ml-1">{p.ativo ? "Ativo" : "Inativo"}</span>
                       </button>
                       <button
                         onClick={() => abrirEditarProduto(p)}
-                        className="px-4 py-2 rounded-2xl font-black text-base bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"
+                        className="px-4 py-2 rounded-2xl font-black text-base bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all flex items-center gap-1"
                         style={{ minHeight: "44px" }}
                       >
-                        ✏️ Editar
+                        <span>✏️</span>
+                        <span className="hidden sm:inline">Editar</span>
                       </button>
                       <button
                         onClick={() => excluirProduto(p.id)}
-                        className="px-4 py-2 rounded-2xl font-black text-base bg-red-50 text-red-500 hover:bg-red-100 transition-all"
+                        className="px-4 py-2 rounded-2xl font-black text-base bg-red-50 text-red-500 hover:bg-red-100 transition-all flex items-center gap-1"
                         style={{ minHeight: "44px" }}
                       >
-                        🗑️ Excluir
+                        <span>🗑️</span>
+                        <span className="hidden sm:inline">Excluir</span>
                       </button>
                     </div>
                   </div>

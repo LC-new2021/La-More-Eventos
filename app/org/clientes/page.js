@@ -191,10 +191,10 @@ export default function ClientesPage() {
       {/* Tabela */}
       <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
         <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-gray-50 border-b border-gray-100">
-          <p className="col-span-4 text-xs font-black text-gray-400 uppercase tracking-widest">Cliente</p>
-          <p className="col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">CPF</p>
-          <p className="col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">Celular</p>
-          <p className="col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Saldo Atual</p>
+          <p className="col-span-8 md:col-span-4 text-xs font-black text-gray-400 uppercase tracking-widest">Cliente</p>
+          <p className="hidden md:block md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">CPF</p>
+          <p className="hidden md:block md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">Celular</p>
+          <p className="col-span-4 md:col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Saldo Atual</p>
         </div>
 
         <div className="divide-y divide-gray-50">
@@ -205,27 +205,28 @@ export default function ClientesPage() {
           ) : (
             clientes.map((c) => (
               <div key={c.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors">
-                <div className="col-span-4">
+                <div className="col-span-8 md:col-span-4">
                   <p className="font-black text-gray-900 text-lg">{c.cliente.nome}</p>
-                  <div className="flex gap-2 items-center text-xs font-bold text-gray-400 mt-0.5">
+                  <div className="flex flex-wrap gap-1 md:gap-2 items-center text-xs font-bold text-gray-400 mt-0.5">
                     <span className="uppercase">Cód: {c.codigo}</span>
                     <span>•</span>
                     <span className="text-blue-500/80">Reg: {c.cadastradoPor}</span>
+                    {c.cliente.cpf && <span className="md:hidden">• CPF: {c.cliente.cpf}</span>}
                   </div>
                 </div>
-                <p className="col-span-3 text-gray-500 font-semibold text-base">
+                <p className="hidden md:block md:col-span-3 text-gray-500 font-semibold text-base">
                   {c.cliente.cpf || <span className="text-gray-300 italic">—</span>}
                 </p>
-                <p className="col-span-3 text-gray-500 font-semibold text-base">
+                <p className="hidden md:block md:col-span-3 text-gray-500 font-semibold text-base">
                   {c.cliente.celular || <span className="text-gray-300 italic">—</span>}
                 </p>
-                <p className={`col-span-2 font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
+                <p className={`col-span-4 md:col-span-2 font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
                   R$ {c.saldo.toFixed(2).replace(".", ",")}
                 </p>
               </div>
             ))
-          )}
-        </div>
+          )
+        }</div>
       </div>
     </div>
   );

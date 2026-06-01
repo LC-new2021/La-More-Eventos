@@ -64,8 +64,8 @@ export default function OrgLayout({ children }) {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-[#1D3461] text-white flex flex-col z-10">
+      {/* Sidebar (Desktop) */}
+      <aside className="hidden lg:flex lg:fixed lg:left-0 lg:top-0 lg:h-full lg:w-64 bg-[#1D3461] text-white flex-col z-10">
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white rounded-xl shadow-md overflow-hidden p-1 flex items-center justify-center shrink-0 border border-white/10">
@@ -158,9 +158,43 @@ export default function OrgLayout({ children }) {
       </aside>
 
       {/* Conteúdo */}
-      <main className="ml-64 flex-1 p-8">
+      <main className="ml-0 lg:ml-64 flex-1 p-4 md:p-8 pb-28 lg:pb-8">
+        {/* Mobile Header indicator */}
+        <div className="flex items-center justify-between bg-[#1D3461] text-white p-4 rounded-2xl mb-6 lg:hidden shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🎪</span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-blue-200 uppercase tracking-wider">Evento Ativo</p>
+              <p className="font-black text-base truncate">{loading ? "..." : (evento ? evento.nome : "Sem evento")}</p>
+            </div>
+          </div>
+          <Link href="/acessos" className="text-xs font-black bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">Sair</Link>
+        </div>
+
         {children}
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#1D3461] border-t border-white/10 flex justify-around p-2 z-20 lg:hidden text-white shadow-xl">
+        {menuItens.map((item) => {
+          const ativo = item.exact
+            ? pathname === item.href
+            : pathname.startsWith(item.href) && item.href !== "/org";
+          const isAtivo = ativo || (item.exact && pathname === item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex flex-col items-center p-2 rounded-xl transition-all ${
+                isAtivo ? "text-yellow-400 font-black" : "text-blue-200"
+              }`}
+            >
+              <span className="text-2xl">{item.emoji}</span>
+              <span className="text-[10px] font-bold mt-0.5">{item.titulo}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }
