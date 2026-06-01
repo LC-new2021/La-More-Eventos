@@ -129,7 +129,6 @@ export default function PosApp() {
   }, [codigoCartao]);
 
   async function buscarCliente() {
-    if (!termoBusca.trim()) return;
     if (!eventoId) {
       setErro("Nenhum evento ativo selecionado. Selecione o evento para buscas.");
       return;

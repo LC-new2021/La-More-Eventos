@@ -9,22 +9,55 @@ export async function GET(req) {
   const q = searchParams.get('q') || '';
   const eventoId = searchParams.get('eventoId');
   try {
+    if (!eventoId) {
+      return NextResponse.json({ error: 'eventoId é obrigatório' }, { status: 400 });
+    }
+
     const cartoes = await prisma.cartao.findMany({
-      where: {
-        ...(eventoId && { eventoId }),
-        cliente: {
-          OR: [
-            { nome: { contains: q } },
-            { cpf: { contains: q } },
-            { celular: { contains: q } },
-          ],
-        },
+      where: { eventoId },
+      include: {
+        cliente: true,
+        movimentacoes: {
+          where: { tipo: "RECARGA" },
+          orderBy: { criadaEm: "asc" },
+          take: 1,
+          include: {
+            operador: {
+              select: { nome: true, role: true }
+            }
+          }
+        }
       },
-      include: { cliente: true },
       orderBy: { criadoEm: 'desc' },
-      take: 20,
     });
-    return NextResponse.json(cartoes);
+
+    const totalCadastrados = await prisma.cartao.count({
+      where: { eventoId }
+    });
+
+    let filtered = cartoes.map(c => {
+      const recargaInicial = c.movimentacoes?.[0];
+      const operador = recargaInicial?.operador;
+      return {
+        ...c,
+        cadastradoPor: operador ? `${operador.nome} (${operador.role})` : "Sistema / Outro"
+      };
+    });
+
+    if (q.trim()) {
+      const queryLower = q.toLowerCase();
+      filtered = filtered.filter(c => {
+        const nomeMatch = c.cliente?.nome?.toLowerCase().includes(queryLower);
+        const cpfMatch = c.cliente?.cpf?.includes(queryLower);
+        const celularMatch = c.cliente?.celular?.includes(queryLower);
+        const codigoMatch = c.codigo?.toLowerCase().includes(queryLower);
+        return nomeMatch || cpfMatch || celularMatch || codigoMatch;
+      });
+    }
+
+    const response = NextResponse.json(filtered);
+    response.headers.set('X-Total-Count', totalCadastrados.toString());
+    return response;
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

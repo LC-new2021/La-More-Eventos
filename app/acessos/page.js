@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 
@@ -14,6 +15,20 @@ export default function AcessosPage() {
   const role = session?.user?.role;
   const perfil = perfis[role];
 
+  const [evento, setEvento] = useState(null);
+  const eventoId = session?.user?.eventoId;
+
+  useEffect(() => {
+    if (eventoId) {
+      fetch(`/api/eventos/${eventoId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.error) setEvento(data);
+        })
+        .catch(console.error);
+    }
+  }, [eventoId]);
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
@@ -22,7 +37,24 @@ export default function AcessosPage() {
             <img src="/logo.png?v=3" alt="La More Automação Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-4xl font-black text-[#1D3461]">La More Eventos</h1>
-          {session?.user?.nome && <p className="text-gray-500 text-lg font-semibold mt-1">Olá, {session.user.nome}!</p>}
+          {session?.user?.nome && (
+            <div>
+              <p className="text-gray-500 text-lg font-semibold mt-1">Olá, {session.user.nome}!</p>
+              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">
+                Função: {
+                  role === "MASTER" ? "👑 Administrador Master" :
+                  role === "ORGANIZADOR" ? "🎯 Produtor / Organizador" :
+                  role === "CAIXA" ? "💳 Operador de Caixa" :
+                  role === "OPERADOR_BAR" ? "🍺 Operador de Bar" : role
+                }
+              </p>
+              {evento && (
+                <p className="text-[#1D3461] text-base font-black mt-2 bg-blue-50/50 border border-blue-100 rounded-full px-4 py-1.5 inline-block">
+                  🎪 Evento Vinculado: {evento.nome}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">

@@ -21,6 +21,13 @@ export default function BarApp() {
   const scannerRef = useRef(null);
   const html5QrRef = useRef(null);
 
+  // Busca de clientes no Bar
+  const [buscaAtiva, setBuscaAtiva] = useState(false);
+  const [termoBusca, setTermoBusca] = useState("");
+  const [resultadosBusca, setResultadosBusca] = useState([]);
+  const [buscando, setBuscando] = useState(false);
+  const [totalFesta, setTotalFesta] = useState(0);
+
   const eventoId = session?.user?.eventoId;
   const [evento, setEvento] = useState(null);
 
@@ -32,6 +39,7 @@ export default function BarApp() {
     if (eventoId) {
       carregarProdutos();
       carregarEvento();
+      carregarTotalFesta();
     }
   }, [eventoId]);
 
@@ -42,6 +50,45 @@ export default function BarApp() {
       if (!data.error) setEvento(data);
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  async function carregarTotalFesta() {
+    if (!eventoId) return;
+    try {
+      const res = await fetch(`/api/clientes?eventoId=${eventoId}&q=`);
+      const totalHeader = res.headers.get("X-Total-Count");
+      if (totalHeader) {
+        setTotalFesta(parseInt(totalHeader));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function buscarClientesNoBar() {
+    if (!eventoId) {
+      setErro("Nenhum evento ativo para fazer buscas.");
+      return;
+    }
+    setBuscando(true);
+    setErro("");
+    try {
+      const res = await fetch(`/api/clientes?q=${encodeURIComponent(termoBusca)}&eventoId=${eventoId}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error || "Erro ao buscar clientes.");
+        return;
+      }
+      setResultadosBusca(data);
+      const totalHeader = res.headers.get("X-Total-Count");
+      if (totalHeader) {
+        setTotalFesta(parseInt(totalHeader));
+      }
+    } catch {
+      setErro("Erro de conexão ao buscar clientes.");
+    } finally {
+      setBuscando(false);
     }
   }
 
@@ -254,7 +301,7 @@ export default function BarApp() {
     <div className="min-h-screen bg-[#1D3461] flex flex-col">
       <div className="p-5 bg-[#152849] flex items-center justify-between">
         <div>
-          <p className="text-blue-300 text-sm font-bold uppercase tracking-widest">Operador de Bar</p>
+          <p className="text-blue-300 text-sm font-bold uppercase tracking-widest">Operador de Bar: {session?.user?.nome}</p>
           <h1 className="text-2xl font-black text-white">{cartao?.cliente?.nome}</h1>
           <p className="text-green-400 font-black text-xl">R$ {cartao?.saldo?.toFixed(2).replace(".",",")}</p>
         </div>
@@ -278,12 +325,82 @@ export default function BarApp() {
     </div>
   );
 
+  // ── Busca de Cliente no Bar ──
+  if (buscaAtiva) return (
+    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
+      <button onClick={() => { setBuscaAtiva(false); setTermoBusca(""); setResultadosBusca([]); }} className="text-blue-200 text-xl font-bold mb-8">← Voltar</button>
+      
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-3xl font-black text-white">Buscar Cliente</h2>
+          <p className="text-blue-200 text-sm mt-0.5 font-semibold">Pesquise por nome, CPF ou código</p>
+        </div>
+        {totalFesta > 0 && (
+          <div className="bg-white/10 px-4 py-2 rounded-2xl text-center border border-white/10">
+            <p className="text-[10px] text-blue-200 font-bold uppercase tracking-wider">Cadastrados Festa</p>
+            <p className="text-white text-lg font-black">{totalFesta}</p>
+          </div>
+        )}
+      </div>
+
+      {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500 text-center">{erro}</p>}
+      
+      <div className="flex gap-2 mb-6">
+        <input 
+          value={termoBusca} 
+          onChange={e => setTermoBusca(e.target.value)} 
+          onKeyDown={e => e.key === "Enter" && buscarClientesNoBar()} 
+          placeholder="Nome, CPF ou em branco para todos..." 
+          className="flex-1 bg-white/10 border-2 border-white/20 text-white placeholder-blue-300/50 rounded-2xl px-5 py-4 text-lg font-semibold focus:outline-none focus:border-white transition-all uppercase" 
+        />
+        <button 
+          onClick={buscarClientesNoBar} 
+          disabled={buscando} 
+          className="bg-white text-[#1D3461] font-black px-6 py-4 rounded-2xl hover:bg-blue-50 transition-colors flex items-center justify-center cursor-pointer"
+          style={{ minHeight: "56px" }}
+        >
+          {buscando ? "..." : "Buscar"}
+        </button>
+      </div>
+
+      <div className="space-y-3 flex-1 overflow-y-auto max-h-[60vh] scrollbar-thin">
+        {buscando && <p className="text-blue-200 text-center py-8 font-semibold">Buscando clientes...</p>}
+        
+        {resultadosBusca.map(c => (
+          <div key={c.id} className="bg-white rounded-3xl p-5 shadow-md flex justify-between items-center gap-4">
+            <div className="min-w-0">
+              <h3 className="text-lg font-black text-gray-900 truncate">{c.cliente.nome}</h3>
+              <p className="text-gray-400 text-xs font-bold uppercase">Cód: {c.codigo} {c.cliente.cpf ? `· CPF: ${c.cliente.cpf}` : ""}</p>
+            </div>
+            <div className="text-right shrink-0 flex flex-col items-end gap-2">
+              <span className="text-green-600 font-black text-xl">R$ {c.saldo.toFixed(2).replace(".",",")}</span>
+              <button 
+                onClick={() => {
+                  setCartao(c);
+                  setBuscaAtiva(false);
+                  setEtapa("produtos");
+                }} 
+                className="bg-[#1D3461] hover:bg-blue-900 text-white font-black text-xs px-4 py-2 rounded-xl transition-all cursor-pointer"
+              >
+                Selecionar
+              </button>
+            </div>
+          </div>
+        ))}
+        
+        {!buscando && resultadosBusca.length === 0 && (
+          <p className="text-blue-300 text-center py-12">Digite um termo ou clique em Buscar para listar.</p>
+        )}
+      </div>
+    </div>
+  );
+
   // ── Scanner ──
   return (
     <div className="min-h-screen bg-[#1D3461] flex flex-col">
       <div className="p-5 bg-[#152849] flex items-center justify-between">
         <div>
-          <p className="text-blue-300 text-sm font-bold uppercase tracking-widest">Operador de Bar</p>
+          <p className="text-blue-300 text-sm font-bold uppercase tracking-widest">Operador de Bar: {session?.user?.nome}</p>
           <h1 className="text-2xl font-black text-white">{evento?.nome || "La More Eventos"}</h1>
         </div>
         <button 
@@ -329,13 +446,17 @@ export default function BarApp() {
             {carregando && <p className="text-blue-200 text-lg font-bold mb-4">Processando imagem...</p>}
             <div className="flex flex-col gap-2 w-full max-w-xs">
               <button onClick={() => { setErro(""); setScannerAtivo(true); }}
-                className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-3xl shadow-xl flex items-center justify-center gap-2" style={{minHeight:"52px"}}>
+                className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-3xl shadow-xl flex items-center justify-center gap-2 cursor-pointer" style={{minHeight:"52px"}}>
                 📷 Ativar Câmera
               </button>
               <label className="w-full bg-white/10 text-white font-black text-lg py-4 rounded-3xl border-2 border-white/20 hover:bg-white/20 transition-all cursor-pointer flex items-center justify-center gap-2" style={{minHeight:"52px"}}>
                 <span>🖼️</span> Tirar Foto / Galeria
                 <input type="file" accept="image/*" capture="environment" onChange={lerImagemQR} className="hidden" />
               </label>
+              <button onClick={() => { setErro(""); setBuscaAtiva(true); }}
+                className="w-full bg-teal-500 hover:bg-teal-600 text-white font-black text-lg py-4 rounded-3xl transition-all flex items-center justify-center gap-2 cursor-pointer" style={{minHeight:"52px"}}>
+                🔍 Buscar por Nome / CPF
+              </button>
             </div>
 
             <div className="w-full max-w-xs mt-6 pt-6 border-t border-white/10 text-center">

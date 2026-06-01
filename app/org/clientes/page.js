@@ -1,6 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function ClientesPage() {
   const { data: session } = useSession();
@@ -10,6 +14,77 @@ export default function ClientesPage() {
   const [error, setError] = useState("");
 
   const [eventoId, setEventoId] = useState(null);
+
+  async function exportarClientesXLSX() {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "La More Eventos";
+    workbook.created = new Date();
+
+    const ws = workbook.addWorksheet("Clientes", { properties: { tabColor: { argb: 'FF1D3461' } } });
+    ws.mergeCells('A1:F2');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'LA MORE EVENTOS - Relatório de Cadastro de Clientes';
+    titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    const headerRow = ws.getRow(4);
+    headerRow.values = ["Nome", "Código Cartão", "CPF", "Celular", "Saldo Atual (R$)", "Cadastrado Por (Operador)"];
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
+    headerRow.alignment = { horizontal: 'center' };
+
+    clientes.forEach((c, index) => {
+      const row = ws.addRow([
+        c.cliente.nome,
+        c.codigo,
+        c.cliente.cpf || "",
+        c.cliente.celular || "",
+        c.saldo,
+        c.cadastradoPor || "Sistema"
+      ]);
+      if (index % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      row.getCell(5).numFmt = '"R$ "#,##0.00';
+    });
+
+    ws.columns = [
+      { width: 30 }, { width: 15 }, { width: 18 }, { width: 18 }, { width: 15 }, { width: 30 }
+    ];
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, "LaMore_Cadastro_Clientes.xlsx");
+  }
+
+  function exportarClientesPDF() {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.setTextColor(29, 52, 97);
+    doc.text("LA MORE EVENTOS", 14, 20);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Relatório de Cadastro de Clientes`, 14, 28);
+    doc.text(`Total: ${clientes.length} clientes cadastrados`, 14, 34);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [["Nome", "Código", "CPF", "Celular", "Saldo (R$)", "Cadastrado Por"]],
+      body: clientes.map(c => [
+        c.cliente.nome,
+        c.codigo,
+        c.cliente.cpf || "—",
+        c.cliente.celular || "—",
+        c.saldo.toFixed(2).replace(".", ","),
+        c.cadastradoPor || "Sistema"
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255] },
+      styles: { fontSize: 9 }
+    });
+
+    doc.save(`LaMoreEventos_Cadastro_Clientes.pdf`);
+  }
 
   useEffect(() => {
     if (session) {
@@ -65,11 +140,21 @@ export default function ClientesPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-4xl font-black text-[#1D3461]">Clientes</h2>
-        <p className="text-gray-500 text-lg font-semibold mt-1">
-          {clientes.length} clientes com cartão ativo neste evento
-        </p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div>
+          <h2 className="text-4xl font-black text-[#1D3461]">Clientes</h2>
+          <p className="text-gray-500 text-lg font-semibold mt-1">
+            {clientes.length} clientes com cartão ativo neste evento
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={exportarClientesXLSX} className="bg-green-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2">
+            <span>📊</span> Planilha Excel
+          </button>
+          <button onClick={exportarClientesPDF} className="bg-red-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-2">
+            <span>📄</span> Baixar PDF
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -122,7 +207,11 @@ export default function ClientesPage() {
               <div key={c.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors">
                 <div className="col-span-4">
                   <p className="font-black text-gray-900 text-lg">{c.cliente.nome}</p>
-                  <p className="text-gray-400 text-xs font-bold uppercase">Cód: {c.codigo}</p>
+                  <div className="flex gap-2 items-center text-xs font-bold text-gray-400 mt-0.5">
+                    <span className="uppercase">Cód: {c.codigo}</span>
+                    <span>•</span>
+                    <span className="text-blue-500/80">Reg: {c.cadastradoPor}</span>
+                  </div>
                 </div>
                 <p className="col-span-3 text-gray-500 font-semibold text-base">
                   {c.cliente.cpf || <span className="text-gray-300 italic">—</span>}
