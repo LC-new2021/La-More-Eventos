@@ -6,9 +6,17 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const evento = await prisma.evento.findUnique({
       where: { id },
+      include: {
+        usuarios: {
+          where: { role: "ORGANIZADOR" },
+          select: { gatewayActive: true }
+        }
+      }
     });
     if (!evento) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
-    return NextResponse.json(evento);
+    const gatewayActive = evento.usuarios?.[0]?.gatewayActive || "NENHUM";
+    const { usuarios, ...rest } = evento;
+    return NextResponse.json({ ...rest, gatewayActive });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

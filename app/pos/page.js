@@ -54,9 +54,34 @@ export default function PosApp() {
   const [eventosMaster, setEventosMaster] = useState([]);
   const [selectedEventoId, setSelectedEventoId] = useState("");
 
+  // Estado do evento completo
+  const [evento, setEvento] = useState(null);
+
+  // Cartão Online (Asaas)
+  const [cardName, setCardName] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [processandoCartao, setProcessandoCartao] = useState(false);
+  const [usarCheckoutOffline, setUsarCheckoutOffline] = useState(false);
+
   const isMaster = session?.user?.role === 'MASTER';
   const eventoId = isMaster ? (selectedEventoId || session?.user?.eventoId) : session?.user?.eventoId;
   const valorRestante = parseFloat(valorTotal || 0) - pagamentos.reduce((a, p) => a + p.valor, 0);
+
+  const handleCardNumberChange = (val) => {
+    const formatted = val.replace(/\D/g, "").replace(/(\d{4})(?=\d)/g, "$1 ").slice(0, 19);
+    setCardNumber(formatted);
+  };
+
+  const handleCardExpiryChange = (val) => {
+    const d = val.replace(/\D/g, "");
+    if (d.length >= 3) {
+      setCardExpiry(d.slice(0, 2) + "/" + d.slice(2, 4));
+    } else {
+      setCardExpiry(d);
+    }
+  };
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -78,15 +103,18 @@ export default function PosApp() {
       fetch(`/api/eventos/${eventoId}`)
         .then(r => r.json())
         .then(data => {
-          if (!data.error && data.metodosPagamentoJson) {
-            const list = JSON.parse(data.metodosPagamentoJson);
-            setMetodosPagamento(list.filter(p => p.ativo));
-          } else {
-            setMetodosPagamento([
-              { id: "pix", label: "Pix", emoji: "🟢", ativo: true },
-              { id: "cartao", label: "Cartão", emoji: "💳", ativo: true },
-              { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, troco: true },
-            ]);
+          if (!data.error) {
+            setEvento(data);
+            if (data.metodosPagamentoJson) {
+              const list = JSON.parse(data.metodosPagamentoJson);
+              setMetodosPagamento(list.filter(p => p.ativo));
+            } else {
+              setMetodosPagamento([
+                { id: "pix", label: "Pix", emoji: "🟢", ativo: true },
+                { id: "cartao", label: "Cartão", emoji: "💳", ativo: true },
+                { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, troco: true },
+              ]);
+            }
           }
         })
         .catch(console.error);
@@ -182,6 +210,8 @@ export default function PosApp() {
     setMetodoAtual(""); setValorRecebido(""); setCodigoCartao(""); setQrCodeDataUrl("");
     setTermoBusca(""); setResultadosBusca([]); setCartaoEncontrado(null); setErro("");
     setPixQrCode(""); setPixCopiaCola(""); setPixTxid(""); setPixGerado(false);
+    setCardName(""); setCardNumber(""); setCardExpiry(""); setCardCvc("");
+    setUsarCheckoutOffline(false);
     setEtapa("inicio");
   }
 
@@ -212,6 +242,52 @@ export default function PosApp() {
       setErro("Erro de rede ao gerar Pix");
     } finally {
       setGerandoPix(false);
+    }
+  }
+
+  async function processarCartaoAsaas() {
+    const rawCpf = cpf ? cpf.replace(/\D/g, "") : "";
+    if (!rawCpf || rawCpf.length !== 11) {
+      setErro("CPF é obrigatório para transações de cartão online (Asaas). Preencha-o abaixo.");
+      return;
+    }
+    if (!cardName.trim() || !cardNumber.trim() || !cardExpiry.trim() || !cardCvc.trim()) {
+      setErro("Preencha todos os campos do cartão.");
+      return;
+    }
+    setProcessandoCartao(true);
+    setErro("");
+    try {
+      const res = await fetch("/api/pagamentos/cartao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          valor: valorRestante,
+          clienteNome: nome || cartaoEncontrado?.cliente?.nome || "Consumidor La More",
+          cpf: cpf.replace(/\D/g, ""),
+          eventoId,
+          cardName,
+          cardNumber,
+          cardExpiry,
+          cardCvc
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error || "Erro ao processar pagamento com cartão.");
+      } else {
+        setPagamentos([...pagamentos, { metodo: "cartao", valor: valorRestante, gatewayId: data.txid }]);
+        setMetodoAtual("");
+        setCardName("");
+        setCardNumber("");
+        setCardExpiry("");
+        setCardCvc("");
+        setUsarCheckoutOffline(false);
+      }
+    } catch {
+      setErro("Erro de conexão ao processar cartão.");
+    } finally {
+      setProcessandoCartao(false);
     }
   }
 
@@ -354,7 +430,13 @@ export default function PosApp() {
 
           {metodoAtual === "pix" && !pixGerado && (
             <div className="mb-4 text-center">
-              <p className="text-gray-500 font-bold mb-3">Cobrança Pix integrada com o PagBank</p>
+              <p className="text-gray-500 font-bold mb-3">
+                {evento?.gatewayActive === "ASAAS"
+                  ? "Cobrança Pix integrada com Asaas"
+                  : evento?.gatewayActive === "PAGBANK"
+                  ? "Cobrança Pix integrada com PagBank"
+                  : "Cobrança Pix (Simulação)"}
+              </p>
               <button
                 type="button"
                 onClick={iniciarPixDinamico}
@@ -362,14 +444,18 @@ export default function PosApp() {
                 className="w-full bg-teal-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-teal-600 transition-colors"
                 style={{minHeight: "52px"}}
               >
-                {gerandoPix ? "Gerando Pix no PagBank..." : "⚡ Gerar QR Code Pix"}
+                {gerandoPix ? "Gerando Pix..." : `⚡ Gerar QR Code Pix ${evento?.gatewayActive === "ASAAS" ? "Asaas" : evento?.gatewayActive === "PAGBANK" ? "PagBank" : "Simulado"}`}
               </button>
             </div>
           )}
 
           {metodoAtual === "pix" && pixGerado && (
             <div className="mb-4 p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-teal-200">
-              <img src={pixQrCode} alt="QR Code Pix PagBank" className="w-48 h-48 mx-auto mb-3 border border-gray-200 rounded-xl" />
+              <img 
+                src={pixQrCode} 
+                alt={`QR Code Pix ${evento?.gatewayActive === "ASAAS" ? "Asaas" : evento?.gatewayActive === "PAGBANK" ? "PagBank" : "Simulado"}`} 
+                className="w-48 h-48 mx-auto mb-3 border border-gray-200 rounded-xl" 
+              />
               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">QR Code de Recarga Pix</p>
               
               <div className="mb-4">
@@ -402,8 +488,116 @@ export default function PosApp() {
             </div>
           )}
 
-          {metodoAtual !== "pix" && (
-            <button onClick={adicionarPagamento} disabled={!metodoAtual||(metodosPagamento.find(m => m.id === metodoAtual)?.troco && parseFloat(valorRecebido||0)<=0)} className="w-full bg-blue-600 text-white font-black text-xl py-4 rounded-2xl disabled:opacity-40">Adicionar Pagamento</button>
+          {metodoAtual === "cartao" && evento?.gatewayActive === "ASAAS" && !usarCheckoutOffline && (
+            <div className="mb-4 p-5 bg-gray-50 rounded-3xl border border-gray-200 space-y-4">
+              <p className="font-black text-gray-900 text-lg flex items-center gap-1.5">
+                💳 Cartão de Crédito Online (Asaas)
+              </p>
+              
+              <div>
+                <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Nome impresso no cartão</label>
+                <input
+                  type="text"
+                  value={cardName}
+                  onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                  placeholder="EX: JOÃO S SILVA"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Número do Cartão</label>
+                <input
+                  type="text"
+                  value={cardNumber}
+                  onChange={(e) => handleCardNumberChange(e.target.value)}
+                  placeholder="0000 0000 0000 0000"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">CPF do Cliente/Titular *</label>
+                <input
+                  type="text"
+                  value={cpf}
+                  onChange={(e) => handleCpfChange(e.target.value)}
+                  placeholder="000.000.000-00"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Validade</label>
+                  <input
+                    type="text"
+                    value={cardExpiry}
+                    onChange={(e) => handleCardExpiryChange(e.target.value)}
+                    placeholder="MM/AA"
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900 text-center"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">CVV / CVC</label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    value={cardCvc}
+                    onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, ""))}
+                    placeholder="123"
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900 text-center"
+                  />
+                </div>
+              </div>
+
+              {erro && <p className="text-red-500 text-sm font-bold">{erro}</p>}
+
+              <button
+                type="button"
+                onClick={processarCartaoAsaas}
+                disabled={processandoCartao}
+                className="w-full bg-green-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                style={{minHeight: "52px"}}
+              >
+                {processandoCartao ? "Processando Cartão..." : `💳 Cobrar R$ ${valorRestante.toFixed(2).replace(".", ",")} no Cartão`}
+              </button>
+
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => setUsarCheckoutOffline(true)}
+                  className="text-blue-600 hover:text-blue-800 text-xs font-bold underline"
+                >
+                  Usar Maquininha Física (Sem Gateway)
+                </button>
+              </div>
+            </div>
+          )}
+
+          {metodoAtual && metodoAtual !== "pix" && (metodoAtual !== "cartao" || usarCheckoutOffline || evento?.gatewayActive !== "ASAAS") && (
+            <div className="mb-4 text-center">
+              {(metodoAtual === "cartao") && (
+                <p className="text-gray-500 font-bold mb-3">Registrar pagamento em Maquininha Física externa</p>
+              )}
+              <button 
+                onClick={adicionarPagamento} 
+                disabled={metodosPagamento.find(m => m.id === metodoAtual)?.troco && parseFloat(valorRecebido||0)<=0}
+                className="w-full bg-blue-600 text-white font-black text-xl py-4 rounded-2xl disabled:opacity-40"
+                style={{minHeight: "52px"}}
+              >
+                {metodoAtual === "cartao" ? "Confirmar Pagamento Maquininha" : "Adicionar Pagamento"}
+              </button>
+              {metodoAtual === "cartao" && evento?.gatewayActive === "ASAAS" && (
+                <button
+                  type="button"
+                  onClick={() => setUsarCheckoutOffline(false)}
+                  className="text-blue-600 hover:text-blue-800 text-xs font-bold underline mt-3 block mx-auto font-sans font-bold"
+                >
+                  ← Voltar para Cobrança Gateway
+                </button>
+              )}
+            </div>
           )}
         </div>
       ) : (
@@ -485,7 +679,7 @@ export default function PosApp() {
               <p className="text-green-600 font-black text-2xl">R$ {c.saldo.toFixed(2).replace(".",",")}</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => { setCartaoEncontrado(c); setNome(c.cliente.nome); setPagamentos([]); setEtapa("valor"); }} className="bg-[#1D3461] text-white font-black py-3 rounded-2xl" style={{minHeight:"48px"}}>💳 Recarregar</button>
+              <button onClick={() => { setCartaoEncontrado(c); setNome(c.cliente.nome); setCpf(c.cliente.cpf || ""); setPagamentos([]); setEtapa("valor"); }} className="bg-[#1D3461] text-white font-black py-3 rounded-2xl" style={{minHeight:"48px"}}>💳 Recarregar</button>
               <button onClick={() => { setCartaoEncontrado(c); setCodigoCartao(c.codigo); setEtapa("qrcode"); }} className="bg-gray-100 text-gray-900 font-black py-3 rounded-2xl" style={{minHeight:"48px"}}>📱 Ver QR</button>
             </div>
           </div>
@@ -501,7 +695,7 @@ export default function PosApp() {
       <div className="flex items-center justify-between mb-10 pt-4">
         <div>
           <p className="text-blue-300 text-base font-bold uppercase tracking-widest">Caixa de Entrada</p>
-          <h1 className="text-3xl font-black text-white">POS La More</h1>
+          <h1 className="text-3xl font-black text-white">{evento?.nome || "POS La More"}</h1>
         </div>
         <button 
           onClick={async () => {

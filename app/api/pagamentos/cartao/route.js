@@ -20,8 +20,17 @@ export async function POST(req) {
     }
 
     const value = parseFloat(valor);
+    const host = req.headers.get("host") || "";
     let asaasApiKey = process.env.ASAAS_API_KEY;
-    let asaasUrl = process.env.ASAAS_API_URL || "https://sandbox.asaas.com/api";
+    let asaasUrl = process.env.ASAAS_API_URL;
+    
+    if (!asaasUrl) {
+      if (host.includes("localhost") || host.includes("127.0.0.1") || host.includes("3000") || host.includes("3001")) {
+        asaasUrl = "https://sandbox.asaas.com/api";
+      } else {
+        asaasUrl = "https://api.asaas.com";
+      }
+    }
 
     if (eventoId) {
       const evento = await prisma.evento.findUnique({

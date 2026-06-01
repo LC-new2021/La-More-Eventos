@@ -3,15 +3,24 @@ import prisma from "@/lib/prisma";
 
 export async function POST(req) {
   try {
-    const { valor, clienteNome, cpf, eventoId } = await req.json();
+    const { valor, clienteNome, cpf, eventoId, cartaoCodigo } = await req.json();
 
     if (!valor || parseFloat(valor) <= 0) {
       return NextResponse.json({ error: "Valor inválido" }, { status: 400 });
     }
 
     const value = parseFloat(valor);
+    const host = req.headers.get("host") || "";
     let asaasApiKey = process.env.ASAAS_API_KEY;
-    let asaasUrl = process.env.ASAAS_API_URL || "https://sandbox.asaas.com/api";
+    let asaasUrl = process.env.ASAAS_API_URL;
+    
+    if (!asaasUrl) {
+      if (host.includes("localhost") || host.includes("127.0.0.1") || host.includes("3000") || host.includes("3001")) {
+        asaasUrl = "https://sandbox.asaas.com/api";
+      } else {
+        asaasUrl = "https://api.asaas.com";
+      }
+    }
 
     if (eventoId) {
       const evento = await prisma.evento.findUnique({
@@ -31,7 +40,9 @@ export async function POST(req) {
       }
     }
 
-    const txid = "TXID" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
+    const txid = cartaoCodigo
+      ? "RECARGA_PIX_" + cartaoCodigo.toUpperCase()
+      : "TXID" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
 
     // Se a chave do Asaas estiver configurada, chama a API real
     if (asaasApiKey) {

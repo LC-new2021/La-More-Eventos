@@ -22,14 +22,28 @@ export default function BarApp() {
   const html5QrRef = useRef(null);
 
   const eventoId = session?.user?.eventoId;
+  const [evento, setEvento] = useState(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
   }, [status]);
 
   useEffect(() => {
-    if (eventoId) carregarProdutos();
+    if (eventoId) {
+      carregarProdutos();
+      carregarEvento();
+    }
   }, [eventoId]);
+
+  async function carregarEvento() {
+    try {
+      const res = await fetch(`/api/eventos/${eventoId}`);
+      const data = await res.json();
+      if (!data.error) setEvento(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   async function carregarProdutos() {
     try {
@@ -270,7 +284,7 @@ export default function BarApp() {
       <div className="p-5 bg-[#152849] flex items-center justify-between">
         <div>
           <p className="text-blue-300 text-sm font-bold uppercase tracking-widest">Operador de Bar</p>
-          <h1 className="text-2xl font-black text-white">La More Eventos</h1>
+          <h1 className="text-2xl font-black text-white">{evento?.nome || "La More Eventos"}</h1>
         </div>
         <button 
           onClick={async () => {

@@ -16,6 +16,10 @@ export async function POST(req) {
     const produto = await prisma.produto.findUnique({ where: { id: produtoId } });
     if (!produto) return NextResponse.json({ error: 'Produto não encontrado' }, { status: 404 });
 
+    if (cartao.eventoId !== produto.eventoId) {
+      return NextResponse.json({ error: 'Este cartão pertence a outro evento e não pode ser cobrado neste bar' }, { status: 400 });
+    }
+
     const valorTotal = produto.preco * qty;
     if (cartao.saldo < valorTotal) {
       return NextResponse.json({ error: 'Saldo insuficiente', saldo: cartao.saldo }, { status: 402 });
