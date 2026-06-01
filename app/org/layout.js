@@ -190,7 +190,7 @@ export default function OrgLayout({ children }) {
               }`}
             >
               <span className="text-2xl">{item.emoji}</span>
-              <span className="text-[10px] font-bold mt-0.5">{item.titulo}</span>
+              <span className="text-[10px] font-bold mt-0.5 truncate max-w-[65px] text-center" title={item.titulo}>{item.titulo}</span>
             </Link>
           );
         })}

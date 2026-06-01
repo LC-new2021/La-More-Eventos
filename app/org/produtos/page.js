@@ -336,7 +336,7 @@ export default function ProdutosPage() {
           </p>
         </div>
         {aba === "produtos" && (
-          <div className="flex gap-2 flex-wrap justify-end">
+          <div className="flex gap-2 flex-wrap justify-start md:justify-end w-full md:w-auto">
             <button
               onClick={baixarTemplateExcel}
               className="bg-gray-100 text-gray-700 font-bold text-base px-4 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-1.5"
@@ -380,7 +380,7 @@ export default function ProdutosPage() {
       </div>
 
       {/* ABAS */}
-      <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-fit">
+      <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-full overflow-x-auto whitespace-nowrap scrollbar-none">
         {[
           { id: "produtos", label: "🍺 Cardápio de Produtos" },
           { id: "pagamentos", label: "💳 Métodos de Pagamento" },
@@ -388,7 +388,7 @@ export default function ProdutosPage() {
           <button
             key={a.id}
             onClick={() => setAba(a.id)}
-            className={`px-5 py-3 rounded-xl font-black text-base transition-all ${
+            className={`px-5 py-3 rounded-xl font-black text-base transition-all shrink-0 ${
               aba === a.id ? "bg-white text-[#1D3461] shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
             style={{ minHeight: "52px" }}

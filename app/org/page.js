@@ -74,7 +74,7 @@ export default function OrgDashboard() {
       </div>
 
       {/* Métricas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {carregando ? (
           Array(4).fill(0).map((_,i) => <div key={i} className="bg-gray-100 rounded-3xl p-5 h-28 animate-pulse" />)
         ) : metricas.map((m) => (
