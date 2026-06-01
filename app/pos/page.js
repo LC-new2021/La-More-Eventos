@@ -697,13 +697,12 @@ export default function PosApp() {
           <h1 className="text-3xl font-black text-white">{evento?.nome || "POS La More"}</h1>
         </div>
         <button 
-          onClick={async () => {
-            await signOut({ redirect: false });
-            window.location.href = "/login";
+          onClick={() => {
+            router.push("/acessos");
           }} 
           className="text-blue-300 font-bold text-lg cursor-pointer"
         >
-          Sair
+          Voltar ao Portal
         </button>
       </div>
 

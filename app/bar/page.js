@@ -404,13 +404,12 @@ export default function BarApp() {
           <h1 className="text-2xl font-black text-white">{evento?.nome || "La More Eventos"}</h1>
         </div>
         <button 
-          onClick={async () => {
-            await signOut({ redirect: false });
-            window.location.href = "/login";
+          onClick={() => {
+            router.push("/acessos");
           }} 
           className="text-blue-300 text-sm font-bold cursor-pointer"
         >
-          Sair
+          Voltar ao Portal
         </button>
       </div>
 

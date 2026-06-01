@@ -23,7 +23,12 @@ export async function POST(req) {
           }
         }
       });
-      const produtor = evento?.usuarios?.[0];
+      let produtor = evento?.usuarios?.[0];
+      if (!produtor && evento?.organizadorId) {
+        produtor = await prisma.usuario.findUnique({
+          where: { id: evento.organizadorId }
+        });
+      }
       if (produtor && produtor.gatewayActive === "ASAAS" && produtor.asaasToken) {
         asaasApiKey = produtor.asaasToken;
         if (produtor.asaasUrl) {
