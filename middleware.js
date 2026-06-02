@@ -1,8 +1,8 @@
-// proxy.js — Proteção de rotas por perfil (Next.js 16+)
+// middleware.js — Proteção de rotas por perfil (Next.js 16+)
 import { getToken } from 'next-auth/jwt';
 import { NextResponse } from 'next/server';
 
-export default async function proxy(req) {
+export default async function middleware(req) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const { pathname } = req.nextUrl;
 
