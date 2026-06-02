@@ -24,6 +24,7 @@ export async function POST(req) {
     let asaasApiKey = process.env.ASAAS_API_KEY;
     let asaasUrl = process.env.ASAAS_API_URL;
 
+
     if (eventoId) {
       const evento = await prisma.evento.findUnique({
         where: { id: eventoId },
