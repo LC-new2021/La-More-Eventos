@@ -11,7 +11,7 @@ async function main() {
 
   const master = await prisma.usuario.upsert({
     where: { email: 'master@lamore.com' },
-    update: {},
+    update: { role: 'MASTER', ativo: true },
     create: { nome: 'Master La More', email: 'master@lamore.com', senha: await hash('lamore2026'), role: 'MASTER', ativo: true },
   });
 
@@ -21,9 +21,9 @@ async function main() {
     create: { id: 'evento-demo-001', nome: 'La More Summer Party', data: new Date('2026-06-15T20:00:00'), local: 'La More Fashion — Salão Principal', status: 'CONFIGURANDO', taxaMasterPercent: 5.0 },
   });
 
-  await prisma.usuario.upsert({ where: { email: 'org@lamore.com' }, update: {}, create: { nome: 'Organizador', email: 'org@lamore.com', senha: await hash('org2026'), role: 'ORGANIZADOR', ativo: true, eventoId: evento.id } });
-  await prisma.usuario.upsert({ where: { email: 'caixa@lamore.com' }, update: {}, create: { nome: 'Caixa Entrada', email: 'caixa@lamore.com', senha: await hash('caixa2026'), role: 'CAIXA', ativo: true, eventoId: evento.id } });
-  await prisma.usuario.upsert({ where: { email: 'bar@lamore.com' }, update: {}, create: { nome: 'Operador Bar', email: 'bar@lamore.com', senha: await hash('bar2026'), role: 'OPERADOR_BAR', ativo: true, eventoId: evento.id } });
+  await prisma.usuario.upsert({ where: { email: 'org@lamore.com' }, update: { role: 'ORGANIZADOR', ativo: true, eventoId: evento.id }, create: { nome: 'Organizador', email: 'org@lamore.com', senha: await hash('org2026'), role: 'ORGANIZADOR', ativo: true, eventoId: evento.id } });
+  await prisma.usuario.upsert({ where: { email: 'caixa@lamore.com' }, update: { role: 'CAIXA', ativo: true, eventoId: evento.id }, create: { nome: 'Caixa Entrada', email: 'caixa@lamore.com', senha: await hash('caixa2026'), role: 'CAIXA', ativo: true, eventoId: evento.id } });
+  await prisma.usuario.upsert({ where: { email: 'bar@lamore.com' }, update: { role: 'OPERADOR_BAR', ativo: true, eventoId: evento.id }, create: { nome: 'Operador Bar', email: 'bar@lamore.com', senha: await hash('bar2026'), role: 'OPERADOR_BAR', ativo: true, eventoId: evento.id } });
 
   const produtos = [
     { id: 'prod-01', nome: 'Heineken 600ml', preco: 18, grupo: 'Bebidas' },
