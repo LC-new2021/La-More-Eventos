@@ -134,6 +134,39 @@ export default function PosApp() {
     }
   }, [codigoCartao]);
 
+  // Polling para confirmação automática do Pix
+  useEffect(() => {
+    let intervalId;
+    if (pixGerado && pixTxid && eventoId) {
+      const checkStatus = async () => {
+        try {
+          const res = await fetch(`/api/pagamentos/status/${pixTxid}?eventoId=${eventoId}`);
+          const data = await res.json();
+          if (data.status === "CONFIRMED" || data.status === "RECEIVED") {
+            setPagamentos(prev => {
+              const jaAdicionado = prev.some(p => p.metodo === "pix" && p.gatewayId === pixTxid);
+              if (jaAdicionado) return prev;
+              return [...prev, { metodo: "pix", valor: valorRestante, gatewayId: pixTxid }];
+            });
+            setPixGerado(false);
+            setMetodoAtual("");
+            setErro("✨ Pix pago com sucesso!");
+            setTimeout(() => setErro(prev => prev.startsWith("✨") ? "" : prev), 4000);
+          }
+        } catch (e) {
+          console.error("Erro ao verificar status do Pix:", e);
+        }
+      };
+
+      checkStatus();
+      intervalId = setInterval(checkStatus, 3000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [pixGerado, pixTxid, eventoId, valorRestante]);
+
   async function buscarCliente() {
     if (!eventoId) {
       setErro("Nenhum evento ativo selecionado. Selecione o evento para buscas.");
