@@ -340,14 +340,6 @@ export default function ProdutosPage() {
       ? produtos
       : produtos.filter((p) => p.grupo === grupoFiltro);
 
-  if (!eventoId) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-500 font-bold text-xl">Este usuário organizador não está vinculado a um evento.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-5xl mx-auto">
       {/* HEADER */}
@@ -355,13 +347,19 @@ export default function ProdutosPage() {
         <div>
           <h2 className="text-4xl font-black text-[#1D3461]">Cardápio & Pagamentos</h2>
           <p className="text-gray-500 text-lg font-semibold mt-1">
-            {aba === "produtos" 
-              ? `${produtos.filter((p) => p.ativo).length} produtos ativos · ${grupos.length} grupos`
-              : `${pagamentosConfig.filter((p) => p.ativo).length} métodos ativos`
+            {!eventoId 
+              ? "Gerencie o cardápio, pagamentos e integrações"
+              : (aba === "produtos" 
+                  ? `${produtos.filter((p) => p.ativo).length} produtos ativos · ${grupos.length} grupos`
+                  : (aba === "pagamentos" 
+                      ? `${pagamentosConfig.filter((p) => p.ativo).length} métodos ativos`
+                      : "Configurações de integração com gateway de recebimento"
+                    )
+                )
             }
           </p>
         </div>
-        {aba === "produtos" && (
+        {aba === "produtos" && eventoId && (
           <div className="flex gap-2 flex-wrap justify-start md:justify-end w-full md:w-auto">
             <button
               onClick={baixarTemplateExcel}
@@ -392,7 +390,7 @@ export default function ProdutosPage() {
             </button>
           </div>
         )}
-        {aba === "pagamentos" && (
+        {aba === "pagamentos" && eventoId && (
           <button onClick={() => {
             setPgLabel("");
             setPgEmoji("💳");
@@ -433,135 +431,151 @@ export default function ProdutosPage() {
 
       {/* ABA: PRODUTOS */}
       {aba === "produtos" && (
-        <>
-          {/* Filtro por grupo */}
-          <div className="flex gap-3 mb-5 overflow-x-auto pb-1">
-            <button
-              onClick={() => setGrupoFiltro("todos")}
-              className={`px-5 py-3 rounded-2xl font-black text-base whitespace-nowrap transition-all ${grupoFiltro === "todos" ? "bg-[#1D3461] text-white" : "bg-white text-gray-600 border-2 border-gray-100"}`}
-              style={{ minHeight: "52px" }}
-            >
-              Todos
-            </button>
-            {grupos.map((g) => (
+        !eventoId ? (
+          <div className="bg-white rounded-3xl p-12 text-center border-2 border-gray-100 shadow-sm mt-6">
+            <span className="text-6xl block mb-4">🎪</span>
+            <p className="text-red-500 text-xl font-bold">Este usuário organizador não está vinculado a um evento.</p>
+            <p className="text-gray-500 mt-2 font-medium">Vincule este usuário a um evento no Painel Master para gerenciar o cardápio de produtos.</p>
+          </div>
+        ) : (
+          <>
+            {/* Filtro por grupo */}
+            <div className="flex gap-3 mb-5 overflow-x-auto pb-1">
               <button
-                key={g}
-                onClick={() => setGrupoFiltro(g)}
-                className={`px-5 py-3 rounded-2xl font-black text-base whitespace-nowrap transition-all ${grupoFiltro === g ? "bg-[#1D3461] text-white" : "bg-white text-gray-600 border-2 border-gray-100"}`}
+                onClick={() => setGrupoFiltro("todos")}
+                className={`px-5 py-3 rounded-2xl font-black text-base whitespace-nowrap transition-all ${grupoFiltro === "todos" ? "bg-[#1D3461] text-white" : "bg-white text-gray-600 border-2 border-gray-100"}`}
                 style={{ minHeight: "52px" }}
               >
-                {g}
+                Todos
               </button>
-            ))}
-          </div>
-
-          {/* Tabela */}
-          <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
-            <div className="divide-y divide-gray-100">
-              {loading ? (
-                <p className="text-center text-gray-400 font-semibold text-lg py-12">Carregando cardápio...</p>
-              ) : produtosFiltrados.length === 0 ? (
-                <p className="text-center text-gray-400 font-semibold text-lg py-12">Nenhum produto cadastrado.</p>
-              ) : (
-                produtosFiltrados.map((p) => (
-                  <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
-                    <div className="flex items-center gap-4 flex-1">
-                      <span className="text-3xl shrink-0">{p.imagem || "📦"}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-black text-gray-900 text-xl truncate">{p.nome}</p>
-                        <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-0.5 rounded-full inline-block mt-0.5">
-                          {p.grupo}
-                        </span>
-                      </div>
-                      <p className="font-black text-[#1D3461] text-2xl shrink-0 text-right sm:w-32">
-                        R$ {p.preco.toFixed(2).replace(".", ",")}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                      <button
-                        onClick={() => toggleAtivoProduto(p)}
-                        className={`px-4 py-2 rounded-2xl font-black text-base transition-all ${p.ativo ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-500 hover:bg-red-100"}`}
-                        style={{ minHeight: "44px" }}
-                      >
-                        <span>{p.ativo ? "✅" : "❌"}</span>
-                        <span className="hidden sm:inline ml-1">{p.ativo ? "Ativo" : "Inativo"}</span>
-                      </button>
-                      <button
-                        onClick={() => abrirEditarProduto(p)}
-                        className="px-4 py-2 rounded-2xl font-black text-base bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all flex items-center gap-1"
-                        style={{ minHeight: "44px" }}
-                      >
-                        <span>✏️</span>
-                        <span className="hidden sm:inline">Editar</span>
-                      </button>
-                      <button
-                        onClick={() => excluirProduto(p.id)}
-                        className="px-4 py-2 rounded-2xl font-black text-base bg-red-50 text-red-500 hover:bg-red-100 transition-all flex items-center gap-1"
-                        style={{ minHeight: "44px" }}
-                      >
-                        <span>🗑️</span>
-                        <span className="hidden sm:inline">Excluir</span>
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+              {grupos.map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setGrupoFiltro(g)}
+                  className={`px-5 py-3 rounded-2xl font-black text-base whitespace-nowrap transition-all ${grupoFiltro === g ? "bg-[#1D3461] text-white" : "bg-white text-gray-600 border-2 border-gray-100"}`}
+                  style={{ minHeight: "52px" }}
+                >
+                  {g}
+                </button>
+              ))}
             </div>
-          </div>
-        </>
+
+            {/* Tabela */}
+            <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
+              <div className="divide-y divide-gray-100">
+                {loading ? (
+                  <p className="text-center text-gray-400 font-semibold text-lg py-12">Carregando cardápio...</p>
+                ) : produtosFiltrados.length === 0 ? (
+                  <p className="text-center text-gray-400 font-semibold text-lg py-12">Nenhum produto cadastrado.</p>
+                ) : (
+                  produtosFiltrados.map((p) => (
+                    <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
+                      <div className="flex items-center gap-4 flex-1">
+                        <span className="text-3xl shrink-0">{p.imagem || "📦"}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-black text-gray-900 text-xl truncate">{p.nome}</p>
+                          <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-0.5 rounded-full inline-block mt-0.5">
+                            {p.grupo}
+                          </span>
+                        </div>
+                        <p className="font-black text-[#1D3461] text-2xl shrink-0 text-right sm:w-32">
+                          R$ {p.preco.toFixed(2).replace(".", ",")}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        <button
+                          onClick={() => toggleAtivoProduto(p)}
+                          className={`px-4 py-2 rounded-2xl font-black text-base transition-all ${p.ativo ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-500 hover:bg-red-100"}`}
+                          style={{ minHeight: "44px" }}
+                        >
+                          <span>{p.ativo ? "✅" : "❌"}</span>
+                          <span className="hidden sm:inline ml-1">{p.ativo ? "Ativo" : "Inativo"}</span>
+                        </button>
+                        <button
+                          onClick={() => abrirEditarProduto(p)}
+                          className="px-4 py-2 rounded-2xl font-black text-base bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all flex items-center gap-1"
+                          style={{ minHeight: "44px" }}
+                        >
+                          <span>✏️</span>
+                          <span className="hidden sm:inline">Editar</span>
+                        </button>
+                        <button
+                          onClick={() => excluirProduto(p.id)}
+                          className="px-4 py-2 rounded-2xl font-black text-base bg-red-50 text-red-500 hover:bg-red-100 transition-all flex items-center gap-1"
+                          style={{ minHeight: "44px" }}
+                        >
+                          <span>🗑️</span>
+                          <span className="hidden sm:inline">Excluir</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        )
       )}
 
       {/* ABA: PAGAMENTOS */}
       {aba === "pagamentos" && (
-        <div className="space-y-4">
-          <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-5 mb-6 font-semibold">
-            <p className="font-black text-blue-800 text-lg">ℹ️ Métodos de Pagamento do Evento</p>
-            <p className="text-blue-700 text-base mt-1">
-              Configure as formas de pagamento aceitas na bilheteria para emissão de cartões. Todas as alterações serão espelhadas automaticamente nos caixas (POS).
-            </p>
+        !eventoId ? (
+          <div className="bg-white rounded-3xl p-12 text-center border-2 border-gray-100 shadow-sm mt-6">
+            <span className="text-6xl block mb-4">💳</span>
+            <p className="text-red-500 text-xl font-bold">Este usuário organizador não está vinculado a um evento.</p>
+            <p className="text-gray-500 mt-2 font-medium">Vincule este usuário a um evento no Painel Master para gerenciar métodos de pagamento.</p>
           </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-5 mb-6 font-semibold">
+              <p className="font-black text-blue-800 text-lg">ℹ️ Métodos de Pagamento do Evento</p>
+              <p className="text-blue-700 text-base mt-1">
+                Configure as formas de pagamento aceitas na bilheteria para emissão de cartões. Todas as alterações serão espelhadas automaticamente nos caixas (POS).
+              </p>
+            </div>
 
-          {pagamentosConfig.map((pg) => (
-            <div key={pg.id} className={`bg-white rounded-3xl border-2 p-6 flex items-start gap-5 transition-all ${pg.ativo ? "border-gray-100" : "border-gray-100 opacity-50 bg-gray-50"}`}>
-              <span className="text-5xl">{pg.emoji}</span>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-black text-gray-900 text-2xl">{pg.label}</p>
-                  {pg.troco && <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">💵 Admite Troco</span>}
+            {pagamentosConfig.map((pg) => (
+              <div key={pg.id} className={`bg-white rounded-3xl border-2 p-6 flex items-start gap-5 transition-all ${pg.ativo ? "border-gray-100" : "border-gray-100 opacity-50 bg-gray-50"}`}>
+                <span className="text-5xl">{pg.emoji}</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-black text-gray-900 text-2xl">{pg.label}</p>
+                    {pg.troco && <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">💵 Admite Troco</span>}
+                  </div>
+                  <p className="text-gray-500 font-semibold text-base mt-1">{pg.descricao}</p>
                 </div>
-                <p className="text-gray-500 font-semibold text-base mt-1">{pg.descricao}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    const novos = pagamentosConfig.map(p => p.id === pg.id ? { ...p, ativo: !p.ativo } : p);
-                    salvarMetodosPagamento(novos);
-                  }}
-                  disabled={salvandoPg}
-                  className={`px-4 py-2 rounded-2xl font-black text-base transition-all ${pg.ativo ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-500 hover:bg-red-100"}`}
-                  style={{ minHeight: "44px" }}
-                >
-                  {pg.ativo ? "✅ Ativo" : "❌ Inativo"}
-                </button>
-                {pg.id !== "pix" && pg.id !== "cartao" && pg.id !== "dinheiro" && (
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
-                      if (confirm("Excluir este método de pagamento?")) {
-                        const novos = pagamentosConfig.filter(p => p.id !== pg.id);
-                        salvarMetodosPagamento(novos);
-                      }
+                      const novos = pagamentosConfig.map(p => p.id === pg.id ? { ...p, ativo: !p.ativo } : p);
+                      salvarMetodosPagamento(novos);
                     }}
                     disabled={salvandoPg}
-                    className="px-4 py-2 rounded-2xl font-black text-base bg-red-50 text-red-500 hover:bg-red-100 transition-all"
+                    className={`px-4 py-2 rounded-2xl font-black text-base transition-all ${pg.ativo ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-500 hover:bg-red-100"}`}
                     style={{ minHeight: "44px" }}
                   >
-                    🗑️ Excluir
+                    {pg.ativo ? "✅ Ativo" : "❌ Inativo"}
                   </button>
-                )}
+                  {pg.id !== "pix" && pg.id !== "cartao" && pg.id !== "dinheiro" && (
+                    <button
+                      onClick={() => {
+                        if (confirm("Excluir este método de pagamento?")) {
+                          const novos = pagamentosConfig.filter(p => p.id !== pg.id);
+                          salvarMetodosPagamento(novos);
+                        }
+                      }}
+                      disabled={salvandoPg}
+                      className="px-4 py-2 rounded-2xl font-black text-base bg-red-50 text-red-500 hover:bg-red-100 transition-all"
+                      style={{ minHeight: "44px" }}
+                    >
+                      🗑️ Excluir
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* ABA: GATEWAY */}
