@@ -30,14 +30,26 @@ export async function POST(req) {
     }
 
     if (!asaasUrl) {
-      if (asaasApiKey && asaasApiKey.trim().startsWith("$")) {
-        asaasUrl = "https://sandbox.asaas.com/api";
-      } else {
-        if (host.includes("localhost") || host.includes("127.0.0.1") || host.includes("3000") || host.includes("3001")) {
+      if (asaasApiKey) {
+        const cleanKey = asaasApiKey.trim();
+        if (cleanKey.startsWith("$aact_sandbox_") || cleanKey.startsWith("$aae.")) {
           asaasUrl = "https://sandbox.asaas.com/api";
-        } else {
+        } else if (cleanKey.startsWith("$aact_prod_")) {
           asaasUrl = "https://api.asaas.com";
+        } else {
+          // Formato antigo ou indefinido
+          if (cleanKey.startsWith("$")) {
+            asaasUrl = "https://sandbox.asaas.com/api";
+          } else {
+            if (host.includes("localhost") || host.includes("127.0.0.1") || host.includes("3000") || host.includes("3001")) {
+              asaasUrl = "https://sandbox.asaas.com/api";
+            } else {
+              asaasUrl = "https://api.asaas.com";
+            }
+          }
         }
+      } else {
+        asaasUrl = "https://api.asaas.com";
       }
     }
 
