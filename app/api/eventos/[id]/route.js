@@ -14,7 +14,16 @@ export async function GET(req, { params }) {
       }
     });
     if (!evento) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
-    const dbGatewayActive = evento.usuarios?.[0]?.gatewayActive;
+    
+    let dbGatewayActive = evento.usuarios?.[0]?.gatewayActive;
+    if (!dbGatewayActive && evento.organizadorId) {
+      const produtor = await prisma.usuario.findUnique({
+        where: { id: evento.organizadorId },
+        select: { gatewayActive: true }
+      });
+      dbGatewayActive = produtor?.gatewayActive;
+    }
+
     const hasGlobalAsaas = !!process.env.ASAAS_API_KEY;
     const gatewayActive = dbGatewayActive || (hasGlobalAsaas ? "ASAAS" : "NENHUM");
     const { usuarios, ...rest } = evento;
