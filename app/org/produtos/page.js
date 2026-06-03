@@ -591,6 +591,10 @@ export default function ProdutosPage() {
           <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 md:p-8 shadow-sm">
             <form onSubmit={async (e) => {
               e.preventDefault();
+              if (!session?.user?.id) {
+                setError("Sessão expirada ou usuário não identificado. Recarregue a página.");
+                return;
+              }
               setSalvandoGateway(true);
               setSucessoGateway("");
               setError("");
@@ -600,21 +604,29 @@ export default function ProdutosPage() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     gatewayActive,
-                    asaasToken: asaasToken.trim(),
-                    asaasUrl: asaasUrl.trim(),
-                    pagbankToken: pagbankToken.trim(),
-                    pagbankKey: pagbankKey.trim()
+                    asaasToken: (asaasToken || "").trim(),
+                    asaasUrl: (asaasUrl || "").trim(),
+                    pagbankToken: (pagbankToken || "").trim(),
+                    pagbankKey: (pagbankKey || "").trim()
                   })
                 });
-                const data = await res.json();
+                
+                let data = null;
+                const contentType = res.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                  data = await res.json();
+                }
+                
                 if (!res.ok) {
-                  setError(data.error || "Erro ao salvar credenciais.");
+                  const errorMsg = data?.error || `Erro do servidor (Status ${res.status}): ${res.statusText || "Erro Desconhecido"}`;
+                  setError(errorMsg);
                 } else {
                   setSucessoGateway("Configurações do gateway salvas com sucesso!");
                   setTimeout(() => setSucessoGateway(""), 4000);
                 }
               } catch (err) {
-                setError("Erro de conexão ao salvar configurações.");
+                console.error("Erro no processamento:", err);
+                setError(`Erro de conexão ou processamento: ${err.message}`);
               } finally {
                 setSalvandoGateway(false);
               }
