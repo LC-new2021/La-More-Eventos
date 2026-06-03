@@ -850,10 +850,10 @@ export default function PosApp() {
       )}
 
       <div className="flex-1 flex flex-col justify-center space-y-4">
-        <button onClick={() => setEtapa("novo_cliente")} disabled={!eventoId} className="w-full bg-white text-[#1D3461] font-black text-2xl py-8 rounded-3xl shadow-2xl flex items-center justify-center gap-4 disabled:opacity-50" style={{minHeight:"80px"}}>
+        <button onClick={() => { novoAtendimento(); setEtapa("novo_cliente"); }} disabled={!eventoId} className="w-full bg-white text-[#1D3461] font-black text-2xl py-8 rounded-3xl shadow-2xl flex items-center justify-center gap-4 disabled:opacity-50" style={{minHeight:"80px"}}>
           <span className="text-4xl">👤</span> Novo Cliente
         </button>
-        <button onClick={() => setEtapa("busca")} disabled={!eventoId} className="w-full bg-white/10 text-white border-2 border-white/20 font-black text-2xl py-8 rounded-3xl flex items-center justify-center gap-4 disabled:opacity-50" style={{minHeight:"80px"}}>
+        <button onClick={() => { novoAtendimento(); setEtapa("busca"); }} disabled={!eventoId} className="w-full bg-white/10 text-white border-2 border-white/20 font-black text-2xl py-8 rounded-3xl flex items-center justify-center gap-4 disabled:opacity-50" style={{minHeight:"80px"}}>
           <span className="text-4xl">🔍</span> Buscar Cliente
         </button>
       </div>
