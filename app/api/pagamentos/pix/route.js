@@ -64,13 +64,17 @@ export async function POST(req) {
 
         // 1. Criar ou Buscar Cliente no Asaas
         let customerId = "";
-        const customerSearchRes = await fetch(`${asaasUrl}/v3/customers?cpfCnpj=${cleanCpf}`, {
-          headers: {
-            "access_token": asaasApiKey,
-            "Content-Type": "application/json"
-          }
-        });
-        const searchData = await customerSearchRes.json();
+        let searchData = { data: [] };
+
+        if (cleanCpf) {
+          const customerSearchRes = await fetch(`${asaasUrl}/v3/customers?cpfCnpj=${cleanCpf}`, {
+            headers: {
+              "access_token": asaasApiKey,
+              "Content-Type": "application/json"
+            }
+          });
+          searchData = await customerSearchRes.json();
+        }
         
         if (searchData.data && searchData.data.length > 0) {
           customerId = searchData.data[0].id;

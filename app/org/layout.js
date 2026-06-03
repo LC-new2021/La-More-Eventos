@@ -65,7 +65,7 @@ export default function OrgLayout({ children }) {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar (Desktop) */}
-      <aside className="hidden lg:flex lg:fixed lg:left-0 lg:top-0 lg:h-full lg:w-64 bg-[#1D3461] text-white flex-col z-10">
+      <aside className="hidden lg:flex lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-64 bg-[#1D3461] text-white flex-col z-10 overflow-y-auto custom-scrollbar">
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white rounded-xl shadow-md overflow-hidden p-1 flex items-center justify-center shrink-0 border border-white/10">

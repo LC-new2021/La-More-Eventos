@@ -93,13 +93,18 @@ export async function POST(req) {
 
         // 1. Criar ou Buscar Cliente no Asaas
         let customerId = "";
-        const customerSearchRes = await fetch(`${asaasUrl}/v3/customers?cpfCnpj=${cleanCpf || clientRecord?.cpf || ""}`, {
-          headers: {
-            "access_token": asaasApiKey,
-            "Content-Type": "application/json"
-          }
-        });
-        const searchData = await customerSearchRes.json();
+        let searchData = { data: [] };
+        const queryCpf = cleanCpf || clientRecord?.cpf || "";
+
+        if (queryCpf) {
+          const customerSearchRes = await fetch(`${asaasUrl}/v3/customers?cpfCnpj=${queryCpf}`, {
+            headers: {
+              "access_token": asaasApiKey,
+              "Content-Type": "application/json"
+            }
+          });
+          searchData = await customerSearchRes.json();
+        }
         
         if (searchData.data && searchData.data.length > 0) {
           customerId = searchData.data[0].id;
@@ -112,7 +117,7 @@ export async function POST(req) {
             },
             body: JSON.stringify({
               name: clienteNome || clientRecord?.nome || "Consumidor La More",
-              cpfCnpj: cleanCpf || clientRecord?.cpf || undefined,
+              cpfCnpj: queryCpf || undefined,
             })
           });
           const newCustomer = await createCustomerRes.json();

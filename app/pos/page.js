@@ -210,6 +210,27 @@ export default function PosApp() {
     setMetodoAtual(""); setValorRecebido("");
   }
 
+  function voltarParaValor() {
+    setPagamentos([]);
+    setMetodoAtual("");
+    setValorRecebido("");
+    setPixQrCode("");
+    setPixCopiaCola("");
+    setPixTxid("");
+    setPixGerado(false);
+    setCardName("");
+    setCardNumber("");
+    setCardExpiry("");
+    setCardCvc("");
+    setUsarCheckoutOffline(false);
+    setSavedCardToken("");
+    setSavedCardBrand("");
+    setSavedCardLastDigits("");
+    setUsarCartaoSalvo(false);
+    setErro("");
+    setEtapa("valor");
+  }
+
   function novoAtendimento() {
     setNome(""); setCpf(""); setCelular(""); setValorTotal(""); setPagamentos([]);
     setMetodoAtual(""); setValorRecebido(""); setCodigoCartao(""); setQrCodeDataUrl("");
@@ -221,6 +242,9 @@ export default function PosApp() {
     setSavedCardBrand("");
     setSavedCardLastDigits("");
     setUsarCartaoSalvo(false);
+    setCarregando(false);
+    setGerandoPix(false);
+    setProcessandoCartao(false);
     setEtapa("inicio");
   }
 
@@ -411,7 +435,7 @@ export default function PosApp() {
   // ── Pagamento ──
   if (etapa === "pagamento") return (
     <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
-      <button onClick={() => setEtapa("valor")} className="text-blue-200 text-xl font-bold mb-6">← Voltar</button>
+      <button onClick={voltarParaValor} className="text-blue-200 text-xl font-bold mb-6">← Voltar</button>
       <h2 className="text-3xl font-black text-white mb-2">Pagamento</h2>
       <div className="bg-white/10 rounded-3xl p-5 mb-5 flex justify-between">
         <div><p className="text-blue-200 text-sm font-bold uppercase">Total</p><p className="text-white text-3xl font-black">R$ {parseFloat(valorTotal).toFixed(2).replace(".",",")}</p></div>
@@ -674,7 +698,7 @@ export default function PosApp() {
   // ── Valor ──
   if (etapa === "valor") return (
     <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
-      <button onClick={() => setEtapa(cartaoEncontrado ? "busca" : "novo_cliente")} className="text-blue-200 text-xl font-bold mb-8">← Voltar</button>
+      <button onClick={() => { setValorTotal(""); setEtapa(cartaoEncontrado ? "busca" : "novo_cliente"); }} className="text-blue-200 text-xl font-bold mb-8">← Voltar</button>
       <h2 className="text-3xl font-black text-white mb-2">Valor da Recarga</h2>
       <p className="text-blue-200 text-xl font-semibold mb-6">Cliente: <span className="text-white font-black">{nome || cartaoEncontrado?.cliente?.nome}</span></p>
       <div className="bg-white/10 rounded-3xl p-6 mb-6">
@@ -686,7 +710,26 @@ export default function PosApp() {
           <button key={v} onClick={() => setValorTotal(v)} className={`py-4 rounded-2xl font-black text-xl ${valorTotal===v?"bg-white text-[#1D3461]":"bg-white/10 text-white"}`} style={{minHeight:"52px"}}>R$ {v}</button>
         ))}
       </div>
-      <button onClick={() => { setPagamentos([]); setEtapa("pagamento"); }} disabled={!valorTotal||parseFloat(valorTotal)<=0} className="w-full bg-green-500 text-white font-black text-2xl py-6 rounded-3xl shadow-2xl disabled:opacity-40 mt-auto" style={{minHeight:"72px"}}>Avançar p/ Pagamento →</button>
+      <button onClick={() => {
+        setPagamentos([]);
+        setMetodoAtual("");
+        setValorRecebido("");
+        setPixQrCode("");
+        setPixCopiaCola("");
+        setPixTxid("");
+        setPixGerado(false);
+        setCardName("");
+        setCardNumber("");
+        setCardExpiry("");
+        setCardCvc("");
+        setUsarCheckoutOffline(false);
+        setSavedCardToken("");
+        setSavedCardBrand("");
+        setSavedCardLastDigits("");
+        setUsarCartaoSalvo(false);
+        setErro("");
+        setEtapa("pagamento");
+      }} disabled={!valorTotal||parseFloat(valorTotal)<=0} className="w-full bg-green-500 text-white font-black text-2xl py-6 rounded-3xl shadow-2xl disabled:opacity-40 mt-auto" style={{minHeight:"72px"}}>Avançar p/ Pagamento →</button>
     </div>
   );
 

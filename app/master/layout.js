@@ -19,7 +19,7 @@ export default function MasterLayout({ children }) {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar (Desktop) */}
-      <aside className="hidden lg:flex lg:fixed lg:left-0 lg:top-0 lg:h-full lg:w-64 bg-[#1D3461] text-white flex-col z-10">
+      <aside className="hidden lg:flex lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-64 bg-[#1D3461] text-white flex-col z-10 overflow-y-auto custom-scrollbar">
         <div className="p-6 border-b border-white/10">
           <Link href="/master" className="flex flex-col text-left group cursor-pointer focus:outline-none w-full">
             <h1 className="font-black text-xl leading-tight group-hover:text-blue-200 transition-colors">Lamore Eventos</h1>
