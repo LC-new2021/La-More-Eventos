@@ -1,33 +1,33 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function GET(req, { params }) {
   try {
+    const session = await getServerSession(authOptions);
     const { id } = await params;
     const evento = await prisma.evento.findUnique({
-      where: { id },
-      include: {
-        usuarios: {
-          where: { role: "ORGANIZADOR" },
-          select: { gatewayActive: true }
-        }
-      }
+      where: { id }
     });
     if (!evento) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
-    
-    let dbGatewayActive = evento.usuarios?.[0]?.gatewayActive;
-    if (!dbGatewayActive && evento.organizadorId) {
-      const produtor = await prisma.usuario.findUnique({
-        where: { id: evento.organizadorId },
-        select: { gatewayActive: true }
-      });
-      dbGatewayActive = produtor?.gatewayActive;
+
+    // Se o usuário logado for MASTER ou ORGANIZADOR, envia os tokens confidenciais
+    const isAuthorized = session && ['MASTER', 'ORGANIZADOR'].includes(session.user.role);
+
+    const safeResponse = {
+      ...evento,
+      gatewayActive: evento.gatewayActive || "NENHUM"
+    };
+
+    if (!isAuthorized) {
+      delete safeResponse.asaasToken;
+      delete safeResponse.asaasUrl;
+      delete safeResponse.pagbankToken;
+      delete safeResponse.pagbankKey;
     }
 
-    const hasGlobalAsaas = !!process.env.ASAAS_API_KEY;
-    const gatewayActive = dbGatewayActive || (hasGlobalAsaas ? "ASAAS" : "NENHUM");
-    const { usuarios, ...rest } = evento;
-    return NextResponse.json({ ...rest, gatewayActive });
+    return NextResponse.json(safeResponse);
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
@@ -35,8 +35,18 @@ export async function GET(req, { params }) {
 
 export async function PATCH(req, { params }) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !['MASTER', 'ORGANIZADOR'].includes(session.user.role)) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
     const { id } = await params;
     const body = await req.json();
+
+    // Se for organizador, verificar se este é o evento dele
+    if (session.user.role === 'ORGANIZADOR' && session.user.eventoId !== id) {
+      return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
+    }
 
     const updateData = {};
     if (body.nome) updateData.nome = body.nome;
@@ -49,6 +59,13 @@ export async function PATCH(req, { params }) {
     if (body.metodosPagamentoJson !== undefined) {
       updateData.metodosPagamentoJson = body.metodosPagamentoJson;
     }
+    
+    // Configurações do Gateway
+    if (body.gatewayActive !== undefined) updateData.gatewayActive = body.gatewayActive;
+    if (body.asaasToken !== undefined) updateData.asaasToken = body.asaasToken;
+    if (body.asaasUrl !== undefined) updateData.asaasUrl = body.asaasUrl;
+    if (body.pagbankToken !== undefined) updateData.pagbankToken = body.pagbankToken;
+    if (body.pagbankKey !== undefined) updateData.pagbankKey = body.pagbankKey;
 
     const evento = await prisma.evento.update({
       where: { id },

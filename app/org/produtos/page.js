@@ -77,23 +77,6 @@ export default function ProdutosPage() {
   }, [session]);
 
   useEffect(() => {
-    if (session?.user?.id) {
-      fetch(`/api/usuarios/${session.user.id}`)
-        .then(res => res.json())
-        .then(data => {
-          if (!data.error) {
-            setGatewayActive(data.gatewayActive || "ASAAS");
-            setAsaasToken(data.asaasToken || "");
-            setAsaasUrl(data.asaasUrl || "");
-            setPagbankToken(data.pagbankToken || "");
-            setPagbankKey(data.pagbankKey || "");
-          }
-        })
-        .catch(console.error);
-    }
-  }, [session]);
-
-  useEffect(() => {
     if (eventoId) {
       carregarProdutos();
       carregarEvento();
@@ -115,9 +98,16 @@ export default function ProdutosPage() {
           ];
           setPagamentosConfig(defaultPgs);
         }
+
+        // Carregar configurações de gateway diretamente do evento
+        setGatewayActive(data.gatewayActive || "ASAAS");
+        setAsaasToken(data.asaasToken || "");
+        setAsaasUrl(data.asaasUrl || "");
+        setPagbankToken(data.pagbankToken || "");
+        setPagbankKey(data.pagbankKey || "");
       }
     } catch (e) {
-      console.error("Erro ao carregar configurações de pagamento", e);
+      console.error("Erro ao carregar configurações de pagamento e gateway", e);
     }
   };
 
@@ -591,15 +581,15 @@ export default function ProdutosPage() {
           <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 md:p-8 shadow-sm">
             <form onSubmit={async (e) => {
               e.preventDefault();
-              if (!session?.user?.id) {
-                setError("Sessão expirada ou usuário não identificado. Recarregue a página.");
+              if (!eventoId) {
+                setError("Nenhum evento ativo selecionado para configurar o gateway.");
                 return;
               }
               setSalvandoGateway(true);
               setSucessoGateway("");
               setError("");
               try {
-                const res = await fetch(`/api/usuarios/${session.user.id}`, {
+                const res = await fetch(`/api/eventos/${eventoId}`, {
                   method: "PATCH",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({

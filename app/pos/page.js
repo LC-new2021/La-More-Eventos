@@ -49,6 +49,12 @@ export default function PosApp() {
   const [resultadosBusca, setResultadosBusca] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [cartaoEncontrado, setCartaoEncontrado] = useState(null);
+  
+  // Cartão Salvo (Asaas Tokenization)
+  const [savedCardToken, setSavedCardToken] = useState("");
+  const [savedCardBrand, setSavedCardBrand] = useState("");
+  const [savedCardLastDigits, setSavedCardLastDigits] = useState("");
+  const [usarCartaoSalvo, setUsarCartaoSalvo] = useState(false);
 
   // Master Test support
   const [eventosMaster, setEventosMaster] = useState([]);
@@ -211,6 +217,10 @@ export default function PosApp() {
     setPixQrCode(""); setPixCopiaCola(""); setPixTxid(""); setPixGerado(false);
     setCardName(""); setCardNumber(""); setCardExpiry(""); setCardCvc("");
     setUsarCheckoutOffline(false);
+    setSavedCardToken("");
+    setSavedCardBrand("");
+    setSavedCardLastDigits("");
+    setUsarCartaoSalvo(false);
     setEtapa("inicio");
   }
 
@@ -251,9 +261,11 @@ export default function PosApp() {
       setErro("CPF é obrigatório para transações de cartão online (Asaas). Preencha-o abaixo.");
       return;
     }
-    if (!cardName.trim() || !cardNumber.trim() || !cardExpiry.trim() || !cardCvc.trim()) {
-      setErro("Preencha todos os campos do cartão.");
-      return;
+    if (!usarCartaoSalvo) {
+      if (!cardName.trim() || !cardNumber.trim() || !cardExpiry.trim() || !cardCvc.trim()) {
+        setErro("Preencha todos os campos do cartão.");
+        return;
+      }
     }
     setProcessandoCartao(true);
     setErro("");
@@ -264,12 +276,14 @@ export default function PosApp() {
         body: JSON.stringify({
           valor: valorRestante,
           clienteNome: nome || cartaoEncontrado?.cliente?.nome || "Consumidor La More",
-          cpf: cpf.replace(/\D/g, ""),
+          cpf: rawCpf,
           eventoId,
-          cardName,
-          cardNumber,
-          cardExpiry,
-          cardCvc
+          cardName: usarCartaoSalvo ? undefined : cardName,
+          cardNumber: usarCartaoSalvo ? undefined : cardNumber,
+          cardExpiry: usarCartaoSalvo ? undefined : cardExpiry,
+          cardCvc: usarCartaoSalvo ? undefined : cardCvc,
+          useSavedCard: usarCartaoSalvo,
+          cartaoCodigo: cartaoEncontrado?.codigo || undefined
         })
       });
       const data = await res.json();
@@ -304,6 +318,17 @@ export default function PosApp() {
           setNome(data.cliente.nome);
           if (data.cliente.celular) {
             setCelular(formatarTel(data.cliente.celular));
+          }
+          if (data.cliente.creditCardToken) {
+            setSavedCardToken(data.cliente.creditCardToken);
+            setSavedCardBrand(data.cliente.creditCardBrand || "");
+            setSavedCardLastDigits(data.cliente.creditCardLastDigits || "");
+            setUsarCartaoSalvo(true);
+          } else {
+            setSavedCardToken("");
+            setSavedCardBrand("");
+            setSavedCardLastDigits("");
+            setUsarCartaoSalvo(false);
           }
           setErro("✨ Cliente localizado! Dados preenchidos automaticamente.");
           setTimeout(() => setErro(prev => prev.startsWith("✨") ? "" : prev), 4000);
@@ -499,62 +524,90 @@ export default function PosApp() {
                 💳 Cartão de Crédito Online (Asaas)
               </p>
               
-              <div>
-                <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Nome impresso no cartão</label>
-                <input
-                  type="text"
-                  value={cardName}
-                  onChange={(e) => setCardName(e.target.value.toUpperCase())}
-                  placeholder="EX: JOÃO S SILVA"
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Número do Cartão</label>
-                <input
-                  type="text"
-                  value={cardNumber}
-                  onChange={(e) => handleCardNumberChange(e.target.value)}
-                  placeholder="0000 0000 0000 0000"
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">CPF do Cliente/Titular *</label>
-                <input
-                  type="text"
-                  value={cpf}
-                  onChange={(e) => handleCpfChange(e.target.value)}
-                  placeholder="000.000.000-00"
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Validade</label>
-                  <input
-                    type="text"
-                    value={cardExpiry}
-                    onChange={(e) => handleCardExpiryChange(e.target.value)}
-                    placeholder="MM/AA"
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900 text-center"
-                  />
+              {savedCardToken && (
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col gap-2">
+                  <p className="font-bold text-[#1D3461] text-xs">💳 Cartão Salvo Disponível:</p>
+                  <div className="flex items-center justify-between">
+                    <span className="font-black text-gray-800 text-base">
+                      {savedCardBrand.toUpperCase()} final ****{savedCardLastDigits}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setUsarCartaoSalvo(!usarCartaoSalvo)}
+                      className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                        usarCartaoSalvo ? "bg-[#1D3461] text-white" : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      {usarCartaoSalvo ? "Usar Este" : "Digitar Outro"}
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">CVV / CVC</label>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    value={cardCvc}
-                    onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, ""))}
-                    placeholder="123"
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900 text-center"
-                  />
+              )}
+
+              {usarCartaoSalvo ? (
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center font-bold text-green-800 text-sm">
+                  ✓ O pagamento de R$ {valorRestante.toFixed(2).replace(".", ",")} será cobrado no cartão salvo.
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Nome impresso no cartão</label>
+                    <input
+                      type="text"
+                      value={cardName}
+                      onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                      placeholder="EX: JOÃO S SILVA"
+                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Número do Cartão</label>
+                    <input
+                      type="text"
+                      value={cardNumber}
+                      onChange={(e) => handleCardNumberChange(e.target.value)}
+                      placeholder="0000 0000 0000 0000"
+                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">CPF do Cliente/Titular *</label>
+                    <input
+                      type="text"
+                      value={cpf}
+                      onChange={(e) => handleCpfChange(e.target.value)}
+                      placeholder="000.000.000-00"
+                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Validade</label>
+                      <input
+                        type="text"
+                        value={cardExpiry}
+                        onChange={(e) => handleCardExpiryChange(e.target.value)}
+                        placeholder="MM/AA"
+                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900 text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">CVV / CVC</label>
+                      <input
+                        type="password"
+                        maxLength={4}
+                        value={cardCvc}
+                        onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, ""))}
+                        placeholder="123"
+                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900 text-center"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               {erro && <p className="text-red-500 text-sm font-bold">{erro}</p>}
 
@@ -684,7 +737,24 @@ export default function PosApp() {
               <p className="text-green-600 font-black text-2xl">R$ {c.saldo.toFixed(2).replace(".",",")}</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => { setCartaoEncontrado(c); setNome(c.cliente.nome); setCpf(c.cliente.cpf || ""); setPagamentos([]); setEtapa("valor"); }} className="bg-[#1D3461] text-white font-black py-3 rounded-2xl" style={{minHeight:"48px"}}>💳 Recarregar</button>
+              <button onClick={() => {
+                setCartaoEncontrado(c);
+                setNome(c.cliente.nome);
+                setCpf(c.cliente.cpf || "");
+                if (c.cliente.creditCardToken) {
+                  setSavedCardToken(c.cliente.creditCardToken);
+                  setSavedCardBrand(c.cliente.creditCardBrand || "");
+                  setSavedCardLastDigits(c.cliente.creditCardLastDigits || "");
+                  setUsarCartaoSalvo(true);
+                } else {
+                  setSavedCardToken("");
+                  setSavedCardBrand("");
+                  setSavedCardLastDigits("");
+                  setUsarCartaoSalvo(false);
+                }
+                setPagamentos([]);
+                setEtapa("valor");
+              }} className="bg-[#1D3461] text-white font-black py-3 rounded-2xl" style={{minHeight:"48px"}}>💳 Recarregar</button>
               <button onClick={() => { setCartaoEncontrado(c); setCodigoCartao(c.codigo); setEtapa("qrcode"); }} className="bg-gray-100 text-gray-900 font-black py-3 rounded-2xl" style={{minHeight:"48px"}}>📱 Ver QR</button>
             </div>
           </div>

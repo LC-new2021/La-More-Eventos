@@ -17,25 +17,14 @@ export async function POST(req) {
 
     if (eventoId) {
       const evento = await prisma.evento.findUnique({
-        where: { id: eventoId },
-        include: {
-          usuarios: {
-            where: { role: "ORGANIZADOR" }
-          }
-        }
+        where: { id: eventoId }
       });
-      let produtor = evento?.usuarios?.[0];
-      if (!produtor && evento?.organizadorId) {
-        produtor = await prisma.usuario.findUnique({
-          where: { id: evento.organizadorId }
-        });
-      }
-      if (produtor && produtor.gatewayActive === "ASAAS" && produtor.asaasToken) {
-        asaasApiKey = produtor.asaasToken;
-        if (produtor.asaasUrl) {
-          asaasUrl = produtor.asaasUrl;
+      if (evento && evento.gatewayActive === "ASAAS" && evento.asaasToken) {
+        asaasApiKey = evento.asaasToken;
+        if (evento.asaasUrl) {
+          asaasUrl = evento.asaasUrl;
         } else {
-          asaasUrl = ""; // Force auto-detection for the producer's token
+          asaasUrl = ""; // Force auto-detection
         }
       }
     }

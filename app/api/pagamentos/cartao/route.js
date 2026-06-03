@@ -12,7 +12,8 @@ export async function POST(req) {
       cardNumber,
       cardExpiry,
       cardCvc,
-      cartaoCodigo
+      cartaoCodigo,
+      useSavedCard
     } = await req.json();
 
     if (!valor || parseFloat(valor) <= 0) {
@@ -24,28 +25,16 @@ export async function POST(req) {
     let asaasApiKey = process.env.ASAAS_API_KEY;
     let asaasUrl = process.env.ASAAS_API_URL;
 
-
     if (eventoId) {
       const evento = await prisma.evento.findUnique({
-        where: { id: eventoId },
-        include: {
-          usuarios: {
-            where: { role: "ORGANIZADOR" }
-          }
-        }
+        where: { id: eventoId }
       });
-      let produtor = evento?.usuarios?.[0];
-      if (!produtor && evento?.organizadorId) {
-        produtor = await prisma.usuario.findUnique({
-          where: { id: evento.organizadorId }
-        });
-      }
-      if (produtor && produtor.gatewayActive === "ASAAS" && produtor.asaasToken) {
-        asaasApiKey = produtor.asaasToken;
-        if (produtor.asaasUrl) {
-          asaasUrl = produtor.asaasUrl;
+      if (evento && evento.gatewayActive === "ASAAS" && evento.asaasToken) {
+        asaasApiKey = evento.asaasToken;
+        if (evento.asaasUrl) {
+          asaasUrl = evento.asaasUrl;
         } else {
-          asaasUrl = ""; // Force auto-detection for the producer's token
+          asaasUrl = ""; // Force auto-detection
         }
       }
     }
@@ -67,12 +56,32 @@ export async function POST(req) {
     // Se a chave do Asaas estiver configurada, chama a API real
     if (asaasApiKey) {
       try {
+        let clientRecord = null;
         const cleanCpf = cpf ? cpf.replace(/\D/g, "") : "";
-        const [expiryMonth, expiryYear] = cardExpiry.split("/");
+        if (cleanCpf) {
+          clientRecord = await prisma.cliente.findFirst({ where: { cpf: cleanCpf } });
+        }
+
+        let cartao = null;
+        if (cartaoCodigo) {
+          cartao = await prisma.cartao.findUnique({
+            where: { codigo: cartaoCodigo.toUpperCase() },
+            include: { cliente: true }
+          });
+          if (!clientRecord && cartao?.cliente) {
+            clientRecord = cartao.cliente;
+          }
+        }
+
+        if (useSavedCard) {
+          if (!clientRecord || !clientRecord.creditCardToken) {
+            throw new Error("Nenhum cartão salvo localizado para este cliente.");
+          }
+        }
 
         // 1. Criar ou Buscar Cliente no Asaas
         let customerId = "";
-        const customerSearchRes = await fetch(`${asaasUrl}/v3/customers?cpfCnpj=${cleanCpf}`, {
+        const customerSearchRes = await fetch(`${asaasUrl}/v3/customers?cpfCnpj=${cleanCpf || clientRecord?.cpf || ""}`, {
           headers: {
             "access_token": asaasApiKey,
             "Content-Type": "application/json"
@@ -90,8 +99,8 @@ export async function POST(req) {
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              name: clienteNome || "Consumidor La More",
-              cpfCnpj: cleanCpf || undefined,
+              name: clienteNome || clientRecord?.nome || "Consumidor La More",
+              cpfCnpj: cleanCpf || clientRecord?.cpf || undefined,
             })
           });
           const newCustomer = await createCustomerRes.json();
@@ -104,35 +113,43 @@ export async function POST(req) {
 
         // 2. Realizar pagamento via Cartão de Crédito
         const today = new Date().toISOString().split("T")[0];
+        const paymentPayload = {
+          customer: customerId,
+          billingType: "CREDIT_CARD",
+          value: value,
+          dueDate: today,
+          description: `Recarga de Saldo - La More Eventos`,
+          externalReference: txid,
+        };
+
+        if (useSavedCard && clientRecord?.creditCardToken) {
+          paymentPayload.creditCardToken = clientRecord.creditCardToken;
+        } else {
+          const [expiryMonth, expiryYear] = cardExpiry.split("/");
+          paymentPayload.creditCard = {
+            holderName: cardName,
+            number: cardNumber.replace(/\s/g, ""),
+            expiryMonth: expiryMonth.trim(),
+            expiryYear: "20" + expiryYear.trim(), // Asaas espera ano em 4 dígitos
+            ccv: cardCvc
+          };
+          paymentPayload.creditCardHolderInfo = {
+            name: cardName,
+            email: clientRecord?.email || "financeiro@lamore.com",
+            cpfCnpj: cleanCpf || clientRecord?.cpf || "",
+            postalCode: "01001000",
+            addressNumber: "123",
+            phone: clientRecord?.celular || "11999999999"
+          };
+        }
+
         const paymentRes = await fetch(`${asaasUrl}/v3/payments`, {
           method: "POST",
           headers: {
             "access_token": asaasApiKey,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            customer: customerId,
-            billingType: "CREDIT_CARD",
-            value: value,
-            dueDate: today,
-            description: `Recarga de Saldo - La More Eventos`,
-            externalReference: txid,
-            creditCard: {
-              holderName: cardName,
-              number: cardNumber.replace(/\s/g, ""),
-              expiryMonth: expiryMonth.trim(),
-              expiryYear: "20" + expiryYear.trim(), // Asaas espera ano em 4 dígitos
-              ccv: cardCvc
-            },
-            creditCardHolderInfo: {
-              name: cardName,
-              email: "financeiro@lamore.com",
-              cpfCnpj: cleanCpf,
-              postalCode: "01001000",
-              addressNumber: "123",
-              phone: "11999999999"
-            }
-          })
+          body: JSON.stringify(paymentPayload)
         });
         
         const paymentData = await paymentRes.json();
@@ -141,26 +158,43 @@ export async function POST(req) {
           throw new Error(paymentData.errors?.[0]?.description || "Transação de cartão recusada pelo Asaas");
         }
 
-        // Se o pagamento for CONFIRMADO imediatamente
+        // Se o pagamento foi efetuado com sucesso e não estávamos usando cartão salvo, salva o token
+        if (!useSavedCard && paymentData.creditCardToken && clientRecord) {
+          const token = paymentData.creditCardToken;
+          const brand = paymentData.creditCard?.creditCardBrand || "CARTÃO";
+          const lastDigits = paymentData.creditCard?.creditCardNumber
+            ? paymentData.creditCard.creditCardNumber.slice(-4)
+            : "";
+          
+          await prisma.cliente.update({
+            where: { id: clientRecord.id },
+            data: {
+              creditCardToken: token,
+              creditCardBrand: brand,
+              creditCardLastDigits: lastDigits
+            }
+          });
+        }
+
         const confirmado = paymentData.status === "CONFIRMED" || paymentData.status === "RECEIVED";
 
         if (confirmado && cartaoCodigo) {
-          const cartao = await prisma.cartao.findUnique({ where: { codigo: cartaoCodigo.toUpperCase() } });
-          if (cartao) {
-            const evento = await prisma.evento.findUnique({ where: { id: cartao.eventoId } });
+          const cartaoDb = cartao || await prisma.cartao.findUnique({ where: { codigo: cartaoCodigo.toUpperCase() } });
+          if (cartaoDb) {
+            const evento = await prisma.evento.findUnique({ where: { id: cartaoDb.eventoId } });
             const taxaPct = evento?.taxaMasterPercent || 0;
             const valorTaxaMaster = (value * taxaPct) / 100;
             await prisma.$transaction([
               prisma.cartao.update({
-                where: { id: cartao.id },
+                where: { id: cartaoDb.id },
                 data: { saldo: { increment: value } }
               }),
               prisma.movimentacao.create({
                 data: {
                   tipo: 'RECARGA',
                   valor: value,
-                  descricao: `Recarga Cartão Online (Asaas)`,
-                  cartaoId: cartao.id,
+                  descricao: useSavedCard ? `Recarga Cartão Salvo (Asaas)` : `Recarga Cartão Online (Asaas)`,
+                  cartaoId: cartaoDb.id,
                   gatewayId: paymentData.id,
                   gatewayStatus: "CONFIRMADO",
                   valorTaxaMaster

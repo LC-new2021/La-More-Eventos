@@ -42,6 +42,11 @@ model Evento {
   bilheteriaEventoId String?
   organizadorId     String?
   metodosPagamentoJson String?
+  gatewayActive     String?  @default("ASAAS")
+  asaasToken        String?
+  asaasUrl          String?
+  pagbankToken      String?
+  pagbankKey        String?
   cartoes       Cartao[]
   produtos      Produto[]
   usuarios      Usuario[]
@@ -55,6 +60,9 @@ model Cliente {
   cpf      String?
   celular  String?
   email    String?
+  creditCardToken      String?
+  creditCardBrand      String?
+  creditCardLastDigits String?
   cartoes  Cartao[]
   criadoEm DateTime @default(now())
 }

@@ -17,6 +17,9 @@ export async function GET(req) {
         nome: true,
         celular: true,
         email: true,
+        creditCardToken: true,
+        creditCardBrand: true,
+        creditCardLastDigits: true,
       },
     });
 
