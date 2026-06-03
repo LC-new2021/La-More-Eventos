@@ -224,7 +224,7 @@ export default function PosApp() {
         body: JSON.stringify({
           valor: valorRestante,
           clienteNome: nome || cartaoEncontrado?.cliente?.nome || "Cliente Consumidor",
-          cpf: cpf.replace(/\D/g, ""),
+          cpf: (cpf || "").replace(/\D/g, ""),
           eventoId
         })
       });
@@ -237,8 +237,9 @@ export default function PosApp() {
         setPixTxid(data.txid);
         setPixGerado(true);
       }
-    } catch {
-      setErro("Erro de rede ao gerar Pix");
+    } catch (err) {
+      console.error("Erro ao gerar Pix:", err);
+      setErro(`Erro de rede ao gerar Pix: ${err.message}`);
     } finally {
       setGerandoPix(false);
     }
@@ -436,6 +437,11 @@ export default function PosApp() {
                   ? "Cobrança Pix integrada com PagBank"
                   : "Cobrança Pix (Simulação)"}
               </p>
+              {erro && (
+                <div className="bg-red-100 border-2 border-red-200 text-red-700 p-3 rounded-2xl mb-3 font-bold text-sm">
+                  ⚠️ {erro}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={iniciarPixDinamico}
