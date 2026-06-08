@@ -1,6 +1,7 @@
 {
   "name": "La More Eventos",
-  "short_name": "La More",
+  "short_name": "La More Eventos",
+  "description": "Cartão de Consumo Digital",
   "start_url": ".",
   "scope": "/",
   "display": "standalone",

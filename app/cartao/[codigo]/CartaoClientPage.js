@@ -599,6 +599,51 @@ export default function CartaoClientPage() {
           </div>
         )}
 
+        {/* CARTEIRA DIGITAL (APPLE/GOOGLE WALLET) */}
+        {cartao.status === 'ATIVO' && (
+          <div className="bg-white/5 rounded-3xl p-5 border border-white/5 shadow-inner mb-4 text-left">
+            <h3 className="text-white font-black text-lg flex items-center gap-2 mb-3">
+              <span>📱</span> Carteira Digital
+            </h3>
+            <p className="text-xs text-blue-200/80 leading-normal mb-4">
+              Adicione seu Cartão de Consumo à sua carteira digital para fácil acesso offline.
+            </p>
+            <div className="flex flex-col gap-3">
+              {isIOS ? (
+                <a 
+                  href={`/api/wallet/apple/${codigo}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="w-full bg-black hover:bg-gray-900 border border-gray-800 text-white font-bold text-sm py-3 rounded-2xl transition-all shadow flex items-center justify-center gap-3 cursor-pointer"
+                >
+                  <svg viewBox="0 0 384 512" className="w-4 h-4 fill-white"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.3 48.6-.8 90.5-84.4 103.5-115.2-46.7-20.4-63.5-62.8-62.6-95.4zM267.8 72c21.8-26.4 34.2-59.8 30.2-92-31.5 1.3-64 18.2-85.9 44.4-20 23.9-33.8 58.2-29 90 34.6 2.7 62.9-15.9 84.7-42.4z"/></svg>
+                  Adicionar à Apple Wallet
+                </a>
+              ) : (
+                <button 
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/wallet/google/${codigo}`);
+                      const data = await res.json();
+                      if (data.url) {
+                        window.open(data.url, '_blank');
+                      } else {
+                        alert('Erro: ' + (data.error || 'Não foi possível gerar o link do Google Wallet.'));
+                      }
+                    } catch (e) {
+                      alert('Erro ao conectar com o Google Wallet.');
+                    }
+                  }}
+                  className="w-full bg-black hover:bg-gray-900 border border-gray-800 text-white font-bold text-sm py-3 rounded-2xl transition-all shadow flex items-center justify-center gap-3 cursor-pointer"
+                >
+                  <svg viewBox="0 0 488 512" className="w-4 h-4 fill-white"><path d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"/></svg>
+                  Adicionar ao Google Wallet
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* RECARGA RAPIDA ONLINE */}
         {cartao.status === 'ATIVO' && (
           <div className="bg-white/5 rounded-3xl p-5 border border-white/5 shadow-inner mb-4 flex flex-col gap-3">

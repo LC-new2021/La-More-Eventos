@@ -9,7 +9,7 @@ export async function GET(req, { params }) {
 
   const manifest = {
     name: `La More - Cartão ${codigo.toUpperCase()}`,
-    short_name: "La More",
+    short_name: "La More Eventos",
     start_url: `/cartao/${codigo.toUpperCase()}`,
     scope: "/",
     display: "standalone",
