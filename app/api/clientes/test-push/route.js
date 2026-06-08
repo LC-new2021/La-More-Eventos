@@ -8,14 +8,20 @@ export async function POST(req) {
 
     let pushSubscriptionJson = null;
     let targetName = 'Usuário';
+    let targetUrl = '/';
 
     if (clienteId) {
-      const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
+      const cliente = await prisma.cliente.findUnique({
+        where: { id: clienteId },
+        include: { cartoes: { take: 1 } }
+      });
       if (!cliente) {
         return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 });
       }
       pushSubscriptionJson = cliente.pushSubscriptionJson;
       targetName = cliente.nome;
+      const cardCode = cliente.cartoes?.[0]?.codigo;
+      targetUrl = cardCode ? `/cartao/${cardCode.toUpperCase()}` : '/';
     } else if (usuarioId) {
       const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
       if (!usuario) {
@@ -23,6 +29,7 @@ export async function POST(req) {
       }
       pushSubscriptionJson = usuario.pushSubscriptionJson;
       targetName = usuario.nome;
+      targetUrl = '/pos';
     } else {
       return NextResponse.json({ error: 'Parâmetro clienteId ou usuarioId é obrigatório' }, { status: 400 });
     }
@@ -35,7 +42,7 @@ export async function POST(req) {
       pushSubscriptionJson,
       'Teste de Notificação 🔔',
       `Olá ${targetName}! Suas notificações do La More Eventos estão funcionando corretamente.`,
-      clienteId ? '/cartao' : '/pos'
+      targetUrl
     );
 
     return NextResponse.json({ success: true });
