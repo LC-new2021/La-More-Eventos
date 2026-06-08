@@ -93,11 +93,7 @@ export default function CartaoPage() {
       let subscription = await registration.pushManager.getSubscription();
       
       if (!subscription) {
-        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!vapidPublicKey) {
-          console.warn('NEXT_PUBLIC_VAPID_PUBLIC_KEY ausente no frontend.');
-          return;
-        }
+        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BPmym8empnSw5k2J13oHm-EACbUZen3HxKv0tQAPmsQDranlb5Y_YLraQvlRkJYvL77wfFkmldw1gEnMXIqx4lE';
         const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
@@ -111,7 +107,7 @@ export default function CartaoPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             clienteId: clienteId,
-            subscription
+            subscription: subscription.toJSON ? subscription.toJSON() : subscription
           })
         });
         console.log('Cliente inscrito para push notifications com sucesso!');

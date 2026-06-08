@@ -105,11 +105,7 @@ export default function PosApp() {
       let subscription = await registration.pushManager.getSubscription();
       
       if (!subscription) {
-        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        if (!vapidPublicKey) {
-          console.warn('NEXT_PUBLIC_VAPID_PUBLIC_KEY ausente no frontend do caixa.');
-          return;
-        }
+        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BPmym8empnSw5k2J13oHm-EACbUZen3HxKv0tQAPmsQDranlb5Y_YLraQvlRkJYvL77wfFkmldw1gEnMXIqx4lE';
         const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
@@ -121,7 +117,9 @@ export default function PosApp() {
         await fetch('/api/usuarios/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subscription })
+          body: JSON.stringify({
+            subscription: subscription.toJSON ? subscription.toJSON() : subscription
+          })
         });
         console.log('Operador de caixa inscrito para push notifications com sucesso!');
       }
