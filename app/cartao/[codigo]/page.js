@@ -513,84 +513,92 @@ export default function CartaoPage() {
             <h3 className="text-white font-black text-lg flex items-center gap-2 mb-2">
               <span>🔔</span> Notificações do Cartão
             </h3>
-            {/* iOS and NOT standalone (Unsupported state) */}
-            {pushPermission === 'unsupported' && isIOS && !isStandalone && (
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs text-blue-200/80 leading-relaxed">
-                <p className="font-bold text-white mb-1">📲 Requisito do iPhone (iOS):</p>
-                Para receber alertas de saldo na tela:
-                <ol className="list-decimal list-inside mt-1 space-y-1">
-                  <li>Toque no botão de <strong>Compartilhar</strong> (seta para cima no Safari)</li>
-                  <li>Selecione <strong>"Adicionar à Tela de Início"</strong></li>
-                  <li>Abra o app a partir da tela inicial e clique em <strong>Ativar Notificações</strong> por lá.</li>
-                </ol>
-              </div>
-            )}
-
-            {/* Non-iOS Unsupported State */}
-            {pushPermission === 'unsupported' && (!isIOS || isStandalone) && (
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs text-blue-200/50 text-center leading-normal">
-                ⚠️ Seu navegador ou tipo de conexão (necessita HTTPS) não oferece suporte para notificações Web Push nativas de saldo.
-              </div>
-            )}
-
-            {/* Permission: GRANTED */}
-            {pushPermission === 'granted' && (
-              <div className="space-y-3">
-                <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 flex items-start gap-3">
-                  <span className="text-xl">✅</span>
-                  <div>
-                    <p className="text-emerald-300 font-bold text-sm">Notificações Ativas</p>
-                    <p className="text-[10px] text-emerald-400/70 leading-tight mt-0.5">Você receberá um alerta imediato na tela do celular sempre que houver recarga ou consumo.</p>
+            
+            {/* If Notification is NOT supported */}
+            {pushPermission === 'unsupported' && (
+              <>
+                {isIOS ? (
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs text-blue-200/80 leading-relaxed">
+                    <p className="font-bold text-white mb-1">📲 Requisito do iPhone (iOS):</p>
+                    Para receber alertas de saldo na tela:
+                    <ol className="list-decimal list-inside mt-1 space-y-1">
+                      <li>Toque no botão de <strong>Compartilhar</strong> (seta para cima no Safari)</li>
+                      <li>Selecione <strong>"Adicionar à Tela de Início"</strong></li>
+                      <li>Abra o app a partir da tela inicial e clique em <strong>Ativar Notificações</strong> por lá.</li>
+                    </ol>
                   </div>
-                </div>
-                
-                <button
-                  type="button"
-                  onClick={testarNotificacao}
-                  disabled={testLoading}
-                  className="w-full bg-[#0D9488]/30 hover:bg-[#0D9488]/50 border border-[#0D9488]/50 text-white font-bold text-xs py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
-                  style={{ minHeight: "36px" }}
-                >
-                  {testLoading ? 'Enviando teste...' : '🔔 Testar Notificação na Tela'}
-                </button>
-                {testSuccess && (
-                  <p className="text-center text-[10px] text-emerald-400 font-semibold animate-pulse mt-1">
-                    Notificação enviada! Verifique a tela do seu celular.
-                  </p>
+                ) : (
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs text-blue-200/50 text-center leading-normal">
+                    ⚠️ Seu navegador ou conexão (requer HTTPS) não suporta notificações de saldo na tela.
+                  </div>
                 )}
-              </div>
+              </>
             )}
 
-            {/* Permission: DENIED */}
-            {pushPermission === 'denied' && (
-              <div className="bg-rose-500/10 p-4 rounded-2xl border border-rose-500/20 flex items-start gap-3">
-                <span className="text-xl">⚠️</span>
-                <div>
-                  <p className="text-rose-300 font-bold text-sm">Notificações Bloqueadas</p>
-                  <p className="text-[10px] text-rose-400/70 leading-normal mt-0.5">
-                    As notificações foram bloqueadas nas configurações do seu navegador para este site. 
-                    Para receber alertas de saldo, acesse as permissões do site na barra de endereços e permita as notificações.
-                  </p>
-                </div>
-              </div>
-            )}
+            {/* If Notification IS supported */}
+            {pushPermission !== 'unsupported' && (
+              <>
+                {/* Permission: GRANTED */}
+                {pushPermission === 'granted' && (
+                  <div className="space-y-3">
+                    <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 flex items-start gap-3">
+                      <span className="text-xl">✅</span>
+                      <div>
+                        <p className="text-emerald-300 font-bold text-sm">Notificações Ativas</p>
+                        <p className="text-[10px] text-emerald-400/70 leading-tight mt-0.5">Você receberá um alerta imediato na tela do celular sempre que houver recarga ou consumo.</p>
+                      </div>
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={testarNotificacao}
+                      disabled={testLoading}
+                      className="w-full bg-[#0D9488]/30 hover:bg-[#0D9488]/50 border border-[#0D9488]/50 text-white font-bold text-xs py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                      style={{ minHeight: "36px" }}
+                    >
+                      {testLoading ? 'Enviando teste...' : '🔔 Testar Notificação na Tela'}
+                    </button>
+                    {testSuccess && (
+                      <p className="text-center text-[10px] text-emerald-400 font-semibold animate-pulse mt-1">
+                        Notificação enviada! Verifique a tela do seu celular.
+                      </p>
+                    )}
+                  </div>
+                )}
 
-            {/* Permission: DEFAULT (Prompt option) */}
-            {pushPermission === 'default' && (
-              <div className="flex flex-col gap-3">
-                <p className="text-xs text-blue-200/80 leading-normal">
-                  Deseja receber avisos de saldo na tela do celular quando fizer recargas ou retirar produtos no bar?
-                </p>
-                <button
-                  onClick={solicitarPermissaoNotificacao}
-                  disabled={isSubscribing}
-                  className="w-full bg-[#0D9488] hover:bg-[#0F766E] text-white font-black text-sm py-3 rounded-2xl transition-all shadow flex items-center justify-center gap-2 cursor-pointer"
-                  style={{ minHeight: "44px" }}
-                >
-                  {isSubscribing ? 'Ativando...' : '🔔 Ativar Notificações de Saldo'}
-                </button>
-              </div>
-            )}          </div>
+                {/* Permission: DENIED */}
+                {pushPermission === 'denied' && (
+                  <div className="bg-rose-500/10 p-4 rounded-2xl border border-rose-500/20 flex items-start gap-3">
+                    <span className="text-xl">⚠️</span>
+                    <div>
+                      <p className="text-rose-300 font-bold text-sm">Notificações Bloqueadas</p>
+                      <p className="text-[10px] text-rose-400/70 leading-normal mt-0.5">
+                        As notificações foram bloqueadas nas configurações do seu navegador para este site. 
+                        Para receber alertas de saldo, acesse as permissões do site na barra de endereços e permita as notificações.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Permission: DEFAULT (Prompt option) */}
+                {pushPermission === 'default' && (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs text-blue-200/80 leading-normal">
+                      Deseja receber avisos de saldo na tela do celular quando fizer recargas ou retirar produtos no bar?
+                    </p>
+                    <button
+                      onClick={solicitarPermissaoNotificacao}
+                      disabled={isSubscribing}
+                      className="w-full bg-[#0D9488] hover:bg-[#0F766E] text-white font-black text-sm py-3 rounded-2xl transition-all shadow flex items-center justify-center gap-2 cursor-pointer"
+                      style={{ minHeight: "44px" }}
+                    >
+                      {isSubscribing ? 'Ativando...' : '🔔 Ativar Notificações de Saldo'}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         )}
 
         {/* RECARGA RAPIDA ONLINE */}
