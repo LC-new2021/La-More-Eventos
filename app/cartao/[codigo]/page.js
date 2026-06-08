@@ -76,10 +76,14 @@ export default function CartaoPage() {
   useEffect(() => {
     carregarCartao();
     if (typeof window !== 'undefined') {
-      setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream);
-      setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || false);
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || false;
+      setIsIOS(ios);
+      setIsStandalone(standalone);
       if ('Notification' in window) {
         setPushPermission(Notification.permission);
+      } else {
+        setPushPermission('unsupported');
       }
     }
   }, [codigo]);
@@ -509,10 +513,9 @@ export default function CartaoPage() {
             <h3 className="text-white font-black text-lg flex items-center gap-2 mb-2">
               <span>🔔</span> Notificações do Cartão
             </h3>
-            
-            {/* iOS and NOT standalone */}
-            {isIOS && !isStandalone && (
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs text-blue-200/80 leading-relaxed mb-2">
+            {/* iOS and NOT standalone (Unsupported state) */}
+            {pushPermission === 'unsupported' && isIOS && !isStandalone && (
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs text-blue-200/80 leading-relaxed">
                 <p className="font-bold text-white mb-1">📲 Requisito do iPhone (iOS):</p>
                 Para receber alertas de saldo na tela:
                 <ol className="list-decimal list-inside mt-1 space-y-1">
@@ -520,6 +523,13 @@ export default function CartaoPage() {
                   <li>Selecione <strong>"Adicionar à Tela de Início"</strong></li>
                   <li>Abra o app a partir da tela inicial e clique em <strong>Ativar Notificações</strong> por lá.</li>
                 </ol>
+              </div>
+            )}
+
+            {/* Non-iOS Unsupported State */}
+            {pushPermission === 'unsupported' && (!isIOS || isStandalone) && (
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs text-blue-200/50 text-center leading-normal">
+                ⚠️ Seu navegador ou tipo de conexão (necessita HTTPS) não oferece suporte para notificações Web Push nativas de saldo.
               </div>
             )}
 
@@ -580,8 +590,7 @@ export default function CartaoPage() {
                   {isSubscribing ? 'Ativando...' : '🔔 Ativar Notificações de Saldo'}
                 </button>
               </div>
-            )}
-          </div>
+            )}          </div>
         )}
 
         {/* RECARGA RAPIDA ONLINE */}
