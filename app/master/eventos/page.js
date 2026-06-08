@@ -12,14 +12,41 @@ export default function MasterEventos() {
   const [data, setData] = useState('');
   const [local, setLocal] = useState('');
   const [taxa, setTaxa] = useState('5.0');
+  const [mpPublicKey, setMpPublicKey] = useState('');
+  const [mpAccessToken, setMpAccessToken] = useState('');
   const [salvando, setSalvando] = useState(false);
   
   // Modal states
   const [mostrarModal, setMostrarModal] = useState(false);
   const [eventoParaEditar, setEventoParaEditar] = useState(null);
+  
+  // Notification states
+  const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     carregarEventos();
+    
+    // Ler parâmetros da URL para exibir toasts/banners após o login OAuth do Mercado Pago
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const success = params.get('success');
+      const err = params.get('error');
+      if (success === 'mercadopago_connected') {
+        setSuccessMsg('Conta Mercado Pago do Produtor vinculada com sucesso! 🔌🎉');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (err) {
+        if (err === 'mercadopago_auth_failed') {
+          setError('A autorização com o Mercado Pago foi cancelada ou recusada.');
+        } else if (err === 'token_exchange_failed') {
+          setError('Não foi possível converter o código de autorização em tokens do Mercado Pago.');
+        } else if (err === 'callback_error') {
+          setError('Ocorreu um erro inesperado ao processar a resposta do Mercado Pago.');
+        } else {
+          setError('Falha ao vincular a conta Mercado Pago.');
+        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
   }, []);
 
   const carregarEventos = async () => {
@@ -41,6 +68,8 @@ export default function MasterEventos() {
     setData('');
     setLocal('');
     setTaxa('5.0');
+    setMpPublicKey('');
+    setMpAccessToken('');
     setMostrarModal(true);
   };
 
@@ -50,6 +79,8 @@ export default function MasterEventos() {
     setData(evt.data ? new Date(evt.data).toISOString().split('T')[0] : '');
     setLocal(evt.local || '');
     setTaxa(evt.taxaMasterPercent?.toString() || '5.0');
+    setMpPublicKey(evt.mercadoPagoPublicKey || '');
+    setMpAccessToken(evt.mercadoPagoAccessToken || '');
     setMostrarModal(true);
   };
 
@@ -69,7 +100,9 @@ export default function MasterEventos() {
           nome,
           data,
           local,
-          taxaMasterPercent: parseFloat(taxa)
+          taxaMasterPercent: parseFloat(taxa),
+          mercadoPagoPublicKey: mpPublicKey,
+          mercadoPagoAccessToken: mpAccessToken
         })
       });
       const result = await res.json();
@@ -126,6 +159,12 @@ export default function MasterEventos() {
         </div>
       )}
 
+      {successMsg && (
+        <div className="bg-green-500/10 border-2 border-green-500/20 text-green-700 p-4 rounded-2xl mb-6 font-bold flex items-center gap-3 animate-in fade-in duration-200">
+          <span>✅</span> {successMsg}
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-12">
           <p className="text-[#1D3461] text-xl font-bold">Carregando eventos...</p>
@@ -167,6 +206,32 @@ export default function MasterEventos() {
                     <p className="text-gray-400 text-xs font-bold uppercase">Taxa Master</p>
                     <p className="text-gray-950 font-black text-lg">{evt.taxaMasterPercent}%</p>
                   </div>
+                </div>
+
+                <div className={`mt-3 p-3.5 rounded-2xl border-2 flex items-center justify-between text-xs font-black mb-4 ${
+                  evt.mercadoPagoUserId 
+                    ? 'bg-green-50 border-green-100 text-green-700' 
+                    : 'bg-gray-50 border-gray-100 text-gray-500'
+                }`}>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span>🔌 MP Split:</span>
+                    <span className="truncate">{evt.mercadoPagoUserId ? `Conectado (ID: ${evt.mercadoPagoUserId})` : 'Não Configurado'}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const clientId = process.env.NEXT_PUBLIC_MERCADOPAGO_CLIENT_ID || '1234567890';
+                      const redirectUri = encodeURIComponent(process.env.NEXT_PUBLIC_MERCADOPAGO_REDIRECT_URI || 'http://localhost:3000/api/auth/mercadopago/callback');
+                      const url = `https://auth.mercadopago.com.br/authorization?client_id=${clientId}&response_type=code&platform_id=mp&state=${evt.id}&redirect_uri=${redirectUri}`;
+                      window.location.href = url;
+                    }}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all shadow-sm shrink-0 ${
+                      evt.mercadoPagoUserId 
+                        ? 'bg-green-600 hover:bg-green-700 text-white' 
+                        : 'bg-[#1D3461] hover:bg-[#112244] text-white'
+                    }`}
+                  >
+                    {evt.mercadoPagoUserId ? 'Reconectar' : 'Vincular'}
+                  </button>
                 </div>
               </div>
 
@@ -249,6 +314,57 @@ export default function MasterEventos() {
                   placeholder="Ex: Salão de Festas Principal"
                 />
               </div>
+
+              <div>
+                <label className="block text-gray-500 font-bold mb-1 text-sm">Mercado Pago Public Key</label>
+                <input
+                  type="text"
+                  value={mpPublicKey}
+                  onChange={(e) => setMpPublicKey(e.target.value)}
+                  className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
+                  placeholder="Ex: APP_USR-..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-500 font-bold mb-1 text-sm">Mercado Pago Access Token</label>
+                <input
+                  type="password"
+                  value={mpAccessToken}
+                  onChange={(e) => setMpAccessToken(e.target.value)}
+                  className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
+                  placeholder="Ex: APP_USR-..."
+                />
+              </div>
+
+              {!eventoParaEditar && (
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-xs font-semibold text-gray-500 leading-normal">
+                  💡 A vinculação da conta Mercado Pago do produtor via OAuth (Split) estará disponível após a criação do evento, ao editar seus detalhes.
+                </div>
+              )}
+
+              {eventoParaEditar && (
+                <div className="bg-blue-50 border-2 border-blue-100 rounded-2xl p-4 text-center mt-2">
+                  <p className="text-blue-900 font-black text-sm mb-1">🔌 Mercado Pago Connect (Split)</p>
+                  <p className="text-xs text-blue-700 mb-3 leading-tight">
+                    {eventoParaEditar.mercadoPagoUserId 
+                      ? `Conta conectada (ID: ${eventoParaEditar.mercadoPagoUserId})` 
+                      : "Vincule a conta Mercado Pago do produtor para split automático."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const clientId = process.env.NEXT_PUBLIC_MERCADOPAGO_CLIENT_ID || '1234567890';
+                      const redirectUri = encodeURIComponent(process.env.NEXT_PUBLIC_MERCADOPAGO_REDIRECT_URI || 'http://localhost:3000/api/auth/mercadopago/callback');
+                      const url = `https://auth.mercadopago.com.br/authorization?client_id=${clientId}&response_type=code&platform_id=mp&state=${eventoParaEditar.id}&redirect_uri=${redirectUri}`;
+                      window.location.href = url;
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all shadow"
+                  >
+                    {eventoParaEditar.mercadoPagoUserId ? "Reconectar Conta" : "Conectar Conta do Produtor"}
+                  </button>
+                </div>
+              )}
 
               <div className="flex gap-4 pt-4">
                 <button

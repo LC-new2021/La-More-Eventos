@@ -61,7 +61,7 @@ export default function OrgDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-4xl font-black text-[#1D3461]">Dashboard</h2>
           <p className="text-gray-500 text-lg font-semibold mt-1">
@@ -72,6 +72,26 @@ export default function OrgDashboard() {
           <Link href="/org/relatorios" className="bg-gray-100 text-gray-700 font-black text-base px-6 py-3 rounded-2xl hover:bg-gray-200 transition-all">📊 Exportar</Link>
         </div>
       </div>
+
+      {dados && (
+        <div className={`mb-6 p-4 rounded-2xl border-2 flex items-center justify-between font-black text-sm ${
+          dados.mercadoPagoUserId 
+            ? 'bg-green-50 border-green-100 text-green-700' 
+            : 'bg-yellow-50 border-yellow-100 text-yellow-700'
+        }`}>
+          <div>
+            <span>🔌 Recebimento: </span>
+            <span>
+              {dados.mercadoPagoUserId 
+                ? `Split Ativo (Conta Mercado Pago vinculada - ID: ${dados.mercadoPagoUserId})` 
+                : 'Configuração Padrão (Sem split ativo)'}
+            </span>
+          </div>
+          <span className="text-xs opacity-75 font-semibold">
+            {dados.mercadoPagoUserId ? '🟩 CONFIGURADO' : '⚠️ VINCULAÇÃO OPCIONAL VIA MASTER'}
+          </span>
+        </div>
+      )}
 
       {/* Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

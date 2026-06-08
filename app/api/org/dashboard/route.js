@@ -15,7 +15,7 @@ export async function GET(req) {
 
     if (!eventoId) return NextResponse.json({ error: 'Sem evento' }, { status: 400 });
 
-    const [cartoes, movimentacoes, produtos] = await Promise.all([
+    const [cartoes, movimentacoes, produtos, evento] = await Promise.all([
       prisma.cartao.findMany({ where: { eventoId } }),
       prisma.movimentacao.findMany({
         where: { cartao: { eventoId } },
@@ -24,6 +24,10 @@ export async function GET(req) {
         take: 50,
       }),
       prisma.produto.findMany({ where: { eventoId, ativo: true } }),
+      prisma.evento.findUnique({
+        where: { id: eventoId },
+        select: { mercadoPagoUserId: true }
+      })
     ]);
 
     const totalRecarregado = movimentacoes.filter(m => m.tipo === 'RECARGA').reduce((s, m) => s + m.valor, 0);
@@ -48,6 +52,7 @@ export async function GET(req) {
       totalPedidos: movimentacoes.filter(m => m.tipo === 'DEBITO').length,
       movimentacoes: movimentacoes.slice(0, 20),
       ranking,
+      mercadoPagoUserId: evento?.mercadoPagoUserId || null
     });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

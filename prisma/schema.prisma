@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -28,6 +28,7 @@ model Usuario {
   asaasUrl      String?
   pagbankToken  String?
   pagbankKey    String?
+  pushSubscriptionJson String?
   criadoEm DateTime @default(now())
 }
 
@@ -47,6 +48,10 @@ model Evento {
   asaasUrl          String?
   pagbankToken      String?
   pagbankKey        String?
+  mercadoPagoPublicKey   String?
+  mercadoPagoAccessToken String?
+  mercadoPagoRefreshToken String?
+  mercadoPagoUserId       String?
   cartoes       Cartao[]
   produtos      Produto[]
   usuarios      Usuario[]
@@ -63,6 +68,7 @@ model Cliente {
   creditCardToken      String?
   creditCardBrand      String?
   creditCardLastDigits String?
+  pushSubscriptionJson String?
   cartoes  Cartao[]
   criadoEm DateTime @default(now())
 }

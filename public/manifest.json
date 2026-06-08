@@ -1,0 +1,16 @@
+{
+  "name": "La More Eventos",
+  "short_name": "La More",
+  "start_url": "/pos",
+  "display": "standalone",
+  "background_color": "#0F1C3F",
+  "theme_color": "#0F1C3F",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

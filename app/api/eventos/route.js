@@ -5,13 +5,30 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
     const eventos = await prisma.evento.findMany({
       orderBy: { criadoEm: 'desc' },
       include: {
         _count: { select: { cartoes: true, produtos: true, usuarios: true } },
       },
     });
-    return NextResponse.json(eventos);
+
+    const isAuthorized = session && ['MASTER', 'ORGANIZADOR'].includes(session.user.role);
+
+    const safeEventos = eventos.map(evento => {
+      const safe = { ...evento };
+      if (!isAuthorized) {
+        delete safe.asaasToken;
+        delete safe.asaasUrl;
+        delete safe.pagbankToken;
+        delete safe.pagbankKey;
+        delete safe.mercadoPagoAccessToken;
+        delete safe.mercadoPagoRefreshToken;
+      }
+      return safe;
+    });
+
+    return NextResponse.json(safeEventos);
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

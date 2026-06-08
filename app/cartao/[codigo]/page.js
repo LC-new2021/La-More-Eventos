@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Script from 'next/script';
 
 function maskCpf(cpf) {
   if (!cpf) return '';
@@ -19,6 +20,21 @@ function maskPhone(phone) {
     return `(${clean.slice(0, 2)}) ****-${clean.slice(6)}`;
   }
   return phone;
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
 export default function CartaoPage() {
@@ -43,17 +59,216 @@ export default function CartaoPage() {
   const [processando, setProcessando] = useState(false);
   const [pixPayload, setPixPayload] = useState('');
   const [pixQrCodeUrl, setPixQrCodeUrl] = useState('');
-  const [passoRecarga, setPassoRecarga] = useState('valor'); // 'valor', 'pagando', 'sucesso'
+  const [passoRecarga, setPassoRecarga] = useState('valor'); // 'valor', 'checkout', 'sucesso'
   const [recargaErro, setRecargaErro] = useState('');
+  const [brickInstance, setBrickInstance] = useState(null);
+  const [tabAtiva, setTabAtiva] = useState('PIX'); // 'PIX', 'CARD', 'WALLET'
+
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  // Push notification states
+  const [pushPermission, setPushPermission] = useState('default');
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [testSuccess, setTestSuccess] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
 
   useEffect(() => {
     carregarCartao();
+    if (typeof window !== 'undefined') {
+      setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream);
+      setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || false);
+      if ('Notification' in window) {
+        setPushPermission(Notification.permission);
+      }
+    }
   }, [codigo]);
+
+  const inscreverPush = async (clienteId) => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !clienteId) return;
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker registrado:', registration.scope);
+      
+      let subscription = await registration.pushManager.getSubscription();
+      
+      if (!subscription) {
+        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidPublicKey) {
+          console.warn('NEXT_PUBLIC_VAPID_PUBLIC_KEY ausente no frontend.');
+          return;
+        }
+        const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey
+        });
+      }
+      
+      if (subscription) {
+        await fetch('/api/clientes/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clienteId: clienteId,
+            subscription
+          })
+        });
+        console.log('Cliente inscrito para push notifications com sucesso!');
+      }
+    } catch (error) {
+      console.warn('Erro ao inscrever cliente em Web Push:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (cartao?.cliente?.id && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      inscreverPush(cartao.cliente.id);
+    }
+  }, [cartao]);
+
+  const solicitarPermissaoNotificacao = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      alert('Seu navegador não oferece suporte para notificações Web Push ou não está sob conexão segura (HTTPS).');
+      return;
+    }
+    setIsSubscribing(true);
+    try {
+      const permission = await Notification.requestPermission();
+      setPushPermission(permission);
+      if (permission === 'granted' && cartao?.cliente?.id) {
+        await inscreverPush(cartao.cliente.id);
+        carregarCartao();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
+  const testarNotificacao = async () => {
+    if (!cartao?.cliente?.id) return;
+    setTestLoading(true);
+    setTestSuccess(false);
+    try {
+      const res = await fetch('/api/clientes/test-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clienteId: cartao.cliente.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTestSuccess(true);
+        setTimeout(() => setTestSuccess(false), 5000);
+      } else {
+        alert('Erro ao enviar notificação de teste: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao processar envio de teste.');
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  // Polling para confirmação do Pix e carregamento de carteira Mercado Pago
+  useEffect(() => {
+    let activeInstance = null;
+
+    if (passoRecarga === 'checkout' && tabAtiva === 'WALLET' && cartao?.evento?.mercadoPagoPublicKey && typeof window !== 'undefined' && window.MercadoPago) {
+      const container = document.getElementById('paymentCardWalletContainer');
+      if (container) {
+        container.innerHTML = '';
+      }
+
+      try {
+        const mp = new window.MercadoPago(cartao.evento.mercadoPagoPublicKey, { locale: 'pt-BR' });
+        const bricksBuilder = mp.bricks();
+
+        bricksBuilder.create('payment', 'paymentCardWalletContainer', {
+          initialization: {
+            amount: parseFloat(valorRecarga),
+            payer: {
+              email: cartao.cliente.email || 'financeiro@lamore.com.br'
+            }
+          },
+          customization: {
+            paymentMethods: {
+              applePay: 'all',
+              googlePay: 'all',
+              creditCard: 'all',
+              debitCard: 'all',
+              ticket: 'all',
+              bankTransfer: 'all', // Pix
+            }
+          },
+          callbacks: {
+            onReady: () => {
+              console.log("Mercado Pago Brick is ready");
+            },
+            onSubmit: ({ selectedPaymentMethod, formData }) => {
+              setProcessando(true);
+              return new Promise((resolve, reject) => {
+                fetch('/api/pagamentos/wallet', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    token: formData.token,
+                    paymentMethodId: formData.payment_method_id,
+                    issuerId: formData.issuer_id,
+                    installments: formData.installments,
+                    transactionAmount: formData.transaction_amount,
+                    payerEmail: formData.payer.email,
+                    cartaoCodigo: cartao.codigo,
+                    eventoId: cartao.evento.id
+                  })
+                })
+                .then(res => res.json())
+                .then(data => {
+                  if (data.success || data.status === 'approved') {
+                    setPassoRecarga('sucesso');
+                    carregarCartao();
+                    resolve();
+                  } else {
+                    setRecargaErro(data.error || 'Erro ao processar pagamento.');
+                    reject();
+                  }
+                })
+                .catch(err => {
+                  setRecargaErro('Erro de conexão ao processar carteira.');
+                  reject();
+                })
+                .finally(() => {
+                  setProcessando(false);
+                });
+              });
+            },
+            onError: (error) => {
+              console.error("Brick Error:", error);
+              setRecargaErro("Erro ao processar pagamento ou inicializar carteira.");
+            }
+          }
+        }).then(instance => {
+          activeInstance = instance;
+          setBrickInstance(instance);
+        });
+      } catch (err) {
+        console.error("Error setting up Mercado Pago Brick:", err);
+      }
+    }
+
+    return () => {
+      if (activeInstance && typeof activeInstance.unmount === 'function') {
+        activeInstance.unmount();
+      }
+    };
+  }, [passoRecarga, tabAtiva, cartao, valorRecarga]);
 
   // Polling for Pix recharge payment check
   useEffect(() => {
     let interval;
-    if (abrirRecarga && passoRecarga === 'pagando' && metodoRecarga === 'PIX') {
+    if (abrirRecarga && passoRecarga === 'checkout' && tabAtiva === 'PIX' && pixQrCodeUrl) {
       const initialBalance = cartao?.saldo || 0;
       interval = setInterval(() => {
         fetch(`/api/cartao/${codigo}`)
@@ -71,7 +286,14 @@ export default function CartaoPage() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [abrirRecarga, passoRecarga, metodoRecarga, codigo, cartao]);
+  }, [abrirRecarga, passoRecarga, tabAtiva, pixQrCodeUrl, codigo, cartao]);
+
+  // Auto-geração do Pix quando a aba muda para PIX
+  useEffect(() => {
+    if (passoRecarga === 'checkout' && tabAtiva === 'PIX' && !pixQrCodeUrl && !processando) {
+      gerarPixOnline();
+    }
+  }, [passoRecarga, tabAtiva, pixQrCodeUrl]);
 
   const carregarCartao = () => {
     fetch(`/api/cartao/${codigo}`)
@@ -94,62 +316,64 @@ export default function CartaoPage() {
     }
   };
 
-  const processarPagamentoOnline = async (e) => {
-    e.preventDefault();
+  const gerarPixOnline = async () => {
+    setProcessando(true);
+    setRecargaErro('');
+    try {
+      const res = await fetch('/api/pagamentos/pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          valor: parseFloat(valorRecarga),
+          clienteNome: cartao.cliente.nome,
+          cpf: cartao.cliente.cpf || '00000000000',
+          eventoId: cartao.eventoId,
+          cartaoCodigo: cartao.codigo
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao gerar Pix');
+      }
+      setPixPayload(data.pixPayload);
+      setPixQrCodeUrl(data.qrCodeUrl);
+    } catch (err) {
+      setRecargaErro(err.message);
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  const processarCartaoOnline = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     setProcessando(true);
     setRecargaErro('');
 
     try {
-      if (metodoRecarga === 'PIX') {
-        const res = await fetch('/api/pagamentos/pix', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            valor: parseFloat(valorRecarga),
-            clienteNome: cartao.cliente.nome,
-            cpf: cartao.cliente.cpf || '00000000000',
-            eventoId: cartao.eventoId,
-            cartaoCodigo: cartao.codigo
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Erro ao gerar Pix');
-        }
-        setPixPayload(data.pixPayload);
-        // Usar um externalReference customizado para identificar no webhook
-        // Para simular pagamento fácil, podemos mudar a URL se for teste
-        setPixQrCodeUrl(data.qrCodeUrl);
-        
-        // Se for ambiente de simulação/teste, fornece um botão para pagar rápido
-        setPassoRecarga('pagando');
+      const res = await fetch('/api/pagamentos/cartao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          valor: parseFloat(valorRecarga),
+          clienteNome: cartao.cliente.nome,
+          cpf: cartao.cliente.cpf || '00000000000',
+          eventoId: cartao.eventoId,
+          cardName,
+          cardNumber,
+          cardExpiry,
+          cardCvc,
+          cartaoCodigo: cartao.codigo
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro na transação de cartão');
+      }
+      if (data.confirmado) {
+        setPassoRecarga('sucesso');
+        carregarCartao();
       } else {
-        // Cartão de Crédito
-        const res = await fetch('/api/pagamentos/cartao', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            valor: parseFloat(valorRecarga),
-            clienteNome: cartao.cliente.nome,
-            cpf: cartao.cliente.cpf || '00000000000',
-            eventoId: cartao.eventoId,
-            cardName,
-            cardNumber,
-            cardExpiry,
-            cardCvc,
-            cartaoCodigo: cartao.codigo
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Erro na transação de cartão');
-        }
-        if (data.confirmado) {
-          setPassoRecarga('sucesso');
-          carregarCartao();
-        } else {
-          throw new Error('A transação não foi aprovada pela operadora.');
-        }
+        throw new Error('A transação não foi aprovada pela operadora.');
       }
     } catch (err) {
       setRecargaErro(err.message);
@@ -215,15 +439,7 @@ export default function CartaoPage() {
     <div className="min-h-screen bg-[#0F1C3F] p-5 flex flex-col justify-between relative">
       <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center">
         
-        {/* BOTÃO VOLTAR */}
-        <div className="mb-4">
-          <button 
-            onClick={handleBack} 
-            className="flex items-center gap-2 text-blue-300 hover:text-white font-bold transition-colors text-base"
-          >
-            ← Voltar
-          </button>
-        </div>
+
 
         {/* CABEÇALHO DO EVENTO */}
         <div className="text-center mb-6">
@@ -291,6 +507,87 @@ export default function CartaoPage() {
           {cartao.status === 'ATIVO' ? '● CARTÃO DIGITAL ATIVO' : '🔒 CARTÃO BLOQUEADO / INATIVO'}
         </div>
 
+        {/* PWA & WEB PUSH NOTIFICATION SYSTEM */}
+        {cartao.status === 'ATIVO' && (
+          <div className="bg-white/5 rounded-3xl p-5 border border-white/5 shadow-inner mb-4 text-left">
+            <h3 className="text-white font-black text-lg flex items-center gap-2 mb-2">
+              <span>🔔</span> Notificações do Cartão
+            </h3>
+            
+            {/* iOS and NOT standalone */}
+            {isIOS && !isStandalone && (
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-xs text-blue-200/80 leading-relaxed mb-2">
+                <p className="font-bold text-white mb-1">📲 Requisito do iPhone (iOS):</p>
+                Para receber alertas de saldo na tela:
+                <ol className="list-decimal list-inside mt-1 space-y-1">
+                  <li>Toque no botão de <strong>Compartilhar</strong> (seta para cima no Safari)</li>
+                  <li>Selecione <strong>"Adicionar à Tela de Início"</strong></li>
+                  <li>Abra o app a partir da tela inicial e clique em <strong>Ativar Notificações</strong> por lá.</li>
+                </ol>
+              </div>
+            )}
+
+            {/* Permission: GRANTED */}
+            {pushPermission === 'granted' && (
+              <div className="space-y-3">
+                <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 flex items-start gap-3">
+                  <span className="text-xl">✅</span>
+                  <div>
+                    <p className="text-emerald-300 font-bold text-sm">Notificações Ativas</p>
+                    <p className="text-[10px] text-emerald-400/70 leading-tight mt-0.5">Você receberá um alerta imediato na tela do celular sempre que houver recarga ou consumo.</p>
+                  </div>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={testarNotificacao}
+                  disabled={testLoading}
+                  className="w-full bg-[#0D9488]/30 hover:bg-[#0D9488]/50 border border-[#0D9488]/50 text-white font-bold text-xs py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                  style={{ minHeight: "36px" }}
+                >
+                  {testLoading ? 'Enviando teste...' : '🔔 Testar Notificação na Tela'}
+                </button>
+                {testSuccess && (
+                  <p className="text-center text-[10px] text-emerald-400 font-semibold animate-pulse mt-1">
+                    Notificação enviada! Verifique a tela do seu celular.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Permission: DENIED */}
+            {pushPermission === 'denied' && (
+              <div className="bg-rose-500/10 p-4 rounded-2xl border border-rose-500/20 flex items-start gap-3">
+                <span className="text-xl">⚠️</span>
+                <div>
+                  <p className="text-rose-300 font-bold text-sm">Notificações Bloqueadas</p>
+                  <p className="text-[10px] text-rose-400/70 leading-normal mt-0.5">
+                    As notificações foram bloqueadas nas configurações do seu navegador para este site. 
+                    Para receber alertas de saldo, acesse as permissões do site na barra de endereços e permita as notificações.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Permission: DEFAULT (Prompt option) */}
+            {pushPermission === 'default' && (
+              <div className="flex flex-col gap-3">
+                <p className="text-xs text-blue-200/80 leading-normal">
+                  Deseja receber avisos de saldo na tela do celular quando fizer recargas ou retirar produtos no bar?
+                </p>
+                <button
+                  onClick={solicitarPermissaoNotificacao}
+                  disabled={isSubscribing}
+                  className="w-full bg-[#0D9488] hover:bg-[#0F766E] text-white font-black text-sm py-3 rounded-2xl transition-all shadow flex items-center justify-center gap-2 cursor-pointer"
+                  style={{ minHeight: "44px" }}
+                >
+                  {isSubscribing ? 'Ativando...' : '🔔 Ativar Notificações de Saldo'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* RECARGA RAPIDA ONLINE */}
         {cartao.status === 'ATIVO' && (
           <div className="bg-white/5 rounded-3xl p-5 border border-white/5 shadow-inner mb-4 flex flex-col gap-3">
@@ -300,6 +597,7 @@ export default function CartaoPage() {
               onClick={() => {
                 setAbrirRecarga(true);
                 setPassoRecarga('valor');
+                setTabAtiva(cartao?.evento?.mercadoPagoPublicKey ? 'WALLET' : 'PIX');
                 setRecargaErro('');
               }} 
               className="w-full bg-[#0D9488] hover:bg-[#0F766E] text-white font-black py-4 rounded-2xl transition-all shadow-lg text-lg flex items-center justify-center gap-2"
@@ -393,170 +691,207 @@ export default function CartaoPage() {
                   ))}
                 </div>
 
-                {/* Selecionar Método */}
-                <h4 className="font-black text-gray-900 mb-3">Método de Pagamento</h4>
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <button 
-                    onClick={() => setMetodoRecarga('PIX')}
-                    className={`py-4 rounded-2xl border-2 font-black flex flex-col items-center gap-1 ${
-                      metodoRecarga === 'PIX'
-                        ? 'border-[#1E3A8A] bg-[#1E3A8A]/5 text-[#1E3A8A]'
-                        : 'border-gray-200 text-gray-500'
-                    }`}
-                  >
-                    <span className="text-2xl">🟢</span>
-                    <span className="text-sm">Pix Dinâmico</span>
-                  </button>
-                  <button 
-                    onClick={() => setMetodoRecarga('CARD')}
-                    className={`py-4 rounded-2xl border-2 font-black flex flex-col items-center gap-1 ${
-                      metodoRecarga === 'CARD'
-                        ? 'border-[#1E3A8A] bg-[#1E3A8A]/5 text-[#1E3A8A]'
-                        : 'border-gray-200 text-gray-500'
-                    }`}
-                  >
-                    <span className="text-2xl">💳</span>
-                    <span className="text-sm">Cartão de Crédito</span>
-                  </button>
-                </div>
-
                 {recargaErro && <p className="text-red-500 font-bold text-sm mb-4 text-center">{recargaErro}</p>}
 
                 <button 
-                  onClick={processarPagamentoOnline}
-                  disabled={processando || !valorRecarga || parseFloat(valorRecarga) <= 5}
+                  onClick={() => {
+                    setPassoRecarga('checkout');
+                  }}
+                  disabled={!valorRecarga || parseFloat(valorRecarga) <= 5}
                   className="w-full bg-[#1E3A8A] hover:bg-[#152A66] text-white font-black py-4 rounded-2xl transition-all shadow-lg text-lg flex items-center justify-center gap-2"
                   style={{ minHeight: "52px" }}
                 >
-                  {processando ? 'Processando...' : 'Avançar para Pagamento →'}
+                  Avançar para Checkout →
                 </button>
                 <p className="text-[10px] text-gray-400 text-center mt-2">Valor mínimo de recarga online: R$ 5,00</p>
               </>
             )}
 
-            {passoRecarga === 'pagando' && metodoRecarga === 'PIX' && (
-              <div className="text-center">
-                <h3 className="text-2xl font-black text-gray-900 mb-1">Aguardando Pagamento</h3>
-                <p className="text-xs text-gray-400 mb-6">Pague o Pix para creditar o cartão</p>
+            {passoRecarga === 'checkout' && (
+              <>
+                <h3 className="text-xl font-black text-[#1E3A8A] mb-1">Recarga de Saldo</h3>
+                <p className="text-xs font-bold text-gray-400 mb-4 text-center">Valor: R$ {parseFloat(valorRecarga).toFixed(2).replace('.', ',')}</p>
 
-                {pixQrCodeUrl ? (
-                  <img src={pixQrCodeUrl} alt="QR Code Pix" className="w-48 h-48 mx-auto mb-4 border border-gray-100 rounded-2xl p-2" />
-                ) : (
-                  <div className="w-48 h-48 mx-auto mb-4 bg-gray-100 rounded-2xl flex items-center justify-center text-4xl">⚡</div>
+                {/* Tabs Selector */}
+                <div className="flex border-b border-gray-100 mb-5 w-full">
+                  {cartao?.evento?.mercadoPagoPublicKey && (
+                    <button
+                      onClick={() => {
+                        setRecargaErro('');
+                        setTabAtiva('WALLET');
+                      }}
+                      className={`flex-1 pb-2.5 text-center font-black text-xs transition-all border-b-2 ${
+                        tabAtiva === 'WALLET'
+                          ? 'border-[#1E3A8A] text-[#1E3A8A]'
+                          : 'border-transparent text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      📱 Carteira
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setRecargaErro('');
+                      setTabAtiva('PIX');
+                    }}
+                    className={`flex-1 pb-2.5 text-center font-black text-xs transition-all border-b-2 ${
+                      tabAtiva === 'PIX'
+                        ? 'border-[#1E3A8A] text-[#1E3A8A]'
+                        : 'border-transparent text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    🟢 Pix
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRecargaErro('');
+                      setTabAtiva('CARD');
+                    }}
+                    className={`flex-1 pb-2.5 text-center font-black text-xs transition-all border-b-2 ${
+                      tabAtiva === 'CARD'
+                        ? 'border-[#1E3A8A] text-[#1E3A8A]'
+                        : 'border-transparent text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    💳 Cartão
+                  </button>
+                </div>
+
+                {/* Content: WALLET */}
+                {tabAtiva === 'WALLET' && cartao?.evento?.mercadoPagoPublicKey && (
+                  <div className="w-full text-center">
+                    <p className="text-[11px] text-gray-400 mb-4">Pague usando Apple Pay, Google Pay ou Cartão via Mercado Pago.</p>
+                    <div id="paymentCardWalletContainer" className="w-full min-h-[150px] mb-6 animate-fade-in" />
+                  </div>
                 )}
 
-                <div className="mb-6">
-                  <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Código Copia e Cola</p>
-                  <input 
-                    type="text"
-                    readOnly
-                    value={pixPayload}
-                    onClick={(e) => {
-                      e.target.select();
-                      navigator.clipboard.writeText(pixPayload);
-                      alert('Pix Copia e Cola copiado para a área de transferência!');
+                {/* Content: PIX */}
+                {tabAtiva === 'PIX' && (
+                  <div className="text-center w-full">
+                    {processando && !pixQrCodeUrl ? (
+                      <div className="py-12 text-center text-xs font-bold text-gray-400 animate-pulse">Gerando Pix...</div>
+                    ) : pixQrCodeUrl ? (
+                      <>
+                        <img src={pixQrCodeUrl} alt="QR Code Pix" className="w-44 h-44 mx-auto mb-4 border border-gray-100 rounded-2xl p-2" />
+                        
+                        <div className="mb-4">
+                          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Código Copia e Cola</p>
+                          <input 
+                            type="text"
+                            readOnly
+                            value={pixPayload}
+                            onClick={(e) => {
+                              e.target.select();
+                              navigator.clipboard.writeText(pixPayload);
+                              alert('Pix Copia e Cola copiado!');
+                            }}
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono text-center cursor-pointer select-all truncate"
+                            title="Clique para copiar"
+                          />
+                          <p className="text-[9px] text-gray-400 mt-1">Toque no campo acima para copiar</p>
+                        </div>
+
+                        <button 
+                          onClick={simularWebhookPix}
+                          disabled={processando}
+                          className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-2.5 rounded-xl transition-all mb-2 text-xs shadow"
+                        >
+                          {processando ? 'Confirmando...' : '⚡ Confirmar Pix (Simulação)'}
+                        </button>
+                      </>
+                    ) : (
+                      <div className="py-12 text-center text-xs font-bold text-red-500">Erro ao carregar Pix. Tente novamente.</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Content: CARD */}
+                {tabAtiva === 'CARD' && (
+                  <form onSubmit={processarCartaoOnline} className="space-y-3 w-full text-left">
+                    <div>
+                      <label className="block text-gray-500 font-bold mb-0.5 text-xs">Nome Impresso no Cartão</label>
+                      <input 
+                        type="text" 
+                        required 
+                        value={cardName} 
+                        onChange={e => setCardName(e.target.value)} 
+                        placeholder="JOAO S SILVA" 
+                        className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-3 py-1.5 font-semibold transition-all text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-500 font-bold mb-0.5 text-xs">Número do Cartão</label>
+                      <input 
+                        type="text" 
+                        required 
+                        value={cardNumber} 
+                        onChange={e => setCardNumber(e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim().slice(0, 19))} 
+                        placeholder="0000 0000 0000 0000" 
+                        className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-3 py-1.5 font-semibold transition-all text-xs"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-gray-500 font-bold mb-0.5 text-xs">Validade</label>
+                        <input 
+                          type="text" 
+                          required 
+                          value={cardExpiry} 
+                          onChange={e => {
+                            let val = e.target.value.replace(/\D/g, '');
+                            if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2, 4);
+                            setCardExpiry(val.slice(0, 5));
+                          }} 
+                          placeholder="MM/AA" 
+                          className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-3 py-1.5 font-semibold transition-all text-xs text-center"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-500 font-bold mb-0.5 text-xs">Código (CVC)</label>
+                        <input 
+                          type="text" 
+                          required 
+                          value={cardCvc} 
+                          onChange={e => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))} 
+                          placeholder="123" 
+                          className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-3 py-1.5 font-semibold transition-all text-xs text-center"
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      type="submit"
+                      disabled={processando}
+                      className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-2.5 rounded-xl transition-all text-xs shadow"
+                    >
+                      {processando ? 'Processando...' : 'Pagar Agora'}
+                    </button>
+                  </form>
+                )}
+
+                {recargaErro && <p className="text-red-500 font-bold text-xs text-center my-2">{recargaErro}</p>}
+
+                {/* Voltar button for Checkout screen */}
+                <div className="mt-4 pt-3 border-t border-gray-100 w-full">
+                  <button 
+                    onClick={() => {
+                      if (brickInstance && typeof brickInstance.unmount === 'function') {
+                        brickInstance.unmount();
+                      }
+                      setBrickInstance(null);
+                      setPixQrCodeUrl('');
+                      setPixPayload('');
+                      setRecargaErro('');
+                      setPassoRecarga('valor');
                     }}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono text-center cursor-pointer select-all truncate"
-                    title="Clique para copiar"
-                  />
-                  <p className="text-[9px] text-gray-400 mt-1">Toque no campo acima para copiar</p>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <button 
-                    onClick={simularWebhookPix}
-                    disabled={processando}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-3 rounded-xl transition-all"
+                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold py-2.5 rounded-xl transition-all text-xs"
                   >
-                    {processando ? 'Processando...' : '⚡ Confirmar Pix (Simulação)'}
-                  </button>
-                  <button 
-                    onClick={() => setPassoRecarga('valor')}
-                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold py-3 rounded-xl transition-all"
-                  >
-                    Voltar
+                    Voltar / Alterar Valor
                   </button>
                 </div>
-              </div>
-            )}
-
-            {passoRecarga === 'pagando' && metodoRecarga === 'CARD' && (
-              <form onSubmit={processarPagamentoOnline} className="space-y-4">
-                <h3 className="text-2xl font-black text-gray-900 mb-1">Dados do Cartão</h3>
-                <p className="text-xs text-gray-400 mb-4">Pagamento 100% seguro via Asaas</p>
-
-                <div>
-                  <label className="block text-gray-500 font-bold mb-1 text-xs">Nome Impresso no Cartão</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={cardName} 
-                    onChange={e => setCardName(e.target.value)} 
-                    placeholder="JOAO S SILVA" 
-                    className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-4 py-2.5 font-semibold transition-all text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-500 font-bold mb-1 text-xs">Número do Cartão</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={cardNumber} 
-                    onChange={e => setCardNumber(e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim().slice(0, 19))} 
-                    placeholder="0000 0000 0000 0000" 
-                    className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-4 py-2.5 font-semibold transition-all text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-gray-500 font-bold mb-1 text-xs">Validade</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={cardExpiry} 
-                      onChange={e => {
-                        let val = e.target.value.replace(/\D/g, '');
-                        if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2, 4);
-                        setCardExpiry(val.slice(0, 5));
-                      }} 
-                      placeholder="MM/AA" 
-                      className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-4 py-2.5 font-semibold transition-all text-sm text-center"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-500 font-bold mb-1 text-xs">Código (CVC)</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={cardCvc} 
-                      onChange={e => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))} 
-                      placeholder="123" 
-                      className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1E3A8A] focus:bg-white outline-none rounded-xl px-4 py-2.5 font-semibold transition-all text-sm text-center"
-                    />
-                  </div>
-                </div>
-
-                {recargaErro && <p className="text-red-500 font-bold text-xs text-center">{recargaErro}</p>}
-
-                <div className="flex gap-2 pt-2">
-                  <button 
-                    type="button"
-                    onClick={() => setPassoRecarga('valor')}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold py-3.5 rounded-xl transition-all"
-                  >
-                    Voltar
-                  </button>
-                  <button 
-                    type="submit"
-                    disabled={processando}
-                    className="flex-1 bg-green-500 hover:bg-green-600 text-white font-black py-3.5 rounded-xl transition-all"
-                  >
-                    {processando ? 'Processando...' : 'Pagar Agora'}
-                  </button>
-                </div>
-              </form>
+              </>
             )}
 
             {passoRecarga === 'sucesso' && (
@@ -581,6 +916,8 @@ export default function CartaoPage() {
           </div>
         </div>
       )}
+
+      <Script src="https://sdk.mercadopago.com/js/v2" strategy="lazyOnload" />
 
     </div>
   );

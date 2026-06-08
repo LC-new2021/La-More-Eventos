@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { enviarNotificacao } from '@/lib/push';
 
 export async function POST(req) {
   try {
@@ -9,7 +10,10 @@ export async function POST(req) {
     const { codigo, produtoId, quantidade } = await req.json();
     const qty = parseInt(quantidade) || 1;
 
-    const cartao = await prisma.cartao.findUnique({ where: { codigo: codigo.toUpperCase() } });
+    const cartao = await prisma.cartao.findUnique({
+      where: { codigo: codigo.toUpperCase() },
+      include: { cliente: true }
+    });
     if (!cartao) return NextResponse.json({ error: 'Cartão não encontrado' }, { status: 404 });
     if (cartao.status !== 'ATIVO') return NextResponse.json({ error: 'Cartão bloqueado ou encerrado' }, { status: 400 });
 
@@ -42,6 +46,40 @@ export async function POST(req) {
         },
       }),
     ]);
+
+    // Enviar notificação push se configurada
+    if (cartao.cliente?.pushSubscriptionJson) {
+      const formattedTotal = valorTotal.toFixed(2).replace('.', ',');
+      const formattedSaldo = cartaoAtualizado.saldo.toFixed(2).replace('.', ',');
+      enviarNotificacao(
+        cartao.cliente.pushSubscriptionJson,
+        'Consumo Confirmado! 🍻',
+        `${qty > 1 ? `${qty}x ` : ''}${produto.nome} - R$ ${formattedTotal} debitados. Novo saldo: R$ ${formattedSaldo}.`,
+        `/cartao/${codigo.toUpperCase()}`
+      ).catch(console.error);
+    }
+
+    // Enviar notificação push para operadores/caixas ativos vinculados ao evento
+    try {
+      const operadores = await prisma.usuario.findMany({
+        where: {
+          eventoId: cartao.eventoId,
+          pushSubscriptionJson: { not: null }
+        }
+      });
+      const formattedTotal = valorTotal.toFixed(2).replace('.', ',');
+      const formattedSaldo = cartaoAtualizado.saldo.toFixed(2).replace('.', ',');
+      operadores.forEach(operador => {
+        enviarNotificacao(
+          operador.pushSubscriptionJson,
+          'Novo Consumo Registrado 🧾',
+          `${cartao.cliente.nome} consumiu ${qty > 1 ? `${qty}x ` : ''}${produto.nome} (R$ ${formattedTotal}). Novo saldo do cliente: R$ ${formattedSaldo}.`,
+          '/pos'
+        ).catch(console.error);
+      });
+    } catch (pushError) {
+      console.error('Erro ao notificar operadores no débito:', pushError);
+    }
 
     return NextResponse.json({
       ok: true,

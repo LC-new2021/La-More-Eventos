@@ -19,7 +19,8 @@ export async function POST(req) {
         const codigo = txid.replace("RECARGA_PIX_", "").toUpperCase();
         
         const cartao = await prisma.cartao.findUnique({
-          where: { codigo }
+          where: { codigo },
+          include: { cliente: true }
         });
 
         if (cartao) {
@@ -44,6 +45,43 @@ export async function POST(req) {
               }
             })
           ]);
+
+          // Enviar push de recarga Asaas
+          if (cartao.cliente?.pushSubscriptionJson) {
+            const { enviarNotificacao } = require('@/lib/push');
+            const formattedValue = valor.toFixed(2).replace('.', ',');
+            const formattedSaldo = (cartao.saldo + valor).toFixed(2).replace('.', ',');
+            enviarNotificacao(
+              cartao.cliente.pushSubscriptionJson,
+              'Saldo Adicionado! ⚡',
+              `Recarga de R$ ${formattedValue} creditada. Novo saldo: R$ ${formattedSaldo}.`,
+              `/cartao/${codigo.toUpperCase()}`
+            ).catch(console.error);
+          }
+
+          // Notificar operadores vinculados ao evento
+          try {
+            const { enviarNotificacao } = require('@/lib/push');
+            const operadores = await prisma.usuario.findMany({
+              where: {
+                eventoId: cartao.eventoId,
+                pushSubscriptionJson: { not: null }
+              }
+            });
+            const formattedValue = valor.toFixed(2).replace('.', ',');
+            const formattedSaldo = (cartao.saldo + valor).toFixed(2).replace('.', ',');
+            operadores.forEach(operador => {
+              enviarNotificacao(
+                operador.pushSubscriptionJson,
+                'Nova Recarga Confirmada ⚡',
+                `O cliente ${cartao.cliente.nome} realizou recarga online de R$ ${formattedValue}. Novo saldo: R$ ${formattedSaldo}.`,
+                '/pos'
+              ).catch(console.error);
+            });
+          } catch (pushError) {
+            console.error('Erro ao notificar operadores no Asaas Webhook:', pushError);
+          }
+
           console.log(`[Asaas Webhook] Cartão ${codigo} recarregado com R$ ${valor} via Pix.`);
         }
       }

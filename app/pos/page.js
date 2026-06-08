@@ -13,6 +13,21 @@ function formatarTel(v) {
   return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export default function PosApp() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -70,6 +85,100 @@ export default function PosApp() {
   const [cardCvc, setCardCvc] = useState("");
   const [processandoCartao, setProcessandoCartao] = useState(false);
   const [usarCheckoutOffline, setUsarCheckoutOffline] = useState(false);
+
+  // Estados para Notificações Push do Caixa
+  const [pushPermission, setPushPermission] = useState('default');
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testSuccess, setTestSuccess] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPushPermission(Notification.permission);
+    }
+  }, []);
+
+  const inscreverPushUsuario = async (userId) => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !userId) return;
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      let subscription = await registration.pushManager.getSubscription();
+      
+      if (!subscription) {
+        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!vapidPublicKey) {
+          console.warn('NEXT_PUBLIC_VAPID_PUBLIC_KEY ausente no frontend do caixa.');
+          return;
+        }
+        const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey
+        });
+      }
+      
+      if (subscription) {
+        await fetch('/api/usuarios/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription })
+        });
+        console.log('Operador de caixa inscrito para push notifications com sucesso!');
+      }
+    } catch (error) {
+      console.warn('Erro ao inscrever operador em Web Push:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.user?.id && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      inscreverPushUsuario(session.user.id);
+    }
+  }, [session]);
+
+  const solicitarPermissaoPushUsuario = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      alert('Seu navegador não oferece suporte para notificações Web Push ou não está sob conexão segura (HTTPS).');
+      return;
+    }
+    setIsSubscribing(true);
+    try {
+      const permission = await Notification.requestPermission();
+      setPushPermission(permission);
+      if (permission === 'granted' && session?.user?.id) {
+        await inscreverPushUsuario(session.user.id);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
+  const testarNotificacaoUsuario = async () => {
+    if (!session?.user?.id) return;
+    setTestLoading(true);
+    setTestSuccess(false);
+    try {
+      const res = await fetch('/api/clientes/test-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuarioId: session.user.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTestSuccess(true);
+        setTimeout(() => setTestSuccess(false), 5000);
+      } else {
+        alert('Erro ao enviar notificação de teste: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao processar envio de teste.');
+    } finally {
+      setTestLoading(false);
+    }
+  };
 
   const isMaster = session?.user?.role === 'MASTER';
   const eventoId = isMaster ? (selectedEventoId || session?.user?.eventoId) : session?.user?.eventoId;
@@ -411,9 +520,11 @@ export default function PosApp() {
           <p className="text-gray-900 font-black text-xl">{codigoCartao}</p>
         </div>
         <p className="text-blue-200 text-lg font-semibold mb-6">Peça para o cliente fotografar</p>
+        <div className="bg-white/10 rounded-2xl p-4 mb-6 text-sm text-blue-200 leading-normal">
+          💡 <strong>Notificações no Celular:</strong> Oriente o cliente a escanear o QR Code e clicar no botão <strong>Ativar Notificações</strong> no celular para receber avisos de saldo na tela.
+        </div>
         <div className="space-y-3">
           <a href={`/cartao/${codigoCartao}`} target="_blank" rel="noopener noreferrer" className="w-full bg-teal-500 text-white font-black text-xl py-5 rounded-3xl shadow-xl flex items-center justify-center gap-2" style={{minHeight:"52px"}}>🔗 Visualizar Cartão Virtual</a>
-          <button onClick={() => window.print()} className="w-full bg-white/10 text-white font-black text-xl py-5 rounded-3xl border-2 border-white/20" style={{minHeight:"52px"}}>🖨️ Imprimir QR Code</button>
           <button onClick={novoAtendimento} className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-3xl shadow-xl" style={{minHeight:"52px"}}>✅ Novo Atendimento</button>
         </div>
       </div>
@@ -456,9 +567,11 @@ export default function PosApp() {
           </div>
           <p className="text-center text-xs mt-4">Obrigado pela preferência!</p>
         </div>
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-800 leading-normal w-full max-w-[350px] mb-2 font-sans font-semibold">
+          💡 <strong>Notificações no Celular:</strong> Oriente o cliente a escanear o QR Code e clicar no botão <strong>Ativar Notificações</strong> no celular para receber avisos de saldo na tela.
+        </div>
         <div className="w-full max-w-[350px] mt-4 space-y-3">
           <a href={`/cartao/${codigoCartao}`} target="_blank" rel="noopener noreferrer" className="w-full bg-teal-600 text-white font-black text-xl py-5 rounded-2xl shadow-xl flex items-center justify-center gap-2" style={{minHeight:"52px"}}>🔗 Visualizar Cartão Virtual</a>
-          <button onClick={() => window.print()} className="w-full bg-[#1D3461] text-white font-black text-xl py-5 rounded-2xl shadow-xl" style={{minHeight:"52px"}}>🖨️ Imprimir Cupom</button>
           <button onClick={novoAtendimento} className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-2xl shadow-xl border-2 border-[#1D3461]/10" style={{minHeight:"52px"}}>✅ Novo Atendimento</button>
         </div>
       </div>
@@ -856,6 +969,50 @@ export default function PosApp() {
         >
           Voltar ao Portal
         </button>
+      </div>
+
+      {/* NOTIFICATION TOGGLE / CONTROLS FOR CASHIER */}
+      <div className="bg-white/5 p-4 rounded-2xl mb-6 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-left relative">
+        <div className="flex-1">
+          <p className="text-white font-bold text-sm flex items-center gap-1.5">
+            <span>🔔</span> Notificações no Caixa
+          </p>
+          <p className="text-[11px] text-blue-200/60 mt-0.5 leading-normal">
+            Receba alertas imediatos na tela deste dispositivo quando houver novas recargas online ou consumos de bar.
+          </p>
+        </div>
+        
+        {pushPermission === 'granted' ? (
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <span className="text-[11px] text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+              ● Ativas
+            </span>
+            <button
+              onClick={testarNotificacaoUsuario}
+              disabled={testLoading}
+              className="bg-teal-500 hover:bg-teal-600 text-white font-black text-xs px-3.5 py-1.5 rounded-lg transition-all cursor-pointer"
+            >
+              {testLoading ? "Testando..." : "Testar"}
+            </button>
+            {testSuccess && (
+              <span className="absolute bottom-[-16px] right-4 text-[9px] text-emerald-400 font-bold animate-pulse">
+                Notificação enviada!
+              </span>
+            )}
+          </div>
+        ) : pushPermission === 'denied' ? (
+          <span className="text-[11px] text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/20 text-center sm:text-right w-full sm:w-auto">
+            🚫 Bloqueadas no Navegador
+          </span>
+        ) : (
+          <button
+            onClick={solicitarPermissaoPushUsuario}
+            disabled={isSubscribing}
+            className="w-full sm:w-auto bg-teal-500 hover:bg-teal-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all shadow text-center cursor-pointer"
+          >
+            {isSubscribing ? "Ativando..." : "Ativar Notificações"}
+          </button>
+        )}
       </div>
 
       {/* Master Event Selector */}
