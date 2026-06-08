@@ -599,8 +599,8 @@ export default function CartaoClientPage() {
           </div>
         )}
 
-        {/* CARTEIRA DIGITAL (APPLE/GOOGLE WALLET) */}
-        {cartao.status === 'ATIVO' && (
+        {/* CARTEIRA DIGITAL (APPLE/GOOGLE WALLET) - OCULTADO TEMPORARIAMENTE */}
+        {false && cartao.status === 'ATIVO' && (
           <div className="bg-white/5 rounded-3xl p-5 border border-white/5 shadow-inner mb-4 text-left">
             <h3 className="text-white font-black text-lg flex items-center gap-2 mb-3">
               <span>📱</span> Carteira Digital
