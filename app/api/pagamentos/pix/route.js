@@ -15,16 +15,24 @@ export async function POST(req) {
     let asaasUrl = process.env.ASAAS_API_URL;
 
 
+    let pagbankToken = process.env.PAGBANK_TOKEN;
+    let isPagbankActive = false;
+
     if (eventoId) {
       const evento = await prisma.evento.findUnique({
         where: { id: eventoId }
       });
-      if (evento && evento.gatewayActive === "ASAAS" && evento.asaasToken) {
-        asaasApiKey = evento.asaasToken;
-        if (evento.asaasUrl) {
-          asaasUrl = evento.asaasUrl;
-        } else {
-          asaasUrl = ""; // Force auto-detection
+      if (evento) {
+        if (evento.gatewayActive === "ASAAS" && evento.asaasToken) {
+          asaasApiKey = evento.asaasToken;
+          if (evento.asaasUrl) {
+            asaasUrl = evento.asaasUrl;
+          } else {
+            asaasUrl = ""; // Force auto-detection
+          }
+        } else if (evento.gatewayActive === "PAGBANK" && evento.pagbankToken) {
+          pagbankToken = evento.pagbankToken;
+          isPagbankActive = true;
         }
       }
     }
@@ -57,8 +65,74 @@ export async function POST(req) {
       ? "RECARGA_PIX_" + cartaoCodigo.toUpperCase()
       : "TXID" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
 
+    // Roteamento para PagBank
+    if (isPagbankActive && pagbankToken) {
+      try {
+        const cleanToken = pagbankToken.trim();
+        const pagbankUrl = (cleanToken.includes("SANDBOX") || host.includes("localhost")) 
+          ? "https://sandbox.api.pagseguro.com/orders" 
+          : "https://api.pagseguro.com/orders";
+        
+        const cleanCpf = cpf ? cpf.replace(/\D/g, "") : "00000000000";
+        const expirationDate = new Date();
+        expirationDate.setHours(expirationDate.getHours() + 24); // Expirar em 24h
+
+        const pagbankPayload = {
+          reference_id: txid,
+          customer: {
+            name: clienteNome || "Consumidor La More",
+            email: "financeiro@lamore.com.br",
+            tax_id: cleanCpf
+          },
+          items: [
+            {
+              name: "Recarga de Saldo - La More",
+              quantity: 1,
+              unit_amount: Math.round(value * 100) // PagBank usa centavos
+            }
+          ],
+          qr_codes: [
+            {
+              amount: { value: Math.round(value * 100) },
+              expiration_date: expirationDate.toISOString()
+            }
+          ]
+        };
+
+        const res = await fetch(pagbankUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${cleanToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(pagbankPayload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.qr_codes || !data.qr_codes[0]) {
+          const errorDesc = data.error_messages?.[0]?.description || data.message || "Erro ao criar Pix no PagBank";
+          throw new Error(errorDesc);
+        }
+
+        const pixPayload = data.qr_codes[0].text;
+        
+        return NextResponse.json({
+          txid: data.id, // ID real da transação no PagBank
+          pixPayload: pixPayload,
+          qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}`,
+          valor: value,
+          isTest: pagbankUrl.includes("sandbox")
+        });
+
+      } catch (err) {
+        console.error("Falha ao comunicar com PagBank:", err.message);
+        return NextResponse.json({ error: `Erro no PagBank: ${err.message}` }, { status: 500 });
+      }
+    }
+
     // Se a chave do Asaas estiver configurada, chama a API real
-    if (asaasApiKey) {
+    if (asaasApiKey && !isPagbankActive) {
       try {
         const cleanCpf = cpf ? cpf.replace(/\D/g, "") : "";
 

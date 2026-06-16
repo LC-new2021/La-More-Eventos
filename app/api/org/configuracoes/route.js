@@ -31,7 +31,8 @@ export async function GET(req) {
       asaasToken: usuario.evento.asaasToken ? maskToken(usuario.evento.asaasToken) : '',
       asaasUrl: usuario.evento.asaasUrl,
       mercadoPagoPublicKey: usuario.evento.mercadoPagoPublicKey || '',
-      mercadoPagoAccessToken: usuario.evento.mercadoPagoAccessToken ? maskToken(usuario.evento.mercadoPagoAccessToken) : ''
+      mercadoPagoAccessToken: usuario.evento.mercadoPagoAccessToken ? maskToken(usuario.evento.mercadoPagoAccessToken) : '',
+      pagbankToken: usuario.evento.pagbankToken ? maskToken(usuario.evento.pagbankToken) : ''
     };
 
     return NextResponse.json({ evento: eventoInfo });
@@ -54,7 +55,8 @@ export async function POST(req) {
       asaasToken,
       asaasUrl,
       mercadoPagoPublicKey,
-      mercadoPagoAccessToken
+      mercadoPagoAccessToken,
+      pagbankToken
     } = await req.json();
 
     const usuario = await prisma.usuario.findUnique({
@@ -89,6 +91,10 @@ export async function POST(req) {
 
     if (mercadoPagoAccessToken && !mercadoPagoAccessToken.includes('***')) {
       dataToUpdate.mercadoPagoAccessToken = mercadoPagoAccessToken.trim();
+    }
+
+    if (pagbankToken && !pagbankToken.includes('***')) {
+      dataToUpdate.pagbankToken = pagbankToken.trim();
     }
 
     const eventoAtualizado = await prisma.evento.update({

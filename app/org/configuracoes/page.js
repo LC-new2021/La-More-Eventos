@@ -15,7 +15,8 @@ export default function ConfiguracoesPage() {
     asaasToken: '',
     asaasUrl: 'https://api.asaas.com',
     mercadoPagoPublicKey: '',
-    mercadoPagoAccessToken: ''
+    mercadoPagoAccessToken: '',
+    pagbankToken: ''
   });
 
   useEffect(() => {
@@ -37,7 +38,8 @@ export default function ConfiguracoesPage() {
           asaasToken: data.evento.asaasToken || '',
           asaasUrl: data.evento.asaasUrl || 'https://api.asaas.com',
           mercadoPagoPublicKey: data.evento.mercadoPagoPublicKey || '',
-          mercadoPagoAccessToken: data.evento.mercadoPagoAccessToken || ''
+          mercadoPagoAccessToken: data.evento.mercadoPagoAccessToken || '',
+          pagbankToken: data.evento.pagbankToken || ''
         });
       }
     } catch (err) {
@@ -142,6 +144,18 @@ export default function ConfiguracoesPage() {
               />
               <span className="ml-2 text-sm text-gray-700 font-medium">Mercado Pago</span>
             </label>
+
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="gatewayActive"
+                value="PAGBANK"
+                checked={config.gatewayActive === 'PAGBANK'}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+              />
+              <span className="ml-2 text-sm text-gray-700 font-medium">PagBank</span>
+            </label>
           </div>
         </div>
 
@@ -220,6 +234,33 @@ export default function ConfiguracoesPage() {
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
                 <p className="mt-1 text-xs text-gray-500">Usado pelo nosso servidor para confirmar e aprovar transações.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Configurações PagBank */}
+        {config.gatewayActive === 'PAGBANK' && (
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 animate-fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Credenciais PagBank</h2>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                Ativo
+              </span>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Token de Autenticação (Access Token)</label>
+                <input
+                  type="password"
+                  name="pagbankToken"
+                  value={config.pagbankToken}
+                  onChange={handleChange}
+                  placeholder="Seu token gerado no painel do PagBank..."
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">Usado para autorizar transações via Pix na sua conta.</p>
               </div>
             </div>
           </div>
