@@ -24,17 +24,24 @@ export async function POST(req) {
     const host = req.headers.get("host") || "";
     let asaasApiKey = process.env.ASAAS_API_KEY;
     let asaasUrl = process.env.ASAAS_API_URL;
+    let pagbankToken = process.env.PAGBANK_TOKEN;
+    let isPagbankActive = false;
 
     if (eventoId) {
       const evento = await prisma.evento.findUnique({
         where: { id: eventoId }
       });
-      if (evento && evento.gatewayActive === "ASAAS" && evento.asaasToken) {
-        asaasApiKey = evento.asaasToken;
-        if (evento.asaasUrl) {
-          asaasUrl = evento.asaasUrl;
-        } else {
-          asaasUrl = ""; // Force auto-detection
+      if (evento) {
+        if (evento.gatewayActive === "ASAAS" && evento.asaasToken) {
+          asaasApiKey = evento.asaasToken;
+          if (evento.asaasUrl) {
+            asaasUrl = evento.asaasUrl;
+          } else {
+            asaasUrl = ""; // Force auto-detection
+          }
+        } else if (evento.gatewayActive === "PAGBANK" && evento.pagbankToken) {
+          pagbankToken = evento.pagbankToken;
+          isPagbankActive = true;
         }
       }
     }
@@ -65,8 +72,140 @@ export async function POST(req) {
 
     const txid = "CC" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
 
+    // Roteamento para PagBank
+    if (isPagbankActive && pagbankToken) {
+      try {
+        let clientRecord = null;
+        const cleanCpf = cpf ? cpf.replace(/\D/g, "") : "";
+        if (cleanCpf) {
+          clientRecord = await prisma.cliente.findFirst({ where: { cpf: cleanCpf } });
+        }
+
+        let cartao = null;
+        if (cartaoCodigo) {
+          cartao = await prisma.cartao.findUnique({
+            where: { codigo: cartaoCodigo.toUpperCase() },
+            include: { cliente: true }
+          });
+        }
+
+        if (useSavedCard) {
+          throw new Error("A recarga com 1 clique ainda não está disponível neste evento. Por favor, digite os dados do cartão.");
+        }
+
+        const cleanToken = pagbankToken.trim();
+        const pagbankUrl = (cleanToken.includes("SANDBOX") || host.includes("localhost")) 
+          ? "https://sandbox.api.pagseguro.com/orders" 
+          : "https://api.pagseguro.com/orders";
+        
+        const [expiryMonth, expiryYear] = cardExpiry.split("/");
+        
+        const pagbankPayload = {
+          reference_id: txid,
+          customer: {
+            name: clienteNome || clientRecord?.nome || "Consumidor La More",
+            email: clientRecord?.email || "financeiro@lamore.com.br",
+            tax_id: cleanCpf || "00000000000",
+            phones: [
+              {
+                country: "55",
+                area: "11",
+                number: clientRecord?.celular ? clientRecord.celular.replace(/\D/g, "").slice(-9) : "999999999",
+                type: "MOBILE"
+              }
+            ]
+          },
+          charges: [
+            {
+              reference_id: txid,
+              description: "Recarga de Saldo - La More",
+              amount: {
+                value: Math.round(value * 100),
+                currency: "BRL"
+              },
+              payment_method: {
+                type: "CREDIT_CARD",
+                installments: 1,
+                capture: true,
+                card: {
+                  number: cardNumber.replace(/\s/g, ""),
+                  exp_month: expiryMonth.trim(),
+                  exp_year: "20" + expiryYear.trim(),
+                  security_code: cardCvc,
+                  holder: {
+                    name: cardName
+                  }
+                }
+              }
+            }
+          ]
+        };
+
+        const res = await fetch(pagbankUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${cleanToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(pagbankPayload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.charges || !data.charges[0]) {
+          const errorDesc = data.error_messages?.[0]?.description || data.message || "Transação recusada no PagBank";
+          throw new Error(errorDesc);
+        }
+
+        const charge = data.charges[0];
+        if (charge.status === "DECLINED" || charge.status === "CANCELED") {
+           throw new Error(charge.payment_response?.message || "Cartão recusado pelo banco emissor.");
+        }
+
+        const confirmado = charge.status === "PAID" || charge.status === "AUTHORIZED";
+
+        if (confirmado && cartaoCodigo) {
+          const cartaoDb = cartao || await prisma.cartao.findUnique({ where: { codigo: cartaoCodigo.toUpperCase() } });
+          if (cartaoDb) {
+            const evento = await prisma.evento.findUnique({ where: { id: cartaoDb.eventoId } });
+            const taxaPct = evento?.taxaMasterPercent || 0;
+            const valorTaxaMaster = (value * taxaPct) / 100;
+            await prisma.$transaction([
+              prisma.cartao.update({
+                where: { id: cartaoDb.id },
+                data: { saldo: { increment: value } }
+              }),
+              prisma.movimentacao.create({
+                data: {
+                  tipo: 'RECARGA',
+                  valor: value,
+                  descricao: `Recarga Cartão Online (PagBank)`,
+                  cartaoId: cartaoDb.id,
+                  gatewayId: data.id,
+                  gatewayStatus: charge.status,
+                  valorTaxaMaster
+                }
+              })
+            ]);
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          txid: data.id,
+          status: charge.status,
+          confirmado,
+          isTest: pagbankUrl.includes("sandbox")
+        });
+
+      } catch (err) {
+        console.error("Erro na transação PagBank:", err.message);
+        return NextResponse.json({ error: err.message }, { status: 500 });
+      }
+    }
+
     // Se a chave do Asaas estiver configurada, chama a API real
-    if (asaasApiKey) {
+    if (asaasApiKey && !isPagbankActive) {
       try {
         let clientRecord = null;
         const cleanCpf = cpf ? cpf.replace(/\D/g, "") : "";
