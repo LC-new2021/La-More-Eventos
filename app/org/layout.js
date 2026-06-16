@@ -10,6 +10,7 @@ const menuItens = [
   { href: "/org/operadores", emoji: "👥", titulo: "Operadores" },
   { href: "/org/clientes", emoji: "👤", titulo: "Clientes" },
   { href: "/org/relatorios", emoji: "📈", titulo: "Relatórios" },
+  { href: "/org/configuracoes", emoji: "⚙️", titulo: "Financeiro" },
 ];
 
 export default function OrgLayout({ children }) {
