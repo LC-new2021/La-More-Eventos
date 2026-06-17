@@ -64,6 +64,9 @@ export default function CartaoClientPage() {
   const [brickInstance, setBrickInstance] = useState(null);
   const [tabAtiva, setTabAtiva] = useState('PIX'); // 'PIX', 'CARD', 'WALLET'
 
+  // Refund States
+  const [devolucaoSucesso, setDevolucaoSucesso] = useState(false);
+
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
@@ -320,23 +323,37 @@ export default function CartaoClientPage() {
     setProcessando(true);
     setRecargaErro('');
     try {
-      const res = await fetch('/api/pagamentos/pix', {
+      const isStone = cartao.evento.gatewayActive === 'STONE';
+      const endpoint = isStone ? '/api/pagamentos/stone' : '/api/pagamentos/pix';
+      
+      const payload = isStone ? {
+        codigo: cartao.codigo,
+        valor: parseFloat(valorRecarga),
+        metodoPagamento: 'PIX'
+      } : {
+        valor: parseFloat(valorRecarga),
+        clienteNome: cartao.cliente.nome,
+        cpf: cartao.cliente.cpf || '00000000000',
+        eventoId: cartao.eventoId,
+        cartaoCodigo: cartao.codigo
+      };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          valor: parseFloat(valorRecarga),
-          clienteNome: cartao.cliente.nome,
-          cpf: cartao.cliente.cpf || '00000000000',
-          eventoId: cartao.eventoId,
-          cartaoCodigo: cartao.codigo
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Erro ao gerar Pix');
       }
-      setPixPayload(data.pixPayload);
-      setPixQrCodeUrl(data.qrCodeUrl);
+      if (isStone) {
+        setPixPayload(data.pix.qrCodeStr);
+        setPixQrCodeUrl(data.pix.qrCodeUrl);
+      } else {
+        setPixPayload(data.pixPayload);
+        setPixQrCodeUrl(data.qrCodeUrl);
+      }
     } catch (err) {
       setRecargaErro(err.message);
     } finally {
@@ -350,26 +367,45 @@ export default function CartaoClientPage() {
     setRecargaErro('');
 
     try {
-      const res = await fetch('/api/pagamentos/cartao', {
+      const isStone = cartao.evento.gatewayActive === 'STONE';
+      const endpoint = isStone ? '/api/pagamentos/stone' : '/api/pagamentos/cartao';
+      
+      const payload = isStone ? {
+        codigo: cartao.codigo,
+        valor: parseFloat(valorRecarga),
+        metodoPagamento: 'CREDIT_CARD',
+        cardData: {
+          numero: cardNumber.replace(/\s/g, ''),
+          titular: cardName,
+          mes: cardExpiry.split('/')[0],
+          ano: '20' + cardExpiry.split('/')[1],
+          cvv: cardCvc
+        }
+      } : {
+        valor: parseFloat(valorRecarga),
+        clienteNome: cartao.cliente.nome,
+        cpf: cartao.cliente.cpf || '00000000000',
+        eventoId: cartao.eventoId,
+        cardName,
+        cardNumber,
+        cardExpiry,
+        cardCvc,
+        cartaoCodigo: cartao.codigo
+      };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          valor: parseFloat(valorRecarga),
-          clienteNome: cartao.cliente.nome,
-          cpf: cartao.cliente.cpf || '00000000000',
-          eventoId: cartao.eventoId,
-          cardName,
-          cardNumber,
-          cardExpiry,
-          cardCvc,
-          cartaoCodigo: cartao.codigo
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Erro na transação de cartão');
       }
-      if (data.confirmado) {
+      if (isStone && data.status === 'PAID') {
+        setPassoRecarga('sucesso');
+        carregarCartao();
+      } else if (!isStone && data.confirmado) {
         setPassoRecarga('sucesso');
         carregarCartao();
       } else {
@@ -408,6 +444,10 @@ export default function CartaoClientPage() {
     } finally {
       setProcessando(false);
     }
+  };
+
+  const solicitarDevolucao = async () => {
+    // Agora restrito apenas ao painel master
   };
 
   if (loading) return (
@@ -687,9 +727,15 @@ export default function CartaoClientPage() {
 
       {/* TERMOS DE USO OBRIGATÓRIOS (BOTTOM) */}
       <div className="max-w-md mx-auto w-full text-center py-4 border-t border-white/10">
-        <p className="text-[11px] text-blue-200/60 font-bold leading-normal">
-          * Em caso de saldo não consumido, não haverá devolução e o valor restante será doado.
-        </p>
+        {!cartao.evento.permiteDevolucao ? (
+          <p className="text-[11px] text-blue-200/60 font-bold leading-normal">
+            * Em caso de saldo não consumido, não haverá devolução e o valor restante será doado.
+          </p>
+        ) : (
+          <p className="text-[11px] text-blue-200/60 font-bold leading-normal">
+            * Este evento permite reembolso. Solicite a devolução do seu saldo na opção acima antes de sair do local.
+          </p>
+        )}
         <p className="text-[10px] text-blue-300/40 mt-1">
           La More Eventos © {new Date().getFullYear()}
         </p>

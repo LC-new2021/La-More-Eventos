@@ -32,7 +32,10 @@ export async function GET(req) {
       asaasUrl: usuario.evento.asaasUrl,
       mercadoPagoPublicKey: usuario.evento.mercadoPagoPublicKey || '',
       mercadoPagoAccessToken: usuario.evento.mercadoPagoAccessToken ? maskToken(usuario.evento.mercadoPagoAccessToken) : '',
-      pagbankToken: usuario.evento.pagbankToken ? maskToken(usuario.evento.pagbankToken) : ''
+      pagbankToken: usuario.evento.pagbankToken ? maskToken(usuario.evento.pagbankToken) : '',
+      stonePublicKey: usuario.evento.stonePublicKey || '',
+      stoneSecretKey: usuario.evento.stoneSecretKey ? maskToken(usuario.evento.stoneSecretKey) : '',
+      permiteDevolucao: usuario.evento.permiteDevolucao || false
     };
 
     return NextResponse.json({ evento: eventoInfo });
@@ -56,7 +59,10 @@ export async function POST(req) {
       asaasUrl,
       mercadoPagoPublicKey,
       mercadoPagoAccessToken,
-      pagbankToken
+      pagbankToken,
+      stonePublicKey,
+      stoneSecretKey,
+      permiteDevolucao
     } = await req.json();
 
     const usuario = await prisma.usuario.findUnique({
@@ -73,7 +79,8 @@ export async function POST(req) {
 
     // Prepara dados de atualização
     const dataToUpdate = {
-      gatewayActive
+      gatewayActive,
+      permiteDevolucao: !!permiteDevolucao
     };
 
     // Só atualiza os tokens se eles não estiverem mascarados (ou seja, se o usuário digitou um novo valor)
@@ -95,6 +102,14 @@ export async function POST(req) {
 
     if (pagbankToken && !pagbankToken.includes('***')) {
       dataToUpdate.pagbankToken = pagbankToken.trim();
+    }
+
+    if (stonePublicKey) {
+      dataToUpdate.stonePublicKey = stonePublicKey.trim();
+    }
+
+    if (stoneSecretKey && !stoneSecretKey.includes('***')) {
+      dataToUpdate.stoneSecretKey = stoneSecretKey.trim();
     }
 
     const eventoAtualizado = await prisma.evento.update({

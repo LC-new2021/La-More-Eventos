@@ -16,7 +16,10 @@ export default function ConfiguracoesPage() {
     asaasUrl: 'https://api.asaas.com',
     mercadoPagoPublicKey: '',
     mercadoPagoAccessToken: '',
-    pagbankToken: ''
+    pagbankToken: '',
+    stonePublicKey: '',
+    stoneSecretKey: '',
+    permiteDevolucao: false
   });
 
   useEffect(() => {
@@ -39,7 +42,10 @@ export default function ConfiguracoesPage() {
           asaasUrl: data.evento.asaasUrl || 'https://api.asaas.com',
           mercadoPagoPublicKey: data.evento.mercadoPagoPublicKey || '',
           mercadoPagoAccessToken: data.evento.mercadoPagoAccessToken || '',
-          pagbankToken: data.evento.pagbankToken || ''
+          pagbankToken: data.evento.pagbankToken || '',
+          stonePublicKey: data.evento.stonePublicKey || '',
+          stoneSecretKey: data.evento.stoneSecretKey || '',
+          permiteDevolucao: data.evento.permiteDevolucao || false
         });
       }
     } catch (err) {
@@ -80,8 +86,8 @@ export default function ConfiguracoesPage() {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setConfig(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setConfig(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
   if (loading) {
@@ -155,6 +161,40 @@ export default function ConfiguracoesPage() {
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
               />
               <span className="ml-2 text-sm text-gray-700 font-medium">PagBank</span>
+            </label>
+
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="gatewayActive"
+                value="STONE"
+                checked={config.gatewayActive === 'STONE'}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+              />
+              <span className="ml-2 text-sm text-gray-700 font-medium">Stone (Pagar.me)</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Configurações do Evento (Devolução) */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Recursos do Evento</h2>
+          
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-gray-900">Permitir Devolução de Saldo (Reembolso)</h3>
+              <p className="text-sm text-gray-500">Se ativo, os clientes poderão solicitar o PIX de devolução pelo Cartão Digital.</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                name="permiteDevolucao"
+                checked={config.permiteDevolucao}
+                onChange={handleChange}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
         </div>
@@ -261,6 +301,46 @@ export default function ConfiguracoesPage() {
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
                 <p className="mt-1 text-xs text-gray-500">Usado para autorizar transações via Pix na sua conta.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Configurações Stone / Pagar.me */}
+        {config.gatewayActive === 'STONE' && (
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 animate-fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Credenciais Stone (Pagar.me API v5)</h2>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                Ativo
+              </span>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Public Key (Chave Pública)</label>
+                <input
+                  type="text"
+                  name="stonePublicKey"
+                  value={config.stonePublicKey}
+                  onChange={handleChange}
+                  placeholder="pk_..."
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">Chave pública usada para iniciar transações no frontend.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Secret Key (Chave Secreta)</label>
+                <input
+                  type="password"
+                  name="stoneSecretKey"
+                  value={config.stoneSecretKey}
+                  onChange={handleChange}
+                  placeholder="sk_..."
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-500">Chave secreta para processar cobranças via API.</p>
               </div>
             </div>
           </div>

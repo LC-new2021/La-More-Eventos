@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -52,9 +52,11 @@ model Evento {
   mercadoPagoAccessToken String?
   mercadoPagoRefreshToken String?
   mercadoPagoUserId       String?
+  permiteDevolucao        Boolean  @default(false)
   cartoes       Cartao[]
   produtos      Produto[]
   usuarios      Usuario[]
+  solicitacoesDevolucao SolicitacaoDevolucao[]
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 }
@@ -84,6 +86,7 @@ model Cartao {
   eventoId  String
   evento    Evento  @relation(fields: [eventoId], references: [id])
   movimentacoes Movimentacao[]
+  solicitacoesDevolucao SolicitacaoDevolucao[]
   criadoEm DateTime @default(now())
   @@unique([clienteId, eventoId])
 }
@@ -117,4 +120,18 @@ model Produto {
   evento   Evento @relation(fields: [eventoId], references: [id])
   movimentacoes Movimentacao[]
   criadoEm DateTime @default(now())
+}
+
+// status: "PENDENTE" | "CONCLUIDA" | "CANCELADA"
+model SolicitacaoDevolucao {
+  id        String   @id @default(cuid())
+  valor     Float
+  chavePix  String
+  status    String   @default("PENDENTE")
+  cartaoId  String
+  cartao    Cartao   @relation(fields: [cartaoId], references: [id])
+  eventoId  String
+  evento    Evento   @relation(fields: [eventoId], references: [id])
+  criadoEm  DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
 }

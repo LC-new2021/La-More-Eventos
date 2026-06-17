@@ -12,6 +12,7 @@ export default function ClientesPage() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [error, setError] = useState("");
+  const [estornando, setEstornando] = useState(null);
 
   const [eventoId, setEventoId] = useState(null);
 
@@ -127,6 +128,28 @@ export default function ClientesPage() {
     }
   };
 
+  const handleEstornar = async (codigo, saldo) => {
+    if (saldo <= 0) return alert("Este cartão não tem saldo para devolver.");
+    if (!confirm(`Tem certeza que deseja DEVOLVER e ZERAR o saldo de R$ ${saldo.toFixed(2).replace('.',',')} deste cartão?`)) return;
+    
+    setEstornando(codigo);
+    try {
+      const res = await fetch(`/api/org/clientes/estorno`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      carregarClientes();
+      alert("Saldo devolvido e zerado com sucesso!");
+    } catch (e) {
+      alert("Erro: " + e.message);
+    } finally {
+      setEstornando(null);
+    }
+  };
+
   const totalSaldo = clientes.reduce((acc, c) => acc + (c.saldo || 0), 0);
 
   if (!eventoId) {
@@ -194,7 +217,7 @@ export default function ClientesPage() {
           <p className="col-span-8 md:col-span-4 text-xs font-black text-gray-400 uppercase tracking-widest">Cliente</p>
           <p className="hidden md:block md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">CPF</p>
           <p className="hidden md:block md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">Celular</p>
-          <p className="col-span-4 md:col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Saldo Atual</p>
+          <p className="col-span-4 md:col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Saldo Atual / Ação</p>
         </div>
 
         <div className="divide-y divide-gray-50">
@@ -220,9 +243,20 @@ export default function ClientesPage() {
                 <p className="hidden md:block md:col-span-3 text-gray-500 font-semibold text-base">
                   {c.cliente.celular || <span className="text-gray-300 italic">—</span>}
                 </p>
-                <p className={`col-span-4 md:col-span-2 font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
-                  R$ {c.saldo.toFixed(2).replace(".", ",")}
-                </p>
+                <div className="col-span-4 md:col-span-2 flex flex-col items-end gap-1">
+                  <p className={`font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
+                    R$ {c.saldo.toFixed(2).replace(".", ",")}
+                  </p>
+                  {session?.user?.role === 'MASTER' && c.saldo > 0 && (
+                    <button 
+                      onClick={() => handleEstornar(c.codigo, c.saldo)}
+                      disabled={estornando === c.codigo}
+                      className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg transition-all shadow-sm disabled:opacity-50"
+                    >
+                      {estornando === c.codigo ? "..." : "Devolver"}
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           )
