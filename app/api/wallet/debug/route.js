@@ -2,24 +2,9 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const issuerIdRaw = process.env.GOOGLE_WALLET_ISSUER_ID;
+    const issuerId = "33880000000023158789";
     const credentialsEnv = process.env.GOOGLE_WALLET_CREDENTIALS;
-
-    if (!issuerIdRaw || !credentialsEnv) {
-      return NextResponse.json({ error: "Credenciais ausentes" });
-    }
-
-    const issuerId = issuerIdRaw.trim().replace(/[^0-9]/g, '');
-
     const creds = JSON.parse(credentialsEnv);
-    const classId = `${issuerId}.lamore_eventos_card`;
-    const objectId = `${issuerId}.DEBUGTEST1`;
-
-    const newObject = {
-      id: objectId,
-      classId: classId,
-      state: 'ACTIVE'
-    };
 
     const jwtHeader = { alg: "RS256", typ: "JWT" };
     const iat = Math.floor(Date.now() / 1000);
@@ -49,27 +34,32 @@ export async function GET() {
     });
     const tokenData = await tokenRes.json();
 
-    const walletRes = await fetch("https://walletobjects.googleapis.com/walletobjects/v1/genericObject", {
-      method: "POST",
+    // Tenta acessar o Issuer diretamente
+    const walletRes = await fetch(`https://walletobjects.googleapis.com/walletobjects/v1/issuer/${issuerId}`, {
+      method: "GET",
       headers: {
-        "Authorization": `Bearer ${tokenData.access_token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(newObject)
+        "Authorization": `Bearer ${tokenData.access_token}`
+      }
     });
 
     const walletData = await walletRes.json();
-    
-    const chars = [];
-    for(let i=0; i<issuerId.length; i++){
-      chars.push(issuerId.charCodeAt(i));
-    }
+
+    // Também tenta listar as classes que o robô enxerga
+    const classesRes = await fetch(`https://walletobjects.googleapis.com/walletobjects/v1/genericClass?issuerId=${issuerId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${tokenData.access_token}`
+      }
+    });
+    const classesData = await classesRes.json();
 
     return NextResponse.json({
-      issuerLength: issuerId.length,
-      issuerChars: chars,
-      status: walletRes.status,
-      response: walletData
+      checkingIssuer: issuerId,
+      robotEmail: creds.client_email,
+      issuerCheckStatus: walletRes.status,
+      issuerCheckResult: walletData,
+      classesCheckStatus: classesRes.status,
+      classesResult: classesData
     });
 
   } catch (error) {
