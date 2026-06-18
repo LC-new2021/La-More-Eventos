@@ -102,6 +102,9 @@ export async function PATCH(req, { params }) {
     const { senha: _, ...safeUsuario } = usuario;
     return NextResponse.json(safeUsuario);
   } catch (e) {
+    if (e.code === 'P2002' && e.meta?.target?.includes('email')) {
+      return NextResponse.json({ error: 'Este e-mail já está em uso por outro usuário.' }, { status: 400 });
+    }
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
