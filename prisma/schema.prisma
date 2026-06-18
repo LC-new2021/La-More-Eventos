@@ -103,6 +103,7 @@ model Movimentacao {
   produto    Produto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
   operadorId String?
   operador   Usuario? @relation(fields: [operadorId], references: [id], onDelete: SetNull)
+  operadorNome String?
   gatewayId      String?
   gatewayStatus  String?
   valorTaxaMaster Float?

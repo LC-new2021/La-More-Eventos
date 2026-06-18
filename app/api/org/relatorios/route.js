@@ -120,6 +120,7 @@ export async function GET(req) {
       cliente: m.cartao?.cliente?.nome || '—',
       produto: m.produto?.nome || (m.tipo === 'RECARGA' ? 'Recarga Cartão' : m.tipo),
       categoria: m.produto?.grupo || m.tipo,
+      operador: m.operador?.nome || m.operadorNome || 'Online/Excluído',
       pagto: m.tipo === 'RECARGA' ? 'Entrada' : (m.tipo === 'ESTORNO' ? 'Estorno/Devolução' : 'Saldo Consumo'),
       valor: m.valor
     }));

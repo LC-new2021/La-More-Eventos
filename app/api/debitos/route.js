@@ -43,6 +43,7 @@ export async function POST(req) {
           cartaoId: cartao.id,
           produtoId: produto.id,
           operadorId: session?.user?.id,
+          operadorNome: session?.user?.nome,
         },
       }),
     ]);

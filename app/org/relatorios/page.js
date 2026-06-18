@@ -357,6 +357,7 @@ export default function RelatoriosPage() {
                   <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Produto/Ação</th>
                   <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Categoria</th>
                   <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Cliente</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Operador</th>
                   <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Forma Pagto</th>
                   <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider text-right">Valor</th>
                 </tr>
@@ -380,6 +381,7 @@ export default function RelatoriosPage() {
                         </span>
                       </td>
                       <td className="p-4 font-semibold text-gray-600">{v.cliente}</td>
+                      <td className="p-4 font-semibold text-gray-600">{v.operador}</td>
                       <td className="p-4 font-semibold text-gray-600">{v.pagto}</td>
                       <td className="p-4 font-black text-gray-900 text-right">R$ {v.valor.toFixed(2).replace(".", ",")}</td>
                     </tr>
