@@ -159,6 +159,26 @@ export default function MasterEventos() {
     }
   };
 
+  const handleLimparBanco = async () => {
+    if (window.confirm('⚠️ ALERTA VERMELHO ⚠️\n\nTem certeza que deseja APAGAR TODOS os Cartões, Vendas, Clientes e Operadores do sistema?\n(O seu usuário Master e o Evento continuarão intactos).')) {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/admin/limpar', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          setSuccessMsg(data.message);
+          carregarEventos();
+        } else {
+          setError(data.error || 'Erro ao limpar banco de dados');
+          setLoading(false);
+        }
+      } catch (e) {
+        setError('Erro de conexão ao limpar o banco');
+        setLoading(false);
+      }
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-8">
@@ -166,12 +186,20 @@ export default function MasterEventos() {
           <h2 className="text-4xl font-black text-[#1D3461] mb-2">Eventos</h2>
           <p className="text-gray-500 text-lg font-semibold">Gerencie e configure os eventos da plataforma</p>
         </div>
-        <button
-          onClick={abrirCriar}
-          className="bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg hover:shadow-green-700/20 text-lg flex items-center gap-2"
-        >
-          <span>➕</span> Novo Evento
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleLimparBanco}
+            className="bg-red-100 border-2 border-red-500 hover:bg-red-500 hover:text-white text-red-600 font-black px-4 py-3 rounded-2xl transition-all shadow-sm text-sm flex items-center gap-2"
+          >
+            <span>🧹</span> Limpar Dados de Teste
+          </button>
+          <button
+            onClick={abrirCriar}
+            className="bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg hover:shadow-green-700/20 text-lg flex items-center gap-2"
+          >
+            <span>➕</span> Novo Evento
+          </button>
+        </div>
       </div>
 
       {error && (

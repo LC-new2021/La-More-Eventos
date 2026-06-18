@@ -92,9 +92,10 @@ export default function RelatoriosPage() {
     );
   }
 
-  const { summary, vendasPorGrupo, vendasPorHora, recebimentos, vendasMestre } = data || {
+  const { summary, vendasPorGrupo, vendasPorProduto, vendasPorHora, recebimentos, vendasMestre } = data || {
     summary: { totalRecarregado: 0, totalDebito: 0, totalEstorno: 0, saldoEmAberto: 0, totalCartoes: 0, totalPedidos: 0, ticketMedio: 0 },
     vendasPorGrupo: [],
+    vendasPorProduto: [],
     vendasPorHora: [],
     recebimentos: [],
     vendasMestre: []
@@ -143,6 +144,11 @@ export default function RelatoriosPage() {
       { width: 30 }, { width: 20 }, { width: 20 }, { width: 15 }
     ];
 
+    const wsProdutos = workbook.addWorksheet("Produtos", { properties: { tabColor: { argb: 'FF10B981' } } });
+    wsProdutos.getRow(1).values = ["Produto", "Quantidade", "Faturamento (R$)"];
+    wsProdutos.getRow(1).font = { bold: true };
+    vendasPorProduto.forEach((p) => wsProdutos.addRow([p.name, p.qtd, p.value]));
+
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     saveAs(blob, "LaMore_Relatorio_Geral.xlsx");
@@ -186,6 +192,18 @@ export default function RelatoriosPage() {
       theme: 'striped',
       headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255] },
       styles: { fontSize: 8 }
+    });
+
+    doc.addPage();
+    doc.setFontSize(14);
+    doc.setTextColor(50);
+    doc.text("Relatório de Produtos", 14, 20);
+    autoTable(doc, {
+      startY: 25,
+      head: [["Produto", "Qtd", "Faturamento (R$)"]],
+      body: vendasPorProduto.map(p => [p.name, p.qtd, p.value.toFixed(2)]),
+      theme: 'grid',
+      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255] }
     });
 
     doc.save(`LaMoreEventos_Relatorio.pdf`);
@@ -449,6 +467,35 @@ export default function RelatoriosPage() {
              )}
           </div>
         </div>
+        
+        {aba === "produtos" && vendasPorProduto.length > 0 && (
+          <div className="mt-6 bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
+              <h3 className="text-2xl font-black">Ranking de Produtos (Tabela)</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-gray-50 border-b-2 border-gray-100">
+                    <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Produto</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider text-center">Quantidade Vendida</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider text-right">Faturamento Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {vendasPorProduto.map((p, idx) => (
+                    <tr key={p.name} className="hover:bg-blue-50/50 transition-colors">
+                      <td className="p-4 font-bold text-gray-900">{idx + 1}. {p.name}</td>
+                      <td className="p-4 font-black text-[#1D3461] text-center">{p.qtd}</td>
+                      <td className="p-4 font-black text-gray-900 text-right">R$ {p.value.toFixed(2).replace(".", ",")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </>
       )}
     </div>
   );

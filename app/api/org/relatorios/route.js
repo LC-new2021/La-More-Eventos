@@ -76,6 +76,24 @@ export async function GET(req) {
       qtd: vendasPorGrupoMap[k].qtd
     }));
 
+    const vendasPorProdutoMap = {};
+    movimentacoes.forEach(m => {
+      if (m.tipo === 'DEBITO' && m.produto) {
+        const prodName = m.produto.nome || 'Desconhecido';
+        if (!vendasPorProdutoMap[prodName]) {
+          vendasPorProdutoMap[prodName] = { value: 0, qtd: 0 };
+        }
+        vendasPorProdutoMap[prodName].value += m.valor;
+        vendasPorProdutoMap[prodName].qtd += 1;
+      }
+    });
+
+    const vendasPorProduto = Object.keys(vendasPorProdutoMap).map(k => ({
+      name: k,
+      value: vendasPorProdutoMap[k].value,
+      qtd: vendasPorProdutoMap[k].qtd
+    })).sort((a,b) => b.value - a.value);
+
     const recebimentos = Object.keys(recebimentosMap).map(k => ({
       name: k,
       value: recebimentosMap[k],
@@ -117,6 +135,7 @@ export async function GET(req) {
         ticketMedio
       },
       vendasPorGrupo,
+      vendasPorProduto,
       vendasPorHora,
       recebimentos,
       vendasMestre
