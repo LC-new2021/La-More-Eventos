@@ -6,7 +6,7 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export default function ClientesPage() {
+export default function ClientesPage({ isMasterView = false }) {
   const { data: session } = useSession();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -247,7 +247,7 @@ export default function ClientesPage() {
                   <p className={`font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
                     R$ {c.saldo.toFixed(2).replace(".", ",")}
                   </p>
-                  {session?.user?.role === 'MASTER' && c.saldo > 0 && (
+                  {isMasterView && session?.user?.role === 'MASTER' && c.saldo > 0 && (
                     <button 
                       onClick={() => handleEstornar(c.codigo, c.saldo)}
                       disabled={estornando === c.codigo}

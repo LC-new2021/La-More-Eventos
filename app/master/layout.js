@@ -7,6 +7,8 @@ const menuItens = [
   { href: "/master", emoji: "📊", titulo: "Dashboard", exact: true },
   { href: "/master/eventos", emoji: "🎪", titulo: "Eventos" },
   { href: "/master/usuarios", emoji: "👥", titulo: "Usuários" },
+  { href: "/master/clientes", emoji: "👤", titulo: "Clientes" },
+  { href: "/master/devolucoes", emoji: "💸", titulo: "Devoluções" },
   { href: "/master/financeiro", emoji: "💰", titulo: "Financeiro" },
   { href: "/master/relatorios", emoji: "📈", titulo: "Relatórios" },
   { href: "/master/auditoria", emoji: "🔍", titulo: "Auditoria" },
