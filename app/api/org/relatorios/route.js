@@ -36,6 +36,7 @@ export async function GET(req) {
 
     const totalRecarregado = movimentacoes.filter(m => m.tipo === 'RECARGA').reduce((s, m) => s + m.valor, 0);
     const totalDebito = movimentacoes.filter(m => m.tipo === 'DEBITO').reduce((s, m) => s + m.valor, 0);
+    const totalEstorno = movimentacoes.filter(m => m.tipo === 'ESTORNO').reduce((s, m) => s + m.valor, 0);
     const saldoEmAberto = cartoes.reduce((s, c) => s + c.saldo, 0);
     const totalCartoes = cartoes.length;
     const totalPedidos = movimentacoes.filter(m => m.tipo === 'DEBITO').length;
@@ -101,7 +102,7 @@ export async function GET(req) {
       cliente: m.cartao?.cliente?.nome || '—',
       produto: m.produto?.nome || (m.tipo === 'RECARGA' ? 'Recarga Cartão' : m.tipo),
       categoria: m.produto?.grupo || m.tipo,
-      pagto: m.tipo === 'RECARGA' ? 'Entrada' : 'Saldo Consumo',
+      pagto: m.tipo === 'RECARGA' ? 'Entrada' : (m.tipo === 'ESTORNO' ? 'Estorno/Devolução' : 'Saldo Consumo'),
       valor: m.valor
     }));
 
@@ -109,6 +110,7 @@ export async function GET(req) {
       summary: {
         totalRecarregado,
         totalDebito,
+        totalEstorno,
         saldoEmAberto,
         totalCartoes,
         totalPedidos,

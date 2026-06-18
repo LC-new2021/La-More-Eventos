@@ -138,6 +138,27 @@ export default function MasterEventos() {
     }
   };
 
+  const handleExcluir = async (id, nome) => {
+    if (window.confirm(`TEM CERTEZA ABSOLUTA que deseja EXCLUIR o evento "${nome}"?\n\nIsso apagará TODOS os cartões, vendas, e clientes atrelados a ele! Essa ação NÃO PODE ser desfeita.`)) {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/eventos/${id}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          carregarEventos();
+        } else {
+          const data = await res.json();
+          setError(data.error || 'Erro ao excluir evento');
+          setLoading(false);
+        }
+      } catch (e) {
+        setError('Erro ao excluir evento');
+        setLoading(false);
+      }
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-8">
@@ -251,6 +272,13 @@ export default function MasterEventos() {
                     className="flex-1 text-[#1D3461] hover:bg-[#1D3461]/10 px-4 py-2.5 rounded-xl transition-all font-bold text-sm border-2 border-[#1D3461]/10"
                   >
                     Mudar Status ({evt.status === 'CONFIGURANDO' ? 'Ativar' : evt.status === 'ATIVO' ? 'Encerrar' : 'Configurar'})
+                  </button>
+                  <button
+                    onClick={() => handleExcluir(evt.id, evt.nome)}
+                    className="text-red-500 hover:bg-red-50 border-2 border-red-100 px-4 py-2.5 rounded-xl transition-all font-bold text-sm"
+                    title="Excluir Evento"
+                  >
+                    🗑️
                   </button>
                 </div>
               </div>

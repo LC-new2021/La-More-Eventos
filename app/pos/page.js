@@ -218,16 +218,26 @@ export default function PosApp() {
         .then(data => {
           if (!data.error) {
             setEvento(data);
+            let metodos = [];
             if (data.metodosPagamentoJson) {
               const list = JSON.parse(data.metodosPagamentoJson);
-              setMetodosPagamento(list.filter(p => p.ativo));
+              metodos = list.filter(p => p.ativo);
             } else {
-              setMetodosPagamento([
+              metodos = [
                 { id: "pix", label: "Pix", emoji: "🟢", ativo: true },
                 { id: "cartao", label: "Cartão", emoji: "💳", ativo: true },
                 { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, troco: true },
-              ]);
+              ];
             }
+            
+            // Restrição Rigorosa de Dinheiro
+            const role = session?.user?.role;
+            const canAcceptCash = role === 'MASTER' || role === 'TESOURARIA';
+            if (!canAcceptCash) {
+              metodos = metodos.filter(m => m.id !== 'dinheiro');
+            }
+            
+            setMetodosPagamento(metodos);
           }
         })
         .catch(console.error);

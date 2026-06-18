@@ -313,7 +313,8 @@ export default function MasterUsuarios() {
                     className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900"
                   >
                     <option value="OPERADOR_BAR">Operador de Bar</option>
-                    <option value="CAIXA">Operador de Caixa</option>
+                    <option value="CAIXA">Operador de Caixa (Sem Dinheiro)</option>
+                    <option value="TESOURARIA">Tesouraria (Recebe Dinheiro)</option>
                     <option value="ORGANIZADOR">Produtor</option>
                     <option value="CLIENTE">Cliente Final (Portal)</option>
                     <option value="MASTER">Master Admin</option>

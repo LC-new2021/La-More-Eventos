@@ -82,3 +82,28 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'MASTER') {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
+    const { id } = await params;
+
+    // Prisma Transaction to delete everything linked to the event
+    await prisma.$transaction([
+      prisma.movimentacao.deleteMany({ where: { cartao: { eventoId: id } } }),
+      prisma.solicitacaoDevolucao.deleteMany({ where: { eventoId: id } }),
+      prisma.cartao.deleteMany({ where: { eventoId: id } }),
+      prisma.produto.deleteMany({ where: { eventoId: id } }),
+      prisma.usuario.updateMany({ where: { eventoId: id }, data: { eventoId: null, ativo: false } }),
+      prisma.evento.delete({ where: { id } })
+    ]);
+
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
