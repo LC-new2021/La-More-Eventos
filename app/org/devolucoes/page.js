@@ -13,7 +13,9 @@ export default function DevolucoesPage() {
 
   const carregarSolicitacoes = async () => {
     try {
-      const res = await fetch("/api/org/devolucoes");
+      const storedEventoId = localStorage.getItem("activeEventoId");
+      const url = storedEventoId ? `/api/org/devolucoes?eventoId=${storedEventoId}` : "/api/org/devolucoes";
+      const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSolicitacoes(data);

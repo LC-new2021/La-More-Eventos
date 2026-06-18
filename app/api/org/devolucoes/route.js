@@ -11,16 +11,22 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const queryEventoId = searchParams.get('eventoId');
+
     const usuario = await prisma.usuario.findUnique({
       where: { id: session.user.id }
     });
 
-    if (!usuario || !usuario.eventoId) {
-      return NextResponse.json({ error: 'Usuário sem evento' }, { status: 400 });
+    const isMaster = session.user.role === 'MASTER';
+    const eventoIdToUse = isMaster ? queryEventoId : usuario?.eventoId;
+
+    if (!eventoIdToUse) {
+      return NextResponse.json({ error: 'Evento não especificado' }, { status: 400 });
     }
 
     const solicitacoes = await prisma.solicitacaoDevolucao.findMany({
-      where: { eventoId: usuario.eventoId },
+      where: { eventoId: eventoIdToUse },
       include: {
         cartao: {
           include: { cliente: true }
