@@ -267,6 +267,7 @@ export default function OperadoresPage() {
                   type="email"
                   required
                   value={email}
+                  autoComplete="off"
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@exemplo.com"
                   className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
@@ -280,6 +281,7 @@ export default function OperadoresPage() {
                   type="password"
                   required={!operadorEditando}
                   value={senha}
+                  autoComplete="new-password"
                   onChange={(e) => setSenha(e.target.value)}
                   placeholder="Senha de acesso"
                   className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"

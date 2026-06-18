@@ -284,6 +284,7 @@ export default function MasterUsuarios() {
                   type="email"
                   required
                   value={email}
+                  autoComplete="off"
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
                   placeholder="email@lamore.com"
@@ -298,6 +299,7 @@ export default function MasterUsuarios() {
                   type="password"
                   required={!usuarioParaEditar}
                   value={senha}
+                  autoComplete="new-password"
                   onChange={(e) => setSenha(e.target.value)}
                   className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
                   placeholder="Senha de acesso"
