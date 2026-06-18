@@ -45,7 +45,18 @@ export async function POST(req) {
         }
       });
 
-      return { updatedCartao, mov };
+      // Registra no histórico de "Devoluções Feitas" da aba Devoluções
+      const solicitacao = await tx.solicitacaoDevolucao.create({
+        data: {
+          eventoId: cartao.eventoId,
+          cartaoId: cartao.id,
+          chavePix: 'Estorno Manual (Master)',
+          valor: valorEstorno,
+          status: 'CONCLUIDA'
+        }
+      });
+
+      return { updatedCartao, mov, solicitacao };
     });
 
     return NextResponse.json({ success: true, saldoAnterior: result.mov.valor });
