@@ -33,8 +33,7 @@ export async function GET(req) {
       mercadoPagoPublicKey: usuario.evento.mercadoPagoPublicKey || '',
       mercadoPagoAccessToken: usuario.evento.mercadoPagoAccessToken ? maskToken(usuario.evento.mercadoPagoAccessToken) : '',
       pagbankToken: usuario.evento.pagbankToken ? maskToken(usuario.evento.pagbankToken) : '',
-      stonePublicKey: usuario.evento.stonePublicKey || '',
-      stoneSecretKey: usuario.evento.stoneSecretKey ? maskToken(usuario.evento.stoneSecretKey) : '',
+      stoneToken: usuario.evento.stoneToken ? maskToken(usuario.evento.stoneToken) : '',
       permiteDevolucao: usuario.evento.permiteDevolucao || false
     };
 
@@ -60,8 +59,7 @@ export async function POST(req) {
       mercadoPagoPublicKey,
       mercadoPagoAccessToken,
       pagbankToken,
-      stonePublicKey,
-      stoneSecretKey,
+      stoneToken,
       permiteDevolucao
     } = await req.json();
 
@@ -104,12 +102,8 @@ export async function POST(req) {
       dataToUpdate.pagbankToken = pagbankToken.trim();
     }
 
-    if (stonePublicKey) {
-      dataToUpdate.stonePublicKey = stonePublicKey.trim();
-    }
-
-    if (stoneSecretKey && !stoneSecretKey.includes('***')) {
-      dataToUpdate.stoneSecretKey = stoneSecretKey.trim();
+    if (stoneToken && !stoneToken.includes('***')) {
+      dataToUpdate.stoneToken = stoneToken.trim();
     }
 
     const eventoAtualizado = await prisma.evento.update({

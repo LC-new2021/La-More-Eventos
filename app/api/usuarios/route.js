@@ -52,7 +52,7 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    let { nome, email, senha, role, eventoId, razaoSocial, cnpj, ie, endereco, telefone, gatewayActive, asaasToken, asaasUrl, pagbankToken, pagbankKey } = body;
+    let { nome, email, senha, role, eventoId, razaoSocial, cnpj, ie, endereco, telefone, gatewayActive, asaasToken, asaasUrl, pagbankToken, pagbankKey, stoneToken } = body;
 
     if (!nome || !email || !senha || !role) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
@@ -94,6 +94,7 @@ export async function POST(req) {
         asaasUrl,
         pagbankToken,
         pagbankKey,
+        stoneToken,
       },
     });
 

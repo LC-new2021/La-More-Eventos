@@ -17,8 +17,7 @@ export default function ConfiguracoesPage() {
     mercadoPagoPublicKey: '',
     mercadoPagoAccessToken: '',
     pagbankToken: '',
-    stonePublicKey: '',
-    stoneSecretKey: '',
+    stoneToken: '',
     permiteDevolucao: false
   });
 
@@ -43,8 +42,7 @@ export default function ConfiguracoesPage() {
           mercadoPagoPublicKey: data.evento.mercadoPagoPublicKey || '',
           mercadoPagoAccessToken: data.evento.mercadoPagoAccessToken || '',
           pagbankToken: data.evento.pagbankToken || '',
-          stonePublicKey: data.evento.stonePublicKey || '',
-          stoneSecretKey: data.evento.stoneSecretKey || '',
+          stoneToken: data.evento.stoneToken || '',
           permiteDevolucao: data.evento.permiteDevolucao || false
         });
       }
@@ -308,39 +306,28 @@ export default function ConfiguracoesPage() {
 
         {/* Configurações Stone / Pagar.me */}
         {config.gatewayActive === 'STONE' && (
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 animate-fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-gray-900">Credenciais Stone (Pagar.me API v5)</h2>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                Ativo
-              </span>
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-green-100 p-2 rounded-lg">
+                <span className="text-xl">💳</span>
+              </div>
+              <div>
+                <h2 className="text-lg font-medium text-gray-900">Configuração Stone</h2>
+                <p className="text-sm text-gray-500">Credenciais para emissão via Stone</p>
+              </div>
             </div>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Public Key (Chave Pública)</label>
-                <input
-                  type="text"
-                  name="stonePublicKey"
-                  value={config.stonePublicKey}
-                  onChange={handleChange}
-                  placeholder="pk_..."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-                <p className="mt-1 text-xs text-gray-500">Chave pública usada para iniciar transações no frontend.</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Secret Key (Chave Secreta)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Access Token</label>
                 <input
                   type="password"
-                  name="stoneSecretKey"
-                  value={config.stoneSecretKey}
+                  name="stoneToken"
+                  value={config.stoneToken}
                   onChange={handleChange}
-                  placeholder="sk_..."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="w-full bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-md px-4 py-2 font-mono text-sm"
+                  placeholder="Token de acesso da Stone"
                 />
-                <p className="mt-1 text-xs text-gray-500">Chave secreta para processar cobranças via API.</p>
               </div>
             </div>
           </div>

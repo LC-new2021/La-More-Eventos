@@ -43,7 +43,7 @@ export async function PATCH(req, { params }) {
 
     const { id } = await params;
     const body = await req.json();
-    const { nome, email, senha, role, ativo, eventoId, razaoSocial, cnpj, ie, endereco, telefone, gatewayActive, asaasToken, asaasUrl, pagbankToken, pagbankKey } = body;
+    const { nome, email, senha, role, ativo, eventoId, razaoSocial, cnpj, ie, endereco, telefone, gatewayActive, asaasToken, asaasUrl, pagbankToken, pagbankKey, stoneToken } = body;
 
     // Fetch the target user to verify they belong to the same event
     const targetUser = await prisma.usuario.findUnique({ where: { id } });
@@ -93,6 +93,7 @@ export async function PATCH(req, { params }) {
     if (asaasUrl !== undefined) updateData.asaasUrl = asaasUrl;
     if (pagbankToken !== undefined) updateData.pagbankToken = pagbankToken;
     if (pagbankKey !== undefined) updateData.pagbankKey = pagbankKey;
+    if (stoneToken !== undefined) updateData.stoneToken = stoneToken;
 
     const usuario = await prisma.usuario.update({
       where: { id },

@@ -24,6 +24,7 @@ export default function MasterUsuarios() {
   const [asaasUrl, setAsaasUrl] = useState('');
   const [pagbankToken, setPagbankToken] = useState('');
   const [pagbankKey, setPagbankKey] = useState('');
+  const [stoneToken, setStoneToken] = useState('');
   const [salvando, setSalvando] = useState(false);
   
   // Modal states
@@ -71,6 +72,7 @@ export default function MasterUsuarios() {
     setAsaasUrl('');
     setPagbankToken('');
     setPagbankKey('');
+    setStoneToken('');
     setMostrarModal(true);
   };
  
@@ -91,6 +93,7 @@ export default function MasterUsuarios() {
     setAsaasUrl(user.asaasUrl || '');
     setPagbankToken(user.pagbankToken || '');
     setPagbankKey(user.pagbankKey || '');
+    setStoneToken(user.stoneToken || '');
     setMostrarModal(true);
   };
  
@@ -122,7 +125,8 @@ export default function MasterUsuarios() {
           asaasToken,
           asaasUrl,
           pagbankToken,
-          pagbankKey
+          pagbankKey,
+          stoneToken
         })
       });
       console.log("Resposta recebida com status:", res.status);
@@ -142,6 +146,7 @@ export default function MasterUsuarios() {
         setIe('');
         setEndereco('');
         setTelefone('');
+        setStoneToken('');
         setMostrarModal(false);
         setUsuarioParaEditar(null);
         carregarDados();
@@ -401,6 +406,7 @@ export default function MasterUsuarios() {
                     >
                       <option value="ASAAS">Asaas API</option>
                       <option value="PAGBANK">PagBank API (Homologação)</option>
+                      <option value="STONE">Stone API</option>
                       <option value="NENHUM">Sem Gateway (Somente Dinheiro)</option>
                     </select>
                   </div>
@@ -450,6 +456,21 @@ export default function MasterUsuarios() {
                           onChange={(e) => setPagbankKey(e.target.value)}
                           className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900"
                           placeholder="Chave criptográfica PagBank"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {gatewayActive === 'STONE' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-gray-500 font-bold mb-1 text-sm">Stone Access Token</label>
+                        <input
+                          type="password"
+                          value={stoneToken}
+                          onChange={(e) => setStoneToken(e.target.value)}
+                          className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900"
+                          placeholder="Token de acesso Stone"
                         />
                       </div>
                     </div>

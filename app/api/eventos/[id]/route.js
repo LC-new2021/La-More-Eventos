@@ -25,6 +25,7 @@ export async function GET(req, { params }) {
       delete safeResponse.asaasUrl;
       delete safeResponse.pagbankToken;
       delete safeResponse.pagbankKey;
+      delete safeResponse.stoneToken;
       delete safeResponse.mercadoPagoAccessToken;
       delete safeResponse.mercadoPagoRefreshToken;
     }
@@ -68,6 +69,7 @@ export async function PATCH(req, { params }) {
     if (body.asaasUrl !== undefined) updateData.asaasUrl = body.asaasUrl;
     if (body.pagbankToken !== undefined) updateData.pagbankToken = body.pagbankToken;
     if (body.pagbankKey !== undefined) updateData.pagbankKey = body.pagbankKey;
+    if (body.stoneToken !== undefined) updateData.stoneToken = body.stoneToken;
     if (body.mercadoPagoPublicKey !== undefined) updateData.mercadoPagoPublicKey = body.mercadoPagoPublicKey;
     if (body.mercadoPagoAccessToken !== undefined) updateData.mercadoPagoAccessToken = body.mercadoPagoAccessToken;
     if (body.mercadoPagoRefreshToken !== undefined) updateData.mercadoPagoRefreshToken = body.mercadoPagoRefreshToken;

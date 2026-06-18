@@ -28,6 +28,7 @@ model Usuario {
   asaasUrl      String?
   pagbankToken  String?
   pagbankKey    String?
+  stoneToken    String?
   pushSubscriptionJson String?
   criadoEm DateTime @default(now())
 }
@@ -48,6 +49,7 @@ model Evento {
   asaasUrl          String?
   pagbankToken      String?
   pagbankKey        String?
+  stoneToken        String?
   mercadoPagoPublicKey   String?
   mercadoPagoAccessToken String?
   mercadoPagoRefreshToken String?

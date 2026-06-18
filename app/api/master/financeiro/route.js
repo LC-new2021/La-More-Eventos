@@ -3,23 +3,48 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
-export async function GET() {
+export async function GET(req) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== 'MASTER') {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
-    // Get all events
-    const eventos = await prisma.evento.findMany({
+    const { searchParams } = new URL(req.url);
+    const eventoId = searchParams.get('eventoId');
+    const dataInicio = searchParams.get('dataInicio');
+    const dataFim = searchParams.get('dataFim');
+
+    // Build query filters for movimentacoes
+    const movFilters = { tipo: 'RECARGA' };
+    if (dataInicio && dataFim) {
+      movFilters.criadoEm = {
+        gte: new Date(`${dataInicio}T00:00:00.000Z`),
+        lte: new Date(`${dataFim}T23:59:59.999Z`)
+      };
+    } else if (dataInicio) {
+      movFilters.criadoEm = { gte: new Date(`${dataInicio}T00:00:00.000Z`) };
+    } else if (dataFim) {
+      movFilters.criadoEm = { lte: new Date(`${dataFim}T23:59:59.999Z`) };
+    }
+
+    const eventosQuery = {
       include: {
         cartoes: {
           include: {
-            movimentacoes: true
+            movimentacoes: {
+              where: movFilters
+            }
           }
         }
       }
-    });
+    };
+
+    if (eventoId) {
+      eventosQuery.where = { id: eventoId };
+    }
+
+    const eventos = await prisma.evento.findMany(eventosQuery);
 
     let totalRecarregadoGlobal = 0;
     let totalTaxaMasterGlobal = 0;
@@ -31,9 +56,7 @@ export async function GET() {
 
       for (const card of ev.cartoes) {
         for (const mov of card.movimentacoes) {
-          if (mov.tipo === 'RECARGA') {
-            recarregado += mov.valor;
-          }
+          recarregado += mov.valor;
         }
       }
 
