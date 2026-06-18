@@ -120,16 +120,15 @@ export default function OperadoresPage() {
     }
   };
 
-  const toggleAtivo = async (op) => {
+  const handleExcluir = async (id) => {
+    if (!window.confirm("ATENÇÃO: Tem certeza que deseja excluir permanentemente este operador?")) return;
     try {
-      const res = await fetch(`/api/usuarios/${op.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ativo: !op.ativo })
+      const res = await fetch(`/api/usuarios/${id}`, {
+        method: "DELETE"
       });
       if (res.ok) carregarOperadores();
     } catch (e) {
-      console.error("Erro ao mudar status do operador", e);
+      console.error("Erro ao excluir operador", e);
     }
   };
 
@@ -212,26 +211,18 @@ export default function OperadoresPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 self-end sm:self-center shrink-0">
+                  <div className="flex items-center justify-end gap-3">
                     <button
                       onClick={() => abrirEditar(op)}
-                      className="px-4 py-2 rounded-2xl font-black text-base bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all flex items-center gap-1"
-                      style={{ minHeight: "44px" }}
+                      className="font-bold text-sm px-4 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
                     >
-                      <span>✏️</span>
-                      <span className="hidden sm:inline">Editar</span>
+                      ✏️ Editar
                     </button>
                     <button
-                      onClick={() => toggleAtivo(op)}
-                      className={`px-4 py-2 rounded-2xl font-black text-base transition-all flex items-center gap-1 ${
-                        op.ativo
-                          ? "bg-green-100 text-green-700 hover:bg-green-200"
-                          : "bg-red-50 text-red-500 hover:bg-red-100"
-                      }`}
-                      style={{ minHeight: "44px" }}
+                      onClick={() => handleExcluir(op.id)}
+                      className="font-bold text-sm px-4 py-2 rounded-xl transition-all border-2 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
                     >
-                      <span>{op.ativo ? "✅" : "❌"}</span>
-                      <span className="hidden sm:inline">{op.ativo ? "Ativo" : "Inativo"}</span>
+                      🗑️ Excluir
                     </button>
                   </div>
                 </div>

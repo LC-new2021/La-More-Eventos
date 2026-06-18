@@ -154,16 +154,15 @@ export default function MasterUsuarios() {
     }
   };
 
-  const handleDeativar = async (id, statusAtual) => {
+  const handleExcluir = async (id) => {
+    if (!window.confirm("ATENÇÃO: Tem certeza que deseja excluir permanentemente este usuário? Esta ação não pode ser desfeita.")) return;
     try {
       const res = await fetch(`/api/usuarios/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ativo: !statusAtual })
+        method: 'DELETE',
       });
       if (res.ok) carregarDados();
     } catch (e) {
-      console.error('Erro ao atualizar status', e);
+      console.error('Erro ao excluir usuário', e);
     }
   };
 
@@ -202,7 +201,6 @@ export default function MasterUsuarios() {
                   <th className="p-6">E-mail</th>
                   <th className="p-6">Função</th>
                   <th className="p-6">Evento Vinculado</th>
-                  <th className="p-6">Status</th>
                   <th className="p-6">Ações</th>
                 </tr>
               </thead>
@@ -224,13 +222,6 @@ export default function MasterUsuarios() {
                     <td className="p-6 font-bold text-gray-700">
                       {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}
                     </td>
-                    <td className="p-6">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${
-                        u.ativo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {u.ativo ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </td>
                     <td className="p-6 flex gap-2">
                       <button
                         onClick={() => abrirEditar(u)}
@@ -239,14 +230,10 @@ export default function MasterUsuarios() {
                         ✏️ Editar
                       </button>
                       <button
-                        onClick={() => handleDeativar(u.id, u.ativo)}
-                        className={`font-black text-sm px-4 py-2 rounded-xl transition-all border-2 ${
-                          u.ativo
-                            ? 'text-red-600 border-red-100 hover:bg-red-50'
-                            : 'text-green-600 border-green-100 hover:bg-green-50'
-                        }`}
+                        onClick={() => handleExcluir(u.id)}
+                        className="font-black text-sm px-4 py-2 rounded-xl transition-all border-2 text-red-600 border-red-100 hover:bg-red-50"
                       >
-                        {u.ativo ? 'Desativar' : 'Reativar'}
+                        🗑️ Excluir
                       </button>
                     </td>
                   </tr>

@@ -130,9 +130,8 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
     
-    const usuario = await prisma.usuario.update({
+    const usuario = await prisma.usuario.delete({
       where: { id },
-      data: { ativo: false },
     });
 
     return NextResponse.json({ ok: true });

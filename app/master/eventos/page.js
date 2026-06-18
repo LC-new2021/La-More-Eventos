@@ -179,6 +179,26 @@ export default function MasterEventos() {
     }
   };
 
+  const handleLimparEvento = async (id) => {
+    if (window.confirm('ATENÇÃO: Você está prestes a apagar TODOS os Caixas, Operadores de Bar, Tesourarias e Cartões deste evento.\n\nOs clientes base serão mantidos. Esta ação não tem volta. Deseja continuar?')) {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/eventos/${id}/limpar`, { method: 'DELETE' });
+        const data = await res.json();
+        if (res.ok) {
+          setSuccessMsg(`${data.message}. Foram apagados ${data.cartoesDeletados} cartões e ${data.operadoresDeletados} operadores.`);
+          carregarEventos();
+        } else {
+          setError(data.error || 'Erro ao limpar o evento');
+          setLoading(false);
+        }
+      } catch (e) {
+        setError('Erro de conexão ao limpar o evento');
+        setLoading(false);
+      }
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex justify-between items-center mb-8">
@@ -299,14 +319,22 @@ export default function MasterEventos() {
                     onClick={() => handleMudarStatus(evt.id, evt.status)}
                     className="flex-1 text-[#1D3461] hover:bg-[#1D3461]/10 px-4 py-2.5 rounded-xl transition-all font-bold text-sm border-2 border-[#1D3461]/10"
                   >
-                    Mudar Status ({evt.status === 'CONFIGURANDO' ? 'Ativar' : evt.status === 'ATIVO' ? 'Encerrar' : 'Configurar'})
+                    {evt.status === 'ATIVO' ? '⏸️ Pausar' : '▶️ Ativar'}
                   </button>
                   <button
                     onClick={() => handleExcluir(evt.id, evt.nome)}
-                    className="text-red-500 hover:bg-red-50 border-2 border-red-100 px-4 py-2.5 rounded-xl transition-all font-bold text-sm"
+                    className="flex-none bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2.5 rounded-xl transition-all font-bold text-sm"
                     title="Excluir Evento"
                   >
                     🗑️
+                  </button>
+                </div>
+                <div className="flex pt-1">
+                  <button
+                    onClick={() => handleLimparEvento(evt.id)}
+                    className="w-full bg-red-100 border border-red-200 hover:bg-red-600 hover:border-red-600 text-red-700 hover:text-white font-bold text-sm px-4 py-2 rounded-xl transition-all"
+                  >
+                    🧹 Encerrar e Limpar Evento
                   </button>
                 </div>
               </div>

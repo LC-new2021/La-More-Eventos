@@ -97,12 +97,12 @@ model Movimentacao {
   tipo      String
   valor     Float
   descricao String?
-  cartaoId  String
-  cartao    Cartao  @relation(fields: [cartaoId], references: [id])
+  cartaoId  String?
+  cartao    Cartao? @relation(fields: [cartaoId], references: [id], onDelete: SetNull)
   produtoId  String?
-  produto    Produto? @relation(fields: [produtoId], references: [id])
+  produto    Produto? @relation(fields: [produtoId], references: [id], onDelete: SetNull)
   operadorId String?
-  operador   Usuario? @relation(fields: [operadorId], references: [id])
+  operador   Usuario? @relation(fields: [operadorId], references: [id], onDelete: SetNull)
   gatewayId      String?
   gatewayStatus  String?
   valorTaxaMaster Float?
@@ -128,8 +128,8 @@ model SolicitacaoDevolucao {
   valor     Float
   chavePix  String
   status    String   @default("PENDENTE")
-  cartaoId  String
-  cartao    Cartao   @relation(fields: [cartaoId], references: [id])
+  cartaoId  String?
+  cartao    Cartao?   @relation(fields: [cartaoId], references: [id], onDelete: SetNull)
   eventoId  String
   evento    Evento   @relation(fields: [eventoId], references: [id])
   criadoEm  DateTime @default(now())
