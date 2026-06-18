@@ -310,7 +310,8 @@ export default function MasterUsuarios() {
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900"
+                    disabled={usuarioParaEditar && usuarioParaEditar.role === 'MASTER'}
+                    className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 disabled:bg-gray-200 disabled:text-gray-500"
                   >
                     <option value="OPERADOR_BAR">Operador de Bar</option>
                     <option value="CAIXA">Operador de Caixa (Sem Dinheiro)</option>

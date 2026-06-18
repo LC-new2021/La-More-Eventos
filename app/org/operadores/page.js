@@ -290,9 +290,13 @@ export default function OperadoresPage() {
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
+                  disabled={operadorEditando && session?.user?.id === operadorEditando.id}
+                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white disabled:bg-gray-100 disabled:text-gray-500"
                   style={{ minHeight: "52px" }}
                 >
+                  {operadorEditando?.role === 'ORGANIZADOR' && (
+                    <option value="ORGANIZADOR">👑 Organizador</option>
+                  )}
                   <option value="OPERADOR_BAR">🍺 Operador de Bar/Food</option>
                   <option value="CAIXA">💳 Caixa de Entrada (Sem Dinheiro)</option>
                   <option value="TESOURARIA">💵 Tesouraria (Recebe Dinheiro)</option>
