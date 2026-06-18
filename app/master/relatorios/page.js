@@ -426,76 +426,77 @@ export default function RelatoriosPage() {
 
       {/* ABA: PRODUTOS */}
       {aba === "produtos" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm">
-            <h3 className="text-2xl font-black text-[#1D3461] mb-6">Desempenho por Categoria</h3>
-            {vendasPorGrupo.length === 0 ? (
-              <p className="text-center text-gray-400 font-bold py-12">Nenhuma venda realizada por categoria.</p>
-            ) : (
-              <div className="space-y-6">
-                {vendasPorGrupo.map((g, index) => (
-                  <div key={g.name}>
-                    <div className="flex justify-between items-center mb-2">
-                      <p className="font-black text-gray-900 text-xl">{g.name}</p>
-                      <div className="text-right">
-                        <p className="font-black text-[#1D3461] text-2xl">R$ {g.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
-                        <p className="text-gray-400 text-sm font-semibold">{g.qtd} pedidos</p>
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm">
+              <h3 className="text-2xl font-black text-[#1D3461] mb-6">Desempenho por Categoria</h3>
+              {vendasPorGrupo.length === 0 ? (
+                <p className="text-center text-gray-400 font-bold py-12">Nenhuma venda realizada por categoria.</p>
+              ) : (
+                <div className="space-y-6">
+                  {vendasPorGrupo.map((g, index) => (
+                    <div key={g.name}>
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="font-black text-gray-900 text-xl">{g.name}</p>
+                        <div className="text-right">
+                          <p className="font-black text-[#1D3461] text-2xl">R$ {g.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+                          <p className="text-gray-400 text-sm font-semibold">{g.qtd} pedidos</p>
+                        </div>
+                      </div>
+                      <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${summary.totalDebito > 0 ? (g.value / summary.totalDebito) * 100 : 0}%`, backgroundColor: COLORS_GRUPO[index % COLORS_GRUPO.length] }} />
                       </div>
                     </div>
-                    <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${summary.totalDebito > 0 ? (g.value / summary.totalDebito) * 100 : 0}%`, backgroundColor: COLORS_GRUPO[index % COLORS_GRUPO.length] }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm h-[400px]">
-             <h3 className="text-2xl font-black text-[#1D3461] mb-6">Participação de Vendas</h3>
-             {vendasPorGrupo.length === 0 ? (
-               <p className="text-center text-gray-400 font-bold py-12">Sem dados de participação.</p>
-             ) : (
-                <ResponsiveContainer width="100%" height="80%">
-                  <PieChart>
-                    <Pie data={vendasPorGrupo} cx="50%" cy="50%" innerRadius={0} outerRadius={110} dataKey="value">
-                      {vendasPorGrupo.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS_GRUPO[index % COLORS_GRUPO.length]} />))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontWeight: 'bold', color: '#374151' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-             )}
-          </div>
-        </div>
-        
-        {aba === "produtos" && vendasPorProduto.length > 0 && (
-          <div className="mt-6 bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
-              <h3 className="text-2xl font-black">Ranking de Produtos (Tabela)</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-gray-50 border-b-2 border-gray-100">
-                    <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Produto</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider text-center">Quantidade Vendida</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider text-right">Faturamento Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {vendasPorProduto.map((p, idx) => (
-                    <tr key={p.name} className="hover:bg-blue-50/50 transition-colors">
-                      <td className="p-4 font-bold text-gray-900">{idx + 1}. {p.name}</td>
-                      <td className="p-4 font-black text-[#1D3461] text-center">{p.qtd}</td>
-                      <td className="p-4 font-black text-gray-900 text-right">R$ {p.value.toFixed(2).replace(".", ",")}</td>
-                    </tr>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              )}
+            </div>
+            <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm h-[400px]">
+               <h3 className="text-2xl font-black text-[#1D3461] mb-6">Participação de Vendas</h3>
+               {vendasPorGrupo.length === 0 ? (
+                 <p className="text-center text-gray-400 font-bold py-12">Sem dados de participação.</p>
+               ) : (
+                  <ResponsiveContainer width="100%" height="80%">
+                    <PieChart>
+                      <Pie data={vendasPorGrupo} cx="50%" cy="50%" innerRadius={0} outerRadius={110} dataKey="value">
+                        {vendasPorGrupo.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS_GRUPO[index % COLORS_GRUPO.length]} />))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontWeight: 'bold', color: '#374151' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+               )}
             </div>
           </div>
-        )}
-      </>
+          
+          {vendasPorProduto.length > 0 && (
+            <div className="mt-6 bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
+              <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
+                <h3 className="text-2xl font-black">Ranking de Produtos (Tabela)</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-gray-50 border-b-2 border-gray-100">
+                      <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Produto</th>
+                      <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider text-center">Quantidade Vendida</th>
+                      <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider text-right">Faturamento Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {vendasPorProduto.map((p, idx) => (
+                      <tr key={p.name} className="hover:bg-blue-50/50 transition-colors">
+                        <td className="p-4 font-bold text-gray-900">{idx + 1}. {p.name}</td>
+                        <td className="p-4 font-black text-[#1D3461] text-center">{p.qtd}</td>
+                        <td className="p-4 font-black text-gray-900 text-right">R$ {p.value.toFixed(2).replace(".", ",")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
