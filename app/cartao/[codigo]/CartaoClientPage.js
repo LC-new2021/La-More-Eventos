@@ -175,98 +175,8 @@ export default function CartaoClientPage() {
     }
   };
 
-  // Polling para confirmação do Pix e carregamento de carteira Mercado Pago
   useEffect(() => {
-    let activeInstance = null;
-
-    if (passoRecarga === 'checkout' && tabAtiva === 'WALLET' && cartao?.evento?.mercadoPagoPublicKey && typeof window !== 'undefined' && window.MercadoPago) {
-      const container = document.getElementById('paymentCardWalletContainer');
-      if (container) {
-        container.innerHTML = '';
-      }
-
-      try {
-        const mp = new window.MercadoPago(cartao.evento.mercadoPagoPublicKey, { locale: 'pt-BR' });
-        const bricksBuilder = mp.bricks();
-
-        bricksBuilder.create('payment', 'paymentCardWalletContainer', {
-          initialization: {
-            amount: parseFloat(valorRecarga),
-            payer: {
-              email: cartao.cliente.email || 'financeiro@lamore.com.br'
-            }
-          },
-          customization: {
-            paymentMethods: {
-              applePay: 'all',
-              googlePay: 'all',
-              creditCard: 'all',
-              debitCard: 'all',
-              ticket: 'all',
-              bankTransfer: 'all', // Pix
-            }
-          },
-          callbacks: {
-            onReady: () => {
-              console.log("Mercado Pago Brick is ready");
-            },
-            onSubmit: ({ selectedPaymentMethod, formData }) => {
-              setProcessando(true);
-              return new Promise((resolve, reject) => {
-                fetch('/api/pagamentos/wallet', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    token: formData.token,
-                    paymentMethodId: formData.payment_method_id,
-                    issuerId: formData.issuer_id,
-                    installments: formData.installments,
-                    transactionAmount: formData.transaction_amount,
-                    payerEmail: formData.payer.email,
-                    cartaoCodigo: cartao.codigo,
-                    eventoId: cartao.evento.id
-                  })
-                })
-                .then(res => res.json())
-                .then(data => {
-                  if (data.success || data.status === 'approved') {
-                    setPassoRecarga('sucesso');
-                    carregarCartao();
-                    resolve();
-                  } else {
-                    setRecargaErro(data.error || 'Erro ao processar pagamento.');
-                    reject();
-                  }
-                })
-                .catch(err => {
-                  setRecargaErro('Erro de conexão ao processar carteira.');
-                  reject();
-                })
-                .finally(() => {
-                  setProcessando(false);
-                });
-              });
-            },
-            onError: (error) => {
-              console.error("Brick Error:", error);
-              setRecargaErro("Erro ao processar pagamento ou inicializar carteira.");
-            }
-          }
-        }).then(instance => {
-          activeInstance = instance;
-          setBrickInstance(instance);
-        });
-      } catch (err) {
-        console.error("Error setting up Mercado Pago Brick:", err);
-      }
-    }
-
-    return () => {
-      if (activeInstance && typeof activeInstance.unmount === 'function') {
-        activeInstance.unmount();
-      }
-    };
-  }, [passoRecarga, tabAtiva, cartao, valorRecarga]);
+  }, []);
 
   // Polling for Pix recharge payment check
   useEffect(() => {
@@ -411,6 +321,30 @@ export default function CartaoClientPage() {
       } else {
         throw new Error('A transação não foi aprovada pela operadora.');
       }
+    } catch (err) {
+      setRecargaErro(err.message);
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  const gerarCheckoutUniversal = async () => {
+    setProcessando(true);
+    setRecargaErro('');
+    try {
+      const res = await fetch('/api/pagamentos/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codigo: cartao.codigo,
+          valor: parseFloat(valorRecarga)
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar link');
+      
+      // Redireciona o cliente para o checkout oficial do banco
+      window.location.href = data.url;
     } catch (err) {
       setRecargaErro(err.message);
     } finally {
@@ -857,12 +791,29 @@ export default function CartaoClientPage() {
                 </div>
 
                 {/* Content: WALLET */}
-                {tabAtiva === 'WALLET' && cartao?.evento?.mercadoPagoPublicKey && (
-                  <div className="w-full text-center">
-                    <p className="text-[11px] text-gray-400 mb-4">Pague usando Apple Pay, Google Pay ou Cartão via Mercado Pago.</p>
-                    <div id="paymentCardWalletContainer" className="w-full min-h-[150px] mb-6 animate-fade-in" />
-                  </div>
-                )}
+                {tabAtiva === 'WALLET' && (
+                    <div className="space-y-4 pt-2">
+                      <div className="bg-blue-50/50 rounded-2xl p-4 border border-blue-100 flex flex-col items-center justify-center gap-3 text-center">
+                        <div className="flex gap-2 text-3xl">
+                          <span>🍎</span> <span>🤖</span>
+                        </div>
+                        <div>
+                          <p className="text-gray-900 font-black text-sm">Apple Pay & Google Pay</p>
+                          <p className="text-[11px] text-gray-500 font-semibold mt-1">Ao continuar, você será direcionado para o checkout seguro oficial, onde poderá usar as carteiras digitais ou outras formas de pagamento.</p>
+                        </div>
+                      </div>
+
+                      {recargaErro && <p className="text-red-500 font-bold text-xs text-center">{recargaErro}</p>}
+                      
+                      <button 
+                        onClick={gerarCheckoutUniversal}
+                        disabled={processando}
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-2xl transition-all shadow-md text-sm mt-4 flex items-center justify-center gap-2"
+                      >
+                        {processando ? 'Gerando Link de Pagamento...' : 'Continuar para Pagamento'}
+                      </button>
+                    </div>
+                  )}
 
                 {/* Content: PIX */}
                 {tabAtiva === 'PIX' && (
@@ -1016,7 +967,7 @@ export default function CartaoClientPage() {
         </div>
       )}
 
-      <Script src="https://sdk.mercadopago.com/js/v2" strategy="lazyOnload" />
+      {/* Script do Mercado Pago removido pois estamos usando Checkouts Universais */}
 
     </div>
   );
