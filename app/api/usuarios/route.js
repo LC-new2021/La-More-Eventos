@@ -62,7 +62,7 @@ export async function POST(req) {
     if (session.user.role === 'ORGANIZADOR') {
       eventoId = session.user.eventoId;
       // Organizers can only create POS/Caixa and Bar operators
-      if (!['CAIXA', 'OPERADOR_BAR'].includes(role)) {
+      if (!['CAIXA', 'OPERADOR_BAR', 'TESOURARIA'].includes(role)) {
         return NextResponse.json({ error: 'Função não permitida para organizadores' }, { status: 403 });
       }
     } else if (session.user.role !== 'MASTER') {

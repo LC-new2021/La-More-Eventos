@@ -65,7 +65,7 @@ export async function PATCH(req, { params }) {
         if (targetUser.eventoId !== session.user.eventoId) {
           return NextResponse.json({ error: 'Acesso negado a este usuário' }, { status: 403 });
         }
-        if (role && !['CAIXA', 'OPERADOR_BAR'].includes(role)) {
+        if (role && !['CAIXA', 'OPERADOR_BAR', 'TESOURARIA'].includes(role)) {
           return NextResponse.json({ error: 'Função não permitida' }, { status: 403 });
         }
         if (eventoId && eventoId !== session.user.eventoId) {
