@@ -8,6 +8,8 @@ export default function OrgDashboard() {
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [eventoId, setEventoId] = useState(null);
+  
+  const [mostrarQrModal, setMostrarQrModal] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -69,7 +71,15 @@ export default function OrgDashboard() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Link href="/org/relatorios" className="bg-gray-100 text-gray-700 font-black text-base px-6 py-3 rounded-2xl hover:bg-gray-200 transition-all">📊 Exportar</Link>
+          <button 
+            onClick={() => setMostrarQrModal(true)}
+            className="bg-[#1D3461]/10 text-[#1D3461] hover:bg-[#1D3461] hover:text-white font-black text-base px-6 py-3 rounded-2xl transition-all flex items-center gap-2"
+          >
+            <span>📱</span> Auto-Cadastro
+          </button>
+          <Link href="/org/relatorios" className="bg-gray-100 text-gray-700 font-black text-base px-6 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-2">
+            <span>📊</span> Exportar
+          </Link>
         </div>
       </div>
 
@@ -170,6 +180,57 @@ export default function OrgDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Modal QR Code */}
+      {mostrarQrModal && eventoId && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+            <h3 className="text-xl font-black text-[#1D3461] mb-2">QR Code de Cadastro</h3>
+            <p className="text-sm text-gray-500 mb-6 font-semibold">Mostre para seus clientes ou imprima</p>
+            
+            <div className="bg-gray-50 p-6 rounded-2xl border-2 border-gray-100 mb-6 flex justify-center">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent((typeof window !== 'undefined' ? window.location.origin : '') + '/e/' + eventoId)}`} 
+                alt="QR Code Auto-Cadastro" 
+                className="w-48 h-48 object-contain rounded-xl"
+              />
+            </div>
+            
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent((typeof window !== 'undefined' ? window.location.origin : '') + '/e/' + eventoId)}`;
+                  link.download = `QRCode_Cadastro_Evento.png`;
+                  link.target = "_blank";
+                  link.click();
+                }}
+                className="w-full bg-[#1D3461] hover:bg-blue-900 text-white font-black px-6 py-3.5 rounded-2xl transition-all flex justify-center items-center gap-2"
+              >
+                <span>⬇️</span> Baixar Imagem HD
+              </button>
+              
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/e/${eventoId}`);
+                  alert('Link copiado para a área de transferência!');
+                }}
+                className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold px-6 py-3.5 rounded-2xl transition-all flex justify-center items-center gap-2"
+              >
+                <span>🔗</span> Copiar Link
+              </button>
+
+              <button
+                onClick={() => setMostrarQrModal(false)}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3.5 rounded-2xl transition-all"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

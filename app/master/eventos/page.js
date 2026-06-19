@@ -20,6 +20,10 @@ export default function MasterEventos() {
   const [mostrarModal, setMostrarModal] = useState(false);
   const [eventoParaEditar, setEventoParaEditar] = useState(null);
   
+  // QR Code Modal State
+  const [mostrarQrModal, setMostrarQrModal] = useState(false);
+  const [eventoQr, setEventoQr] = useState(null);
+  
   // Notification states
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -329,7 +333,16 @@ export default function MasterEventos() {
                     🗑️
                   </button>
                 </div>
-                <div className="flex pt-1">
+                <div className="flex flex-col gap-2 pt-1">
+                  <button
+                    onClick={() => {
+                      setEventoQr(evt);
+                      setMostrarQrModal(true);
+                    }}
+                    className="w-full bg-[#1D3461]/10 hover:bg-[#1D3461] text-[#1D3461] hover:text-white font-bold text-sm px-4 py-2.5 rounded-xl transition-all"
+                  >
+                    📱 QR Code Auto-Cadastro
+                  </button>
                   <button
                     onClick={() => handleLimparEvento(evt.id)}
                     className="w-full bg-red-100 border border-red-200 hover:bg-red-600 hover:border-red-600 text-red-700 hover:text-white font-bold text-sm px-4 py-2 rounded-xl transition-all"
@@ -467,6 +480,56 @@ export default function MasterEventos() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal QR Code */}
+      {mostrarQrModal && eventoQr && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+            <h3 className="text-xl font-black text-[#1D3461] mb-2">QR Code de Cadastro</h3>
+            <p className="text-sm text-gray-500 mb-6 font-semibold">{eventoQr.nome}</p>
+            
+            <div className="bg-gray-50 p-6 rounded-2xl border-2 border-gray-100 mb-6 flex justify-center">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent((typeof window !== 'undefined' ? window.location.origin : '') + '/e/' + eventoQr.id)}`} 
+                alt="QR Code Auto-Cadastro" 
+                className="w-48 h-48 object-contain rounded-xl"
+              />
+            </div>
+            
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent((typeof window !== 'undefined' ? window.location.origin : '') + '/e/' + eventoQr.id)}`;
+                  link.download = `QRCode_${eventoQr.nome.replace(/\s+/g, '_')}.png`;
+                  link.target = "_blank";
+                  link.click();
+                }}
+                className="w-full bg-[#1D3461] hover:bg-blue-900 text-white font-black px-6 py-3.5 rounded-2xl transition-all flex justify-center items-center gap-2"
+              >
+                <span>⬇️</span> Baixar Imagem HD
+              </button>
+              
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/e/${eventoQr.id}`);
+                  alert('Link copiado para a área de transferência!');
+                }}
+                className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold px-6 py-3.5 rounded-2xl transition-all flex justify-center items-center gap-2"
+              >
+                <span>🔗</span> Copiar Link
+              </button>
+
+              <button
+                onClick={() => setMostrarQrModal(false)}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3.5 rounded-2xl transition-all"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
