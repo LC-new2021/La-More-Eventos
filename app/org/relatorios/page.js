@@ -217,24 +217,24 @@ export default function RelatoriosPage() {
           <p className="text-gray-500 text-lg font-semibold mt-1">Dados consolidados do evento</p>
         </div>
         
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex items-center gap-2">
-            <div>
+        <div className="flex flex-col w-full md:w-auto items-stretch md:items-end gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
+            <div className="flex-1">
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Data Inicial</label>
-              <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-2 font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"/>
+              <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-2 font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"/>
             </div>
-            <span className="text-gray-300 font-bold mb-2">-</span>
-            <div>
+            <span className="hidden sm:inline text-gray-300 font-bold mb-2">-</span>
+            <div className="flex-1">
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Data Final</label>
-              <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-2 font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"/>
+              <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-2 font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"/>
             </div>
           </div>
           
-          <div className="flex gap-2">
-            <button onClick={exportarXLSX} className="bg-green-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
+            <button onClick={exportarXLSX} className="flex-1 justify-center bg-green-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2">
               <span>📊</span> Planilha Excel
             </button>
-            <button onClick={exportarPDF} className="bg-red-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-2">
+            <button onClick={exportarPDF} className="flex-1 justify-center bg-red-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-2">
               <span>📄</span> Baixar PDF
             </button>
           </div>

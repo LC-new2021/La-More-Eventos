@@ -350,17 +350,17 @@ export default function ProdutosPage() {
           </p>
         </div>
         {aba === "produtos" && eventoId && (
-          <div className="flex gap-2 flex-wrap justify-start md:justify-end w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
             <button
               onClick={baixarTemplateExcel}
-              className="bg-gray-100 text-gray-700 font-bold text-base px-4 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-1.5"
+              className="w-full sm:w-auto justify-center bg-gray-100 text-gray-700 font-bold text-base px-4 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-1.5"
               style={{ minHeight: "52px" }}
               title="Baixar planilha modelo de importação"
             >
-              📥 Modelo XLSX
+              <span>📥</span> Modelo XLSX
             </button>
             <label
-              className="bg-green-600 text-white font-bold text-base px-5 py-3 rounded-2xl hover:bg-green-700 transition-all flex items-center gap-1.5 cursor-pointer"
+              className="w-full sm:w-auto justify-center bg-green-600 text-white font-bold text-base px-5 py-3 rounded-2xl hover:bg-green-700 transition-all flex items-center gap-1.5 cursor-pointer"
               style={{ minHeight: "52px" }}
             >
               <span>🟢</span> Importar XLSX
@@ -373,7 +373,7 @@ export default function ProdutosPage() {
             </label>
             <button
               onClick={abrirNovoProduto}
-              className="bg-[#1D3461] text-white font-black text-base px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all"
+              className="w-full sm:w-auto justify-center bg-[#1D3461] text-white font-black text-base px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all"
               style={{ minHeight: "52px" }}
             >
               + Novo Produto

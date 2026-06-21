@@ -124,7 +124,7 @@ export default function ConfiguracoesPage() {
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
           <h2 className="text-lg font-medium text-gray-900 mb-4">Gateway de Pagamento Principal</h2>
           
-          <div className="flex items-center space-x-6">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
             <label className="flex items-center">
               <input
                 type="radio"
