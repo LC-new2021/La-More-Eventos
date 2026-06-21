@@ -159,7 +159,7 @@ export default function OrgLayout({ children }) {
       </aside>
 
       {/* Conteúdo */}
-      <main className="ml-0 lg:ml-64 flex-1 p-4 md:p-8 pb-28 lg:pb-8">
+      <main className="ml-0 lg:ml-64 flex-1 p-4 md:p-8 pb-28 lg:pb-8 min-w-0 w-full overflow-x-hidden">
         {/* Mobile Header indicator */}
         <div className="flex items-center justify-between bg-[#1D3461] text-white p-4 rounded-2xl mb-6 lg:hidden shadow-sm">
           <div className="flex items-center gap-2">
