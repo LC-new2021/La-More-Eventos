@@ -63,21 +63,21 @@ export default function OrgDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
         <div>
           <h2 className="text-4xl font-black text-[#1D3461]">Dashboard</h2>
           <p className="text-gray-500 text-lg font-semibold mt-1">
             {carregando ? "Carregando..." : <span className="text-green-600 font-black">● AO VIVO</span>}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <button 
             onClick={() => setMostrarQrModal(true)}
-            className="bg-[#1D3461]/10 text-[#1D3461] hover:bg-[#1D3461] hover:text-white font-black text-base px-6 py-3 rounded-2xl transition-all flex items-center gap-2"
+            className="w-full sm:w-auto justify-center bg-[#1D3461]/10 text-[#1D3461] hover:bg-[#1D3461] hover:text-white font-black text-base px-6 py-3 rounded-2xl transition-all flex items-center gap-2"
           >
             <span>📱</span> Auto-Cadastro
           </button>
-          <Link href="/org/relatorios" className="bg-gray-100 text-gray-700 font-black text-base px-6 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-2">
+          <Link href="/org/relatorios" className="w-full sm:w-auto justify-center bg-gray-100 text-gray-700 font-black text-base px-6 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-2">
             <span>📊</span> Exportar
           </Link>
         </div>
