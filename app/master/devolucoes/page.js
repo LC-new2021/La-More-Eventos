@@ -146,29 +146,31 @@ export default function MasterDevolucoesPage() {
           <p className="text-gray-500 text-sm">Gerencie os pedidos de reembolso solicitados pelos clientes no Cartão Digital.</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
           <select
             value={eventoId}
             onChange={handleMudarEvento}
-            className="bg-white border-2 border-gray-100 rounded-xl px-4 py-2 font-bold text-[#1D3461] outline-none"
+            className="w-full sm:w-auto bg-white border-2 border-gray-100 rounded-xl px-4 py-2 font-bold text-[#1D3461] outline-none"
           >
             {eventos.map(ev => (
               <option key={ev.id} value={ev.id}>{ev.nome}</option>
             ))}
           </select>
           
-          <button
-            onClick={exportarXLSX}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2"
-          >
-            <span>📊</span> Excel
-          </button>
-          <button
-            onClick={exportarPDF}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2"
-          >
-            <span>📄</span> PDF
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={exportarXLSX}
+              className="flex-1 sm:flex-none justify-center bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-3 sm:py-2 rounded-xl text-sm flex items-center gap-2"
+            >
+              <span>📊</span> Excel
+            </button>
+            <button
+              onClick={exportarPDF}
+              className="flex-1 sm:flex-none justify-center bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-3 sm:py-2 rounded-xl text-sm flex items-center gap-2"
+            >
+              <span>📄</span> PDF
+            </button>
+          </div>
         </div>
       </div>
 

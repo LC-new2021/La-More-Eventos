@@ -94,7 +94,7 @@ export default function MasterLayout({ children }) {
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#1D3461] border-t border-white/10 flex justify-around p-2 z-20 lg:hidden text-white shadow-xl">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#1D3461] border-t border-white/10 flex flex-nowrap overflow-x-auto gap-2 p-2 z-20 lg:hidden text-white shadow-xl custom-scrollbar items-center justify-start">
         {menuItens.map((item) => {
           const ativo = item.exact
             ? pathname === item.href
@@ -104,12 +104,12 @@ export default function MasterLayout({ children }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center p-2 rounded-xl transition-all ${
-                isAtivo ? "text-yellow-400 font-black" : "text-blue-200"
+              className={`flex flex-col items-center p-2 rounded-xl transition-all shrink-0 min-w-[70px] ${
+                isAtivo ? "text-yellow-400 font-black bg-white/5" : "text-blue-200"
               }`}
             >
               <span className="text-2xl">{item.emoji}</span>
-              <span className="text-[10px] font-bold mt-0.5 truncate max-w-[55px] text-center" title={item.titulo}>{item.titulo}</span>
+              <span className="text-[10px] font-bold mt-1 text-center" title={item.titulo}>{item.titulo}</span>
             </Link>
           );
         })}

@@ -205,21 +205,21 @@ export default function MasterEventos() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h2 className="text-4xl font-black text-[#1D3461] mb-2">Eventos</h2>
           <p className="text-gray-500 text-lg font-semibold">Gerencie e configure os eventos da plataforma</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <button
             onClick={handleLimparBanco}
-            className="bg-red-100 border-2 border-red-500 hover:bg-red-500 hover:text-white text-red-600 font-black px-4 py-3 rounded-2xl transition-all shadow-sm text-sm flex items-center gap-2"
+            className="w-full sm:w-auto bg-red-100 border-2 border-red-500 hover:bg-red-500 hover:text-white text-red-600 font-black px-4 py-3 rounded-2xl transition-all shadow-sm text-sm flex items-center justify-center gap-2"
           >
             <span>🧹</span> Limpar Dados de Teste
           </button>
           <button
             onClick={abrirCriar}
-            className="bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg hover:shadow-green-700/20 text-lg flex items-center gap-2"
+            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg hover:shadow-green-700/20 text-lg flex items-center justify-center gap-2"
           >
             <span>➕</span> Novo Evento
           </button>
