@@ -55,6 +55,7 @@ model Evento {
   mercadoPagoRefreshToken String?
   mercadoPagoUserId       String?
   permiteDevolucao        Boolean  @default(false)
+  permitirEdicaoGateway   Boolean  @default(false)
   cartoes       Cartao[]
   produtos      Produto[]
   usuarios      Usuario[]

@@ -121,7 +121,12 @@ export default function ConfiguracoesPage() {
 
       <form onSubmit={handleSave} className="space-y-8">
         {/* Escolha do Gateway */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative">
+          {!config.permitirEdicaoGateway && (
+            <div className="absolute top-4 right-4 bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+              <span>🔒</span> Somente Leitura
+            </div>
+          )}
           <h2 className="text-lg font-medium text-gray-900 mb-4">Gateway de Pagamento Principal</h2>
           
           <div className="flex flex-wrap items-center gap-4 sm:gap-6">
@@ -132,7 +137,8 @@ export default function ConfiguracoesPage() {
                 value="ASAAS"
                 checked={config.gatewayActive === 'ASAAS'}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                disabled={!config.permitirEdicaoGateway}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 disabled:opacity-50"
               />
               <span className="ml-2 text-sm text-gray-700 font-medium">Asaas</span>
             </label>
@@ -144,7 +150,8 @@ export default function ConfiguracoesPage() {
                 value="MERCADO_PAGO"
                 checked={config.gatewayActive === 'MERCADO_PAGO'}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                disabled={!config.permitirEdicaoGateway}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 disabled:opacity-50"
               />
               <span className="ml-2 text-sm text-gray-700 font-medium">Mercado Pago</span>
             </label>
@@ -156,7 +163,8 @@ export default function ConfiguracoesPage() {
                 value="PAGBANK"
                 checked={config.gatewayActive === 'PAGBANK'}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                disabled={!config.permitirEdicaoGateway}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 disabled:opacity-50"
               />
               <span className="ml-2 text-sm text-gray-700 font-medium">PagBank</span>
             </label>
@@ -168,33 +176,18 @@ export default function ConfiguracoesPage() {
                 value="STONE"
                 checked={config.gatewayActive === 'STONE'}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                disabled={!config.permitirEdicaoGateway}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 disabled:opacity-50"
               />
               <span className="ml-2 text-sm text-gray-700 font-medium">Stone (Pagar.me)</span>
             </label>
           </div>
-        </div>
-
-        {/* Configurações do Evento (Devolução) */}
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Recursos do Evento</h2>
           
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-gray-900">Permitir Devolução de Saldo (Reembolso)</h3>
-              <p className="text-sm text-gray-500">Se ativo, os clientes poderão solicitar o PIX de devolução pelo Cartão Digital.</p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                name="permiteDevolucao"
-                checked={config.permiteDevolucao}
-                onChange={handleChange}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
-          </div>
+          {!config.permitirEdicaoGateway && (
+            <p className="text-xs text-gray-500 mt-4 font-semibold">
+              ⚠️ Para alterar o gateway de pagamento ou suas credenciais, contate o administrador Master do sistema.
+            </p>
+          )}
         </div>
 
         {/* Configurações Asaas */}
@@ -215,8 +208,9 @@ export default function ConfiguracoesPage() {
                   name="asaasToken"
                   value={config.asaasToken}
                   onChange={handleChange}
+                  disabled={!config.permitirEdicaoGateway}
                   placeholder="$aact_prod_..."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">A chave de API gerada no seu painel do Asaas.</p>
               </div>
@@ -227,7 +221,8 @@ export default function ConfiguracoesPage() {
                   name="asaasUrl"
                   value={config.asaasUrl}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  disabled={!config.permitirEdicaoGateway}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 >
                   <option value="https://api.asaas.com">Produção (api.asaas.com)</option>
                   <option value="https://sandbox.asaas.com/api">Teste / Sandbox (sandbox.asaas.com)</option>
@@ -255,8 +250,9 @@ export default function ConfiguracoesPage() {
                   name="mercadoPagoPublicKey"
                   value={config.mercadoPagoPublicKey}
                   onChange={handleChange}
+                  disabled={!config.permitirEdicaoGateway}
                   placeholder="APP_USR-..."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">Usada para iniciar o checkout na tela do cliente.</p>
               </div>
@@ -268,8 +264,9 @@ export default function ConfiguracoesPage() {
                   name="mercadoPagoAccessToken"
                   value={config.mercadoPagoAccessToken}
                   onChange={handleChange}
+                  disabled={!config.permitirEdicaoGateway}
                   placeholder="APP_USR-..."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">Usado pelo nosso servidor para confirmar e aprovar transações.</p>
               </div>
@@ -295,8 +292,9 @@ export default function ConfiguracoesPage() {
                   name="pagbankToken"
                   value={config.pagbankToken}
                   onChange={handleChange}
+                  disabled={!config.permitirEdicaoGateway}
                   placeholder="Seu token gerado no painel do PagBank..."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">Usado para autorizar transações via Pix na sua conta.</p>
               </div>
@@ -325,7 +323,8 @@ export default function ConfiguracoesPage() {
                   name="stoneToken"
                   value={config.stoneToken}
                   onChange={handleChange}
-                  className="w-full bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-md px-4 py-2 font-mono text-sm"
+                  disabled={!config.permitirEdicaoGateway}
+                  className="w-full bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-md px-4 py-2 font-mono text-sm disabled:bg-gray-100 disabled:text-gray-500"
                   placeholder="Token de acesso da Stone"
                 />
               </div>
@@ -336,8 +335,8 @@ export default function ConfiguracoesPage() {
         <div className="flex justify-end pt-4">
           <button
             type="submit"
-            disabled={salvando}
-            className={`inline-flex justify-center py-2.5 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${salvando ? 'opacity-70 cursor-not-allowed' : ''}`}
+            disabled={salvando || !config.permitirEdicaoGateway}
+            className={`inline-flex justify-center py-2.5 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed`}
           >
             {salvando ? 'Salvando...' : 'Salvar Configurações'}
           </button>

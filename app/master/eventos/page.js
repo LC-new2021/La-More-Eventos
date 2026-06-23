@@ -14,6 +14,8 @@ export default function MasterEventos() {
   const [taxa, setTaxa] = useState('5.0');
   const [mpPublicKey, setMpPublicKey] = useState('');
   const [mpAccessToken, setMpAccessToken] = useState('');
+  const [permiteDevolucao, setPermiteDevolucao] = useState(false);
+  const [permitirEdicaoGateway, setPermitirEdicaoGateway] = useState(false);
   const [salvando, setSalvando] = useState(false);
   
   // Modal states
@@ -74,6 +76,8 @@ export default function MasterEventos() {
     setTaxa('5.0');
     setMpPublicKey('');
     setMpAccessToken('');
+    setPermiteDevolucao(false);
+    setPermitirEdicaoGateway(false);
     setMostrarModal(true);
   };
 
@@ -85,6 +89,8 @@ export default function MasterEventos() {
     setTaxa(evt.taxaMasterPercent?.toString() || '5.0');
     setMpPublicKey(evt.mercadoPagoPublicKey || '');
     setMpAccessToken(evt.mercadoPagoAccessToken || '');
+    setPermiteDevolucao(evt.permiteDevolucao || false);
+    setPermitirEdicaoGateway(evt.permitirEdicaoGateway || false);
     setMostrarModal(true);
   };
 
@@ -106,7 +112,9 @@ export default function MasterEventos() {
           local,
           taxaMasterPercent: parseFloat(taxa),
           mercadoPagoPublicKey: mpPublicKey,
-          mercadoPagoAccessToken: mpAccessToken
+          mercadoPagoAccessToken: mpAccessToken,
+          permiteDevolucao,
+          permitirEdicaoGateway
         })
       });
       const result = await res.json();
@@ -432,6 +440,34 @@ export default function MasterEventos() {
                   className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
                   placeholder="Ex: APP_USR-..."
                 />
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-2xl border-2 border-gray-100 space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={permiteDevolucao}
+                    onChange={(e) => setPermiteDevolucao(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-[#1D3461] focus:ring-[#1D3461]"
+                  />
+                  <div>
+                    <p className="font-bold text-gray-800 text-sm">Permitir Devoluções de Saldo (Master e APP)</p>
+                    <p className="text-xs text-gray-500 font-semibold">Ativa o módulo de reembolso via PIX.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={permitirEdicaoGateway}
+                    onChange={(e) => setPermitirEdicaoGateway(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-300 text-[#1D3461] focus:ring-[#1D3461]"
+                  />
+                  <div>
+                    <p className="font-bold text-gray-800 text-sm">Permitir que Produtor configure as API Keys do Gateway</p>
+                    <p className="text-xs text-gray-500 font-semibold">Se desativado, apenas o Master poderá configurar as chaves do Asaas/Mercado Pago.</p>
+                  </div>
+                </label>
               </div>
 
               {!eventoParaEditar && (

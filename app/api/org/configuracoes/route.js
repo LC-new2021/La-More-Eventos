@@ -34,7 +34,7 @@ export async function GET(req) {
       mercadoPagoAccessToken: usuario.evento.mercadoPagoAccessToken ? maskToken(usuario.evento.mercadoPagoAccessToken) : '',
       pagbankToken: usuario.evento.pagbankToken ? maskToken(usuario.evento.pagbankToken) : '',
       stoneToken: usuario.evento.stoneToken ? maskToken(usuario.evento.stoneToken) : '',
-      permiteDevolucao: usuario.evento.permiteDevolucao || false
+      permitirEdicaoGateway: usuario.evento.permitirEdicaoGateway || false
     };
 
     return NextResponse.json({ evento: eventoInfo });
@@ -59,12 +59,12 @@ export async function POST(req) {
       mercadoPagoPublicKey,
       mercadoPagoAccessToken,
       pagbankToken,
-      stoneToken,
-      permiteDevolucao
+      stoneToken
     } = await req.json();
 
     const usuario = await prisma.usuario.findUnique({
-      where: { id: session.user.id }
+      where: { id: session.user.id },
+      include: { evento: true }
     });
 
     if (!usuario || !usuario.eventoId) {
@@ -75,10 +75,13 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Acesso negado. Apenas Organizadores podem alterar configurações financeiras.' }, { status: 403 });
     }
 
+    if (usuario.role === 'ORGANIZADOR' && !usuario.evento.permitirEdicaoGateway) {
+      return NextResponse.json({ error: 'Acesso negado. A edição das credenciais de pagamento está desativada para o Produtor.' }, { status: 403 });
+    }
+
     // Prepara dados de atualização
     const dataToUpdate = {
-      gatewayActive,
-      permiteDevolucao: !!permiteDevolucao
+      gatewayActive
     };
 
     // Só atualiza os tokens se eles não estiverem mascarados (ou seja, se o usuário digitou um novo valor)
