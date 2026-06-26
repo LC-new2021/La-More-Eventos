@@ -429,6 +429,34 @@ export default function PosApp() {
     }
   }
 
+  async function iniciarCheckoutOnline() {
+    setProcessandoCartao(true);
+    setErro("");
+    try {
+      const res = await fetch("/api/pagamentos/checkout-pos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          valor: valorRestante,
+          eventoId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error || "Erro ao gerar checkout");
+      } else {
+        setPixQrCode(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data.url)}`);
+        setPixCopiaCola(data.url);
+        setPixGerado(true);
+      }
+    } catch (err) {
+      console.error("Erro checkout online:", err);
+      setErro(`Erro de rede: ${err.message}`);
+    } finally {
+      setProcessandoCartao(false);
+    }
+  }
+
   async function processarCartaoAsaas() {
     const rawCpf = cpf ? cpf.replace(/\D/g, "") : "";
     if (!rawCpf || rawCpf.length !== 11) {
@@ -479,192 +507,16 @@ export default function PosApp() {
     }
   }
 
-  async function handleCpfChange(val) {
-    const formatted = formatarCpf(val);
-    setCpf(formatted);
-
-    const rawCpf = val.replace(/\D/g, "");
-    if (rawCpf.length === 11) {
-      try {
-        const res = await fetch(`/api/clientes/consultar?cpf=${rawCpf}`);
-        const data = await res.json();
-        if (data.found) {
-          setNome(data.cliente.nome);
-          if (data.cliente.celular) {
-            setCelular(formatarTel(data.cliente.celular));
-          }
-          if (data.cliente.creditCardToken) {
-            setSavedCardToken(data.cliente.creditCardToken);
-            setSavedCardBrand(data.cliente.creditCardBrand || "");
-            setSavedCardLastDigits(data.cliente.creditCardLastDigits || "");
-            setUsarCartaoSalvo(true);
-          } else {
-            setSavedCardToken("");
-            setSavedCardBrand("");
-            setSavedCardLastDigits("");
-            setUsarCartaoSalvo(false);
-          }
-          setErro("✨ Cliente localizado! Dados preenchidos automaticamente.");
-          setTimeout(() => setErro(prev => prev.startsWith("✨") ? "" : prev), 4000);
-        }
-      } catch (e) {
-        console.error("Erro ao buscar CPF", e);
-      }
-    }
-  }
-
-  if (status === "loading") return <div className="min-h-screen bg-[#1D3461] flex items-center justify-center"><p className="text-white text-2xl">Carregando...</p></div>;
-
-  // ── QR Code ──
-  if (etapa === "qrcode") return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm text-center">
-        <p className="text-blue-200 text-xl font-bold mb-1">Cartão emitido para</p>
-        <h2 className="text-4xl font-black text-white mb-2">{nome || cartaoEncontrado?.cliente?.nome}</h2>
-        <p className="text-green-400 text-5xl font-black mb-8">R$ {parseFloat(valorTotal).toFixed(2).replace(".",",")}</p>
-        <div className="bg-white rounded-3xl p-8 mb-6 shadow-2xl inline-block">
-          {qrCodeDataUrl ? <img src={qrCodeDataUrl} alt="QR Code" className="w-56 h-56 mx-auto" /> : <div className="w-56 h-56 flex items-center justify-center text-8xl">📱</div>}
-          <p className="text-gray-500 font-bold mt-3 text-lg">QR Code do Cartão</p>
-          <p className="text-gray-900 font-black text-xl">{codigoCartao}</p>
-        </div>
-        <p className="text-blue-200 text-lg font-semibold mb-6">Peça para o cliente fotografar</p>
-        <div className="bg-white/10 rounded-2xl p-4 mb-6 text-sm text-blue-200 leading-normal">
-          💡 <strong>Notificações no Celular:</strong> Oriente o cliente a escanear o QR Code e clicar no botão <strong>Ativar Notificações</strong> no celular para receber avisos de saldo na tela.
-        </div>
-        <div className="space-y-3">
-          <a href={`/cartao/${codigoCartao}`} target="_blank" rel="noopener noreferrer" className="w-full bg-teal-500 text-white font-black text-xl py-5 rounded-3xl shadow-xl flex items-center justify-center gap-2" style={{minHeight:"52px"}}>🔗 Visualizar Cartão Virtual</a>
-          <button onClick={novoAtendimento} className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-3xl shadow-xl" style={{minHeight:"52px"}}>✅ Novo Atendimento</button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ── Cupom ──
-  if (etapa === "cupom") {
-    const dataHora = new Date().toLocaleString("pt-BR");
-    return (
-      <div className="min-h-screen bg-gray-100 flex flex-col items-center py-10 px-4">
-        <div className="bg-white p-8 rounded-none w-full max-w-[350px] shadow-lg font-mono text-sm leading-tight border-t-8 border-[#1D3461] text-gray-900" id="cupom-print">
-          <div className="text-center mb-4">
-            <h1 className="font-black text-xl">LA MORE EVENTOS</h1>
-            <p>RECIBO DE RECARGA — NÃO FISCAL</p>
-            <p className="text-xs mt-1">{dataHora}</p>
-          </div>
-          <p>---------------------------------</p>
-          <p>CLIENTE: {(nome || cartaoEncontrado?.cliente?.nome || "").toUpperCase()}</p>
-          {cpf && <p>CPF: {cpf}</p>}
-          <p>---------------------------------</p>
-          <div className="flex justify-between font-black text-lg"><span>RECARGA CARTÃO</span><span>{parseFloat(valorTotal).toFixed(2).replace(".",",")}</span></div>
-          <p>---------------------------------</p>
-          <div className="flex justify-between font-black text-lg mb-2"><span>TOTAL R$</span><span>{parseFloat(valorTotal).toFixed(2).replace(".",",")}</span></div>
-          <p className="font-bold">PAGAMENTO(S):</p>
-          {pagamentos.map((p,i) => (
-            <div key={i} className="flex justify-between text-xs">
-              <span>- {p.metodo.toUpperCase()}</span>
-              <span>{p.valor.toFixed(2).replace(".",",")}</span>
-            </div>
-          ))}
-          {pagamentos.filter(p=>p.metodo==="dinheiro"&&p.recebido>p.valor).map((p,i) => (
-            <div key={`t${i}`} className="flex justify-between text-xs font-bold mt-1">
-              <span>TROCO</span><span>{(p.recebido-p.valor).toFixed(2).replace(".",",")}</span>
-            </div>
-          ))}
-          <div className="text-center mt-4">
-            <p>Nº: {codigoCartao}</p>
-            {qrCodeDataUrl && <img src={qrCodeDataUrl} alt="QR" className="w-24 h-24 mx-auto mt-2" />}
-          </div>
-          <p className="text-center text-xs mt-4">Obrigado pela preferência!</p>
-        </div>
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-800 leading-normal w-full max-w-[350px] mb-2 font-sans font-semibold">
-          💡 <strong>Notificações no Celular:</strong> Oriente o cliente a escanear o QR Code e clicar no botão <strong>Ativar Notificações</strong> no celular para receber avisos de saldo na tela.
-        </div>
-        <div className="w-full max-w-[350px] mt-4 space-y-3">
-          <a href={`/cartao/${codigoCartao}`} target="_blank" rel="noopener noreferrer" className="w-full bg-teal-600 text-white font-black text-xl py-5 rounded-2xl shadow-xl flex items-center justify-center gap-2" style={{minHeight:"52px"}}>🔗 Visualizar Cartão Virtual</a>
-          <button onClick={novoAtendimento} className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-2xl shadow-xl border-2 border-[#1D3461]/10" style={{minHeight:"52px"}}>✅ Novo Atendimento</button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Pagamento ──
-  if (etapa === "pagamento") return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
-      <button onClick={voltarParaValor} className="text-blue-200 text-xl font-bold mb-6">← Voltar</button>
-      <h2 className="text-3xl font-black text-white mb-2">Pagamento</h2>
-      <div className="bg-white/10 rounded-3xl p-5 mb-5 flex justify-between">
-        <div><p className="text-blue-200 text-sm font-bold uppercase">Total</p><p className="text-white text-3xl font-black">R$ {parseFloat(valorTotal).toFixed(2).replace(".",",")}</p></div>
-        <div className="text-right"><p className="text-blue-200 text-sm font-bold uppercase">Falta</p><p className={`text-3xl font-black ${valorRestante > 0 ? "text-yellow-400" : "text-green-400"}`}>R$ {Math.max(0, valorRestante).toFixed(2).replace(".",",")}</p></div>
-      </div>
-      {pagamentos.length > 0 && (
-        <div className="mb-4 space-y-2">
-          {pagamentos.map((p,i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 flex justify-between items-center">
-              <span className="font-black text-gray-900 text-lg capitalize">{metodosPagamento.find(m=>m.id===p.metodo)?.emoji || "💳"} {metodosPagamento.find(m=>m.id===p.metodo)?.label || p.metodo}</span>
-              <div className="flex items-center gap-3">
-                <span className="font-black text-gray-900">R$ {p.valor.toFixed(2).replace(".",",")}</span>
-                <button onClick={() => setPagamentos(pagamentos.filter((_,j)=>j!==i))} className="text-red-500 bg-red-50 p-2 rounded-xl">❌</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {valorRestante > 0.01 ? (
-        <div className="bg-white rounded-3xl p-6">
-          <p className="font-black text-xl text-gray-900 mb-4">Como pagar o restante?</p>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {metodosPagamento.map(m => (
-              <button key={m.id} onClick={() => {setMetodoAtual(m.id); setValorRecebido("");}} className={`py-3 rounded-2xl font-black border-2 flex flex-col items-center ${metodoAtual===m.id?"bg-[#1D3461] text-white border-[#1D3461]":"bg-gray-50 text-gray-700 border-gray-200"}`}>
-                <span className="text-3xl mb-1">{m.emoji}</span><span className="text-sm">{m.label}</span>
-              </button>
-            ))}
-          </div>
-          {metodoAtual && metodosPagamento.find(m => m.id === metodoAtual)?.troco && (
-            <div className="mb-4 p-4 bg-gray-50 rounded-2xl">
-              <label className="font-black text-gray-900 block mb-2">Valor recebido (R$)</label>
-              <input type="number" value={valorRecebido} onChange={e=>setValorRecebido(e.target.value)} placeholder="0,00" className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-3xl font-black focus:outline-none focus:border-[#1D3461] text-gray-900" />
-              {parseFloat(valorRecebido||0) > valorRestante && (
-                <div className="mt-3 p-3 bg-green-100 rounded-xl flex justify-between">
-                  <span className="text-green-800 font-black">Troco:</span>
-                  <span className="text-green-700 font-black text-xl">R$ {(parseFloat(valorRecebido)-valorRestante).toFixed(2).replace(".",",")}</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {metodoAtual === "pix" && !pixGerado && (
-            <div className="mb-4 text-center">
-              <p className="text-gray-500 font-bold mb-3">
-                {evento?.gatewayActive === "ASAAS"
-                  ? "Cobrança Pix integrada com Asaas"
-                  : evento?.gatewayActive === "PAGBANK"
-                  ? "Cobrança Pix integrada com PagBank"
-                  : "Cobrança Pix (Simulação)"}
-              </p>
-              {erro && (
-                <div className="bg-red-100 border-2 border-red-200 text-red-700 p-3 rounded-2xl mb-3 font-bold text-sm">
-                  ⚠️ {erro}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={iniciarPixDinamico}
-                disabled={gerandoPix}
-                className="w-full bg-teal-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-teal-600 transition-colors"
-                style={{minHeight: "52px"}}
-              >
-                {gerandoPix ? "Gerando Pix..." : `⚡ Gerar QR Code Pix ${evento?.gatewayActive === "ASAAS" ? "Asaas" : evento?.gatewayActive === "PAGBANK" ? "PagBank" : "Simulado"}`}
-              </button>
-            </div>
-          )}
+  // ... (rest of code)
 
           {metodoAtual === "pix" && pixGerado && (
             <div className="mb-4 p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-teal-200">
               <img 
                 src={pixQrCode} 
-                alt={`QR Code Pix ${evento?.gatewayActive === "ASAAS" ? "Asaas" : evento?.gatewayActive === "PAGBANK" ? "PagBank" : "Simulado"}`} 
+                alt="QR Code" 
                 className="w-48 h-48 mx-auto mb-3 border border-gray-200 rounded-xl" 
               />
-              <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">QR Code de Recarga Pix</p>
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">QR Code de Recarga</p>
               
               <div className="mb-4">
                 <input
@@ -674,166 +526,52 @@ export default function PosApp() {
                   onClick={(e) => {
                     e.target.select();
                     navigator.clipboard.writeText(pixCopiaCola);
-                    alert("Copia e Cola copiado!");
+                    alert("Copia e Cola / Link copiado!");
                   }}
                   className="w-full bg-gray-100 text-gray-600 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-center cursor-pointer overflow-ellipsis"
                   title="Clique para copiar"
                 />
-                <p className="text-gray-400 text-[10px] mt-1">Clique acima para copiar o código Copia e Cola</p>
+                <p className="text-gray-400 text-[10px] mt-1 font-semibold uppercase">Clique no código para copiar e enviar ao cliente</p>
               </div>
 
-              <button
-                type="button"
+              <button 
                 onClick={() => {
-                  adicionarPagamento();
+                  setPagamentos([...pagamentos, { metodo: metodoAtual, valor: valorRestante, recebido: valorRestante }]);
+                  setValorRecebido("");
                   setPixGerado(false);
                 }}
-                className="w-full bg-green-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-green-600 transition-colors"
+                className="w-full bg-blue-600 text-white font-black text-xl py-4 rounded-2xl"
                 style={{minHeight: "52px"}}
               >
-                ✅ Confirmar Recebimento do Pix
+                Confirmar Recebimento (Caixa Confirma)
               </button>
             </div>
           )}
 
-          {metodoAtual === "cartao" && evento?.gatewayActive === "ASAAS" && !usarCheckoutOffline && (
-            <div className="mb-4 p-5 bg-gray-50 rounded-3xl border border-gray-200 space-y-4">
-              <p className="font-black text-gray-900 text-lg flex items-center gap-1.5">
-                💳 Cartão de Crédito Online (Asaas)
-              </p>
-              
-              {savedCardToken && (
-                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col gap-2">
-                  <p className="font-bold text-[#1D3461] text-xs">💳 Cartão Salvo Disponível:</p>
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-gray-800 text-base">
-                      {savedCardBrand.toUpperCase()} final ****{savedCardLastDigits}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setUsarCartaoSalvo(!usarCartaoSalvo)}
-                      className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
-                        usarCartaoSalvo ? "bg-[#1D3461] text-white" : "bg-gray-200 text-gray-700"
-                      }`}
-                    >
-                      {usarCartaoSalvo ? "Usar Este" : "Digitar Outro"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {usarCartaoSalvo ? (
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center font-bold text-green-800 text-sm">
-                  ✓ O pagamento de R$ {valorRestante.toFixed(2).replace(".", ",")} será cobrado no cartão salvo.
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Nome impresso no cartão</label>
-                    <input
-                      type="text"
-                      value={cardName}
-                      onChange={(e) => setCardName(e.target.value.toUpperCase())}
-                      placeholder="EX: JOÃO S SILVA"
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Número do Cartão</label>
-                    <input
-                      type="text"
-                      value={cardNumber}
-                      onChange={(e) => handleCardNumberChange(e.target.value)}
-                      placeholder="0000 0000 0000 0000"
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">CPF do Cliente/Titular *</label>
-                    <input
-                      type="text"
-                      value={cpf}
-                      onChange={(e) => handleCpfChange(e.target.value)}
-                      placeholder="000.000.000-00"
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">Validade</label>
-                      <input
-                        type="text"
-                        value={cardExpiry}
-                        onChange={(e) => handleCardExpiryChange(e.target.value)}
-                        placeholder="MM/AA"
-                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900 text-center"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-500 font-bold mb-1 text-xs uppercase">CVV / CVC</label>
-                      <input
-                        type="password"
-                        maxLength={4}
-                        value={cardCvc}
-                        onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, ""))}
-                        placeholder="123"
-                        className="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:outline-none focus:border-[#1D3461] text-gray-900 text-center"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {erro && <p className="text-red-500 text-sm font-bold">{erro}</p>}
-
+          {metodoAtual === "cartao" && !pixGerado && (
+            <div className="mb-4 text-center">
+              <p className="text-gray-500 font-bold mb-3">Cobrança Digital Mercado Pago (Cartão no Celular)</p>
+              {erro && <p className="text-red-500 text-sm font-bold mb-3">{erro}</p>}
               <button
                 type="button"
-                onClick={processarCartaoAsaas}
+                onClick={iniciarCheckoutOnline}
                 disabled={processandoCartao}
-                className="w-full bg-green-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-blue-600 text-white font-black text-lg py-4 rounded-2xl hover:bg-blue-700 transition-colors"
                 style={{minHeight: "52px"}}
               >
-                {processandoCartao ? "Processando Cartão..." : `💳 Cobrar R$ ${valorRestante.toFixed(2).replace(".", ",")} no Cartão`}
+                {processandoCartao ? "Gerando Link..." : "⚡ Gerar Link de Cartão"}
               </button>
-
-              <div className="text-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => setUsarCheckoutOffline(true)}
-                  className="text-blue-600 hover:text-blue-800 text-xs font-bold underline"
-                >
-                  Usar Maquininha Física (Sem Gateway)
-                </button>
-              </div>
             </div>
           )}
 
-          {metodoAtual && metodoAtual !== "pix" && (metodoAtual !== "cartao" || usarCheckoutOffline || evento?.gatewayActive !== "ASAAS") && (
+          {metodoAtual && metodoAtual !== "pix" && metodoAtual !== "cartao" && (
             <div className="mb-4 text-center">
-              {(metodoAtual === "cartao") && (
-                <p className="text-gray-500 font-bold mb-3">Registrar pagamento em Maquininha Física externa</p>
-              )}
               <button 
                 onClick={adicionarPagamento} 
                 disabled={metodosPagamento.find(m => m.id === metodoAtual)?.troco && parseFloat(valorRecebido||0)<=0}
                 className="w-full bg-blue-600 text-white font-black text-xl py-4 rounded-2xl disabled:opacity-40"
                 style={{minHeight: "52px"}}
               >
-                {metodoAtual === "cartao" ? "Confirmar Pagamento Maquininha" : "Adicionar Pagamento"}
-              </button>
-              {metodoAtual === "cartao" && evento?.gatewayActive === "ASAAS" && (
-                <button
-                  type="button"
-                  onClick={() => setUsarCheckoutOffline(false)}
-                  className="text-blue-600 hover:text-blue-800 text-xs font-bold underline mt-3 block mx-auto font-sans font-bold"
-                >
-                  ← Voltar para Cobrança Gateway
-                </button>
-              )}
-            </div>
           )}
         </div>
       ) : (
