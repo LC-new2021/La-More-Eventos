@@ -27,7 +27,10 @@ export default function ConfiguracoesPage() {
 
   const carregarConfiguracoes = async () => {
     try {
-      const res = await fetch('/api/org/configuracoes');
+      const storedEventoId = localStorage.getItem("activeEventoId");
+      const url = storedEventoId ? `/api/org/configuracoes?eventoId=${storedEventoId}` : '/api/org/configuracoes';
+      
+      const res = await fetch(url);
       const data = await res.json();
       
       if (!res.ok) {
@@ -43,7 +46,8 @@ export default function ConfiguracoesPage() {
           mercadoPagoAccessToken: data.evento.mercadoPagoAccessToken || '',
           pagbankToken: data.evento.pagbankToken || '',
           stoneToken: data.evento.stoneToken || '',
-          permiteDevolucao: data.evento.permiteDevolucao || false
+          permiteDevolucao: data.evento.permiteDevolucao || false,
+          permitirEdicaoGateway: data.evento.permitirEdicaoGateway || false
         });
       }
     } catch (err) {
@@ -60,10 +64,15 @@ export default function ConfiguracoesPage() {
     setSucesso('');
 
     try {
+      const storedEventoId = localStorage.getItem("activeEventoId");
+      
       const res = await fetch('/api/org/configuracoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config)
+        body: JSON.stringify({
+          ...config,
+          eventoId: storedEventoId // Enviado para o caso de ser o Master configurando
+        })
       });
       
       const data = await res.json();
