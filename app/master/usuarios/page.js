@@ -111,9 +111,9 @@ export default function MasterUsuarios() {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nome,
-          email,
-          ...(senha && { senha }),
+          nome: nome.trim(),
+          email: email.trim().toLowerCase(),
+          ...(senha && { senha: senha.trim() }),
           role,
           eventoId: role === 'MASTER' ? null : (eventoId || null),
           razaoSocial,
@@ -405,6 +405,7 @@ export default function MasterUsuarios() {
                       className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900"
                     >
                       <option value="ASAAS">Asaas API</option>
+                      <option value="MERCADO_PAGO">Mercado Pago</option>
                       <option value="PAGBANK">PagBank API (Homologação)</option>
                       <option value="STONE">Stone API</option>
                       <option value="NENHUM">Sem Gateway (Somente Dinheiro)</option>

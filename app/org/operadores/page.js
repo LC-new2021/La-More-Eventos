@@ -99,9 +99,9 @@ export default function OperadoresPage() {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nome,
-          email,
-          ...(senha && { senha }),
+          nome: nome.trim(),
+          email: email.trim().toLowerCase(),
+          ...(senha && { senha: senha.trim() }),
           role,
           eventoId
         })

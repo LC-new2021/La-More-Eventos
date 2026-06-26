@@ -14,13 +14,16 @@ export const authOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
+        const trimmedEmail = credentials.email.trim().toLowerCase();
+        const trimmedPassword = credentials.password.trim();
+
         const usuario = await prisma.usuario.findUnique({
-          where: { email: credentials.email },
+          where: { email: trimmedEmail },
         });
 
         if (!usuario || !usuario.ativo) return null;
 
-        const senhaValida = await bcrypt.compare(credentials.password, usuario.senha);
+        const senhaValida = await bcrypt.compare(trimmedPassword, usuario.senha);
         if (!senhaValida) return null;
 
         return {
