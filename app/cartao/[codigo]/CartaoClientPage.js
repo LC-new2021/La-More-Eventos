@@ -352,33 +352,7 @@ export default function CartaoClientPage() {
     }
   };
 
-  // Simulação rápida para desenvolvedor (Pix Simulado)
-  const simularWebhookPix = async () => {
-    setProcessando(true);
-    try {
-      const mockAsaasWebhookUrl = `/api/webhooks/asaas`;
-      const res = await fetch(mockAsaasWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event: 'PAYMENT_RECEIVED',
-          payment: {
-            id: 'mock_pay_123',
-            externalReference: `RECARGA_PIX_${cartao.codigo}`,
-            value: parseFloat(valorRecarga)
-          }
-        })
-      });
-      if (res.ok) {
-        setPassoRecarga('sucesso');
-        carregarCartao();
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setProcessando(false);
-    }
-  };
+
 
   const solicitarDevolucao = async () => {
     // Agora restrito apenas ao painel master
@@ -841,13 +815,7 @@ export default function CartaoClientPage() {
                           <p className="text-[9px] text-gray-400 mt-1">Toque no campo acima para copiar</p>
                         </div>
 
-                        <button 
-                          onClick={simularWebhookPix}
-                          disabled={processando}
-                          className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-2.5 rounded-xl transition-all mb-2 text-xs shadow"
-                        >
-                          {processando ? 'Confirmando...' : '⚡ Confirmar Pix (Simulação)'}
-                        </button>
+
                       </>
                     ) : (
                       <div className="py-12 text-center text-xs font-bold text-red-500">Erro ao carregar Pix. Tente novamente.</div>

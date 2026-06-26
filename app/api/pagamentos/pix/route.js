@@ -17,6 +17,8 @@ export async function POST(req) {
 
     let pagbankToken = process.env.PAGBANK_TOKEN;
     let isPagbankActive = false;
+    let mpToken = null;
+    let isMpActive = false;
 
     if (eventoId) {
       const evento = await prisma.evento.findUnique({
@@ -33,6 +35,9 @@ export async function POST(req) {
         } else if (evento.gatewayActive === "PAGBANK" && evento.pagbankToken) {
           pagbankToken = evento.pagbankToken;
           isPagbankActive = true;
+        } else if (evento.gatewayActive === "MERCADO_PAGO" && evento.mercadoPagoAccessToken) {
+          mpToken = evento.mercadoPagoAccessToken;
+          isMpActive = true;
         }
       }
     }
@@ -131,8 +136,64 @@ export async function POST(req) {
       }
     }
 
-    // Se a chave do Asaas estiver configurada, chama a API real
-    if (asaasApiKey && !isPagbankActive) {
+    // Roteamento para Mercado Pago
+    if (isMpActive && mpToken) {
+      try {
+        const mpUrl = "https://api.mercadopago.com/v1/payments";
+        const mpPayload = {
+          transaction_amount: Number(value),
+          description: "Recarga de Saldo - La More Eventos",
+          payment_method_id: "pix",
+          payer: {
+            email: "financeiro@lamore.com.br",
+            first_name: clienteNome || "Consumidor La More",
+            identification: {
+              type: "CPF",
+              number: cpf ? cpf.replace(/\D/g, "") : "00000000000"
+            }
+          },
+          external_reference: txid
+        };
+
+        const res = await fetch(mpUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${mpToken.trim()}`,
+            "Content-Type": "application/json",
+            "X-Idempotency-Key": txid
+          },
+          body: JSON.stringify(mpPayload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Erro ao criar Pix no Mercado Pago");
+        }
+
+        const pixPayload = data.point_of_interaction?.transaction_data?.qr_code;
+        const qrCodeBase64 = data.point_of_interaction?.transaction_data?.qr_code_base64;
+
+        if (!pixPayload) {
+          throw new Error("Mercado Pago não retornou o código copia e cola");
+        }
+
+        return NextResponse.json({
+          txid: data.id.toString(), // MP returns numerical ID
+          pixPayload: pixPayload,
+          qrCodeUrl: qrCodeBase64 ? `data:image/jpeg;base64,${qrCodeBase64}` : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixPayload)}`,
+          valor: value,
+          isTest: false
+        });
+
+      } catch (err) {
+        console.error("Falha ao comunicar com Mercado Pago:", err.message);
+        return NextResponse.json({ error: `Erro no Mercado Pago: ${err.message}` }, { status: 500 });
+      }
+    }
+
+    // Se a chave do Asaas estiver configurada e nenhum outro gateway for usado
+    if (asaasApiKey && !isPagbankActive && !isMpActive) {
       try {
         const cleanCpf = cpf ? cpf.replace(/\D/g, "") : "";
 

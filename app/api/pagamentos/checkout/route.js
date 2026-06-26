@@ -20,7 +20,11 @@ export async function POST(req) {
     if (cartao.status !== 'ATIVO') throw new Error('Cartão inativo');
 
     const gateway = cartao.evento.gatewayActive || 'ASAAS';
-    const baseUrl = process.env.NEXTAUTH_URL || 'https://la-more-eventos-production.up.railway.app';
+    let baseUrl = process.env.NEXTAUTH_URL || 'https://la-more-eventos-production.up.railway.app';
+    if (!baseUrl.startsWith('http')) {
+      baseUrl = `https://${baseUrl}`;
+    }
+    baseUrl = baseUrl.replace(/\/+$/, ''); // Remove trailing slashes
     const successUrl = `${baseUrl}/cartao/${cartao.codigo}?sucesso=true`;
 
     // STONE (Pagar.me)
