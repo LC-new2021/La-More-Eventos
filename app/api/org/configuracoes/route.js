@@ -116,7 +116,7 @@ export async function POST(req) {
     };
 
     // Só atualiza os tokens se eles não estiverem mascarados (ou seja, se o usuário digitou um novo valor)
-    if (asaasToken && !asaasToken.includes('***')) {
+    if (asaasToken && !asaasToken.includes('***') && !asaasToken.includes('...')) {
       dataToUpdate.asaasToken = asaasToken.trim();
     }
     
@@ -128,15 +128,15 @@ export async function POST(req) {
       dataToUpdate.mercadoPagoPublicKey = mercadoPagoPublicKey.trim();
     }
 
-    if (mercadoPagoAccessToken && !mercadoPagoAccessToken.includes('***')) {
+    if (mercadoPagoAccessToken && !mercadoPagoAccessToken.includes('***') && !mercadoPagoAccessToken.includes('...')) {
       dataToUpdate.mercadoPagoAccessToken = mercadoPagoAccessToken.trim();
     }
 
-    if (pagbankToken && !pagbankToken.includes('***')) {
+    if (pagbankToken && !pagbankToken.includes('***') && !pagbankToken.includes('...')) {
       dataToUpdate.pagbankToken = pagbankToken.trim();
     }
 
-    if (stoneToken && !stoneToken.includes('***')) {
+    if (stoneToken && !stoneToken.includes('***') && !stoneToken.includes('...')) {
       dataToUpdate.stoneToken = stoneToken.trim();
     }
 
