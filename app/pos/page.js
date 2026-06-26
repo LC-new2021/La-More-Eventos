@@ -572,6 +572,9 @@ export default function PosApp() {
                 className="w-full bg-blue-600 text-white font-black text-xl py-4 rounded-2xl disabled:opacity-40"
                 style={{minHeight: "52px"}}
               >
+                {metodoAtual === "dinheiro" ? "💰 Receber Dinheiro" : "✅ Confirmar Pagamento"}
+              </button>
+            </div>
           )}
         </div>
       ) : (
