@@ -112,7 +112,6 @@ export async function POST(req) {
       const isSandbox = token.startsWith('$aact_sandbox_') || token.startsWith('$aae.');
       const asaasUrl = isSandbox ? "https://sandbox.asaas.com/api" : "https://api.asaas.com";
 
-      // Para Asaas Checkout, o endpoint de Link de Pagamento resolve.
       const payload = {
         name: `Recarga Cartão ${cartao.codigo}`,
         description: `Recarga rápida`,
@@ -131,6 +130,44 @@ export async function POST(req) {
       if (!res.ok) throw new Error(data.errors?.[0]?.description || 'Erro Asaas');
 
       return NextResponse.json({ url: data.url });
+    }
+
+    // MERCADO PAGO
+    if (gateway === 'MERCADO_PAGO') {
+      const token = cartao.evento.mercadoPagoAccessToken;
+      if (!token) throw new Error('Access Token do Mercado Pago ausente.');
+
+      const mpPayload = {
+        items: [
+          {
+            title: `Recarga Cartão ${cartao.codigo}`,
+            description: "Recarga de Saldo - Carteira Digital",
+            quantity: 1,
+            currency_id: "BRL",
+            unit_price: Number(valor)
+          }
+        ],
+        back_urls: {
+          success: successUrl,
+          failure: `${baseUrl}/cartao/${cartao.codigo}`,
+          pending: `${baseUrl}/cartao/${cartao.codigo}`
+        },
+        auto_return: "approved",
+        external_reference: cartao.codigo
+      };
+
+      const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(mpPayload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Erro ao gerar checkout no Mercado Pago');
+
+      return NextResponse.json({ url: data.init_point });
     }
 
     throw new Error('Gateway inválido');
