@@ -129,7 +129,10 @@ export default function ConfiguracoesPage() {
       )}
 
       <form onSubmit={handleSave} className="space-y-8" autoComplete="off">
-        {/* Escolha do Gateway */}
+        {/* Anti-Autofill do Chrome (inputs ocultos para sugar o autofill indesejado) */}
+        <input type="email" name="fake_email" style={{ position: 'absolute', opacity: 0, top: '-1000px' }} tabIndex="-1" aria-hidden="true" />
+        <input type="password" name="fake_password" style={{ position: 'absolute', opacity: 0, top: '-1000px' }} tabIndex="-1" aria-hidden="true" />
+        
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 relative">
           {!config.permitirEdicaoGateway && (
             <div className="absolute top-4 right-4 bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
@@ -213,7 +216,7 @@ export default function ConfiguracoesPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">API Key (Token de Acesso)</label>
                 <input
-                  type="password"
+                  type="text"
                   name="asaasToken"
                   value={config.asaasToken}
                   onChange={handleChange}
@@ -273,7 +276,7 @@ export default function ConfiguracoesPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Access Token (Token de Acesso Privado)</label>
                 <input
-                  type="password"
+                  type="text"
                   name="mercadoPagoAccessToken"
                   value={config.mercadoPagoAccessToken}
                   onChange={handleChange}
@@ -303,7 +306,7 @@ export default function ConfiguracoesPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700">Token de Autenticação (Access Token)</label>
                 <input
-                  type="password"
+                  type="text"
                   name="pagbankToken"
                   value={config.pagbankToken}
                   onChange={handleChange}
@@ -336,7 +339,7 @@ export default function ConfiguracoesPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Access Token</label>
                 <input
-                  type="password"
+                  type="text"
                   name="stoneToken"
                   value={config.stoneToken}
                   onChange={handleChange}
