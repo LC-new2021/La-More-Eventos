@@ -53,7 +53,7 @@ export async function GET(req) {
       mercadoPagoAccessToken: eventoConfig.mercadoPagoAccessToken ? maskToken(eventoConfig.mercadoPagoAccessToken) : '',
       pagbankToken: eventoConfig.pagbankToken ? maskToken(eventoConfig.pagbankToken) : '',
       stoneToken: eventoConfig.stoneToken ? maskToken(eventoConfig.stoneToken) : '',
-      permitirEdicaoGateway: eventoConfig.permitirEdicaoGateway || false
+      permitirEdicaoGateway: usuario.role === 'MASTER' ? true : (eventoConfig.permitirEdicaoGateway || false)
     };
 
     return NextResponse.json({ evento: eventoInfo });

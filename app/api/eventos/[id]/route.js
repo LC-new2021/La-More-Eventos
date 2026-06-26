@@ -74,6 +74,8 @@ export async function PATCH(req, { params }) {
     if (body.mercadoPagoAccessToken !== undefined) updateData.mercadoPagoAccessToken = body.mercadoPagoAccessToken;
     if (body.mercadoPagoRefreshToken !== undefined) updateData.mercadoPagoRefreshToken = body.mercadoPagoRefreshToken;
     if (body.mercadoPagoUserId !== undefined) updateData.mercadoPagoUserId = body.mercadoPagoUserId;
+    if (body.permiteDevolucao !== undefined) updateData.permiteDevolucao = body.permiteDevolucao;
+    if (body.permitirEdicaoGateway !== undefined) updateData.permitirEdicaoGateway = body.permitirEdicaoGateway;
 
     const evento = await prisma.evento.update({
       where: { id },

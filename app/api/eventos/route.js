@@ -48,6 +48,12 @@ export async function POST(req) {
         local: body.local,
         taxaMasterPercent: parseFloat(body.taxaMasterPercent) || 5,
         status: 'CONFIGURANDO',
+        gatewayActive: body.gatewayActive || 'ASAAS',
+        asaasToken: body.asaasToken || null,
+        mercadoPagoPublicKey: body.mercadoPagoPublicKey || null,
+        mercadoPagoAccessToken: body.mercadoPagoAccessToken || null,
+        permiteDevolucao: body.permiteDevolucao || false,
+        permitirEdicaoGateway: body.permitirEdicaoGateway || false
       },
     });
     return NextResponse.json(evento, { status: 201 });
