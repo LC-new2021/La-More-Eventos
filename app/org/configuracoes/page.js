@@ -219,7 +219,7 @@ export default function ConfiguracoesPage() {
                   onChange={handleChange}
                   disabled={!config.permitirEdicaoGateway}
                   placeholder="$aact_prod_..."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                  className="mt-1 block w-full text-gray-900 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">A chave de API gerada no seu painel do Asaas.</p>
               </div>
@@ -231,7 +231,7 @@ export default function ConfiguracoesPage() {
                   value={config.asaasUrl}
                   onChange={handleChange}
                   disabled={!config.permitirEdicaoGateway}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                  className="mt-1 block w-full text-gray-900 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 >
                   <option value="https://api.asaas.com">Produção (api.asaas.com)</option>
                   <option value="https://sandbox.asaas.com/api">Teste / Sandbox (sandbox.asaas.com)</option>
@@ -261,7 +261,7 @@ export default function ConfiguracoesPage() {
                   onChange={handleChange}
                   disabled={!config.permitirEdicaoGateway}
                   placeholder="APP_USR-..."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                  className="mt-1 block w-full text-gray-900 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">Usada para iniciar o checkout na tela do cliente.</p>
               </div>
@@ -275,7 +275,7 @@ export default function ConfiguracoesPage() {
                   onChange={handleChange}
                   disabled={!config.permitirEdicaoGateway}
                   placeholder="APP_USR-..."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                  className="mt-1 block w-full text-gray-900 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">Usado pelo nosso servidor para confirmar e aprovar transações.</p>
               </div>
@@ -303,7 +303,7 @@ export default function ConfiguracoesPage() {
                   onChange={handleChange}
                   disabled={!config.permitirEdicaoGateway}
                   placeholder="Seu token gerado no painel do PagBank..."
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                  className="mt-1 block w-full text-gray-900 border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 disabled:text-gray-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">Usado para autorizar transações via Pix na sua conta.</p>
               </div>
@@ -333,7 +333,7 @@ export default function ConfiguracoesPage() {
                   value={config.stoneToken}
                   onChange={handleChange}
                   disabled={!config.permitirEdicaoGateway}
-                  className="w-full bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-md px-4 py-2 font-mono text-sm disabled:bg-gray-100 disabled:text-gray-500"
+                  className="w-full bg-gray-50 border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 rounded-md px-4 py-2 font-mono text-sm text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
                   placeholder="Token de acesso da Stone"
                 />
               </div>
