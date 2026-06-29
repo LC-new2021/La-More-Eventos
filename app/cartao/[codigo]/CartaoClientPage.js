@@ -733,7 +733,7 @@ export default function CartaoClientPage() {
                           : 'border-transparent text-gray-400 hover:text-gray-600'
                       }`}
                     >
-                      📱 Carteira
+                      📱 Carteira Digital
                     </button>
                   )}
                   <button
@@ -749,19 +749,21 @@ export default function CartaoClientPage() {
                   >
                     🟢 Pix
                   </button>
-                  <button
-                    onClick={() => {
-                      setRecargaErro('');
-                      setTabAtiva('CARD');
-                    }}
-                    className={`flex-1 pb-2.5 text-center font-black text-xs transition-all border-b-2 ${
-                      tabAtiva === 'CARD'
-                        ? 'border-[#1E3A8A] text-[#1E3A8A]'
-                        : 'border-transparent text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
-                    💳 Cartão
-                  </button>
+                  {!cartao?.evento?.mercadoPagoPublicKey && (
+                    <button
+                      onClick={() => {
+                        setRecargaErro('');
+                        setTabAtiva('CARD');
+                      }}
+                      className={`flex-1 pb-2.5 text-center font-black text-xs transition-all border-b-2 ${
+                        tabAtiva === 'CARD'
+                          ? 'border-[#1E3A8A] text-[#1E3A8A]'
+                          : 'border-transparent text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      💳 Cartão
+                    </button>
+                  )}
                 </div>
 
                 {/* Content: WALLET */}
