@@ -46,6 +46,8 @@ export default function ProdutosPage() {
   const [asaasUrl, setAsaasUrl] = useState("");
   const [pagbankToken, setPagbankToken] = useState("");
   const [pagbankKey, setPagbankKey] = useState("");
+  const [mercadoPagoPublicKey, setMercadoPagoPublicKey] = useState("");
+  const [mercadoPagoAccessToken, setMercadoPagoAccessToken] = useState("");
   const [salvandoGateway, setSalvandoGateway] = useState(false);
   const [sucessoGateway, setSucessoGateway] = useState("");
 
@@ -105,6 +107,8 @@ export default function ProdutosPage() {
         setAsaasUrl(data.asaasUrl || "");
         setPagbankToken(data.pagbankToken || "");
         setPagbankKey(data.pagbankKey || "");
+        setMercadoPagoPublicKey(data.mercadoPagoPublicKey || "");
+        setMercadoPagoAccessToken(data.mercadoPagoAccessToken || "");
       }
     } catch (e) {
       console.error("Erro ao carregar configurações de pagamento e gateway", e);
@@ -597,7 +601,9 @@ export default function ProdutosPage() {
                     asaasToken: (asaasToken || "").trim(),
                     asaasUrl: (asaasUrl || "").trim(),
                     pagbankToken: (pagbankToken || "").trim(),
-                    pagbankKey: (pagbankKey || "").trim()
+                    pagbankKey: (pagbankKey || "").trim(),
+                    mercadoPagoPublicKey: (mercadoPagoPublicKey || "").trim(),
+                    mercadoPagoAccessToken: (mercadoPagoAccessToken || "").trim()
                   })
                 });
                 
@@ -632,6 +638,7 @@ export default function ProdutosPage() {
                   style={{ minHeight: "52px" }}
                 >
                   <option value="ASAAS">Asaas (Recomendado para Pix e Cartão Online)</option>
+                  <option value="MERCADO_PAGO">Mercado Pago (Pix e Cartão via App)</option>
                   <option value="PAGBANK">PagBank (Smart POS / Integrações Locais)</option>
                   <option value="NENHUM">Nenhum / Desativado (Apenas Simulação)</option>
                 </select>
@@ -668,6 +675,42 @@ export default function ProdutosPage() {
                       className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-mono text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
                     />
                     <p className="text-gray-400 text-xs mt-1.5 font-semibold">Use `https://sandbox.asaas.com/api` para testes ou deixe em branco para detecção automática (produção).</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Seção Mercado Pago */}
+              {gatewayActive === "MERCADO_PAGO" && (
+                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-3xl">🤝</span>
+                    <h4 className="text-xl font-black text-gray-900">Configurações do Mercado Pago</h4>
+                  </div>
+                  
+                  <div>
+                    <label className="block font-bold text-gray-700 text-sm mb-1 uppercase tracking-wide">Public Key (Chave Pública) *</label>
+                    <input
+                      type="text"
+                      required
+                      value={mercadoPagoPublicKey}
+                      onChange={(e) => setMercadoPagoPublicKey(e.target.value)}
+                      placeholder="Ex: APP_USR-..."
+                      className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-mono text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
+                    />
+                    <p className="text-gray-400 text-xs mt-1.5 font-semibold">Usada para iniciar o checkout na tela do cliente.</p>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-gray-700 text-sm mb-1 uppercase tracking-wide">Access Token (Token Privado) *</label>
+                    <input
+                      type="password"
+                      required
+                      value={mercadoPagoAccessToken}
+                      onChange={(e) => setMercadoPagoAccessToken(e.target.value)}
+                      placeholder="Ex: APP_USR-..."
+                      className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-mono text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
+                    />
+                    <p className="text-gray-400 text-xs mt-1.5 font-semibold">Usado pelo servidor para confirmar transações (Configurações → Integrações).</p>
                   </div>
                 </div>
               )}
