@@ -745,12 +745,7 @@ export default function PosApp() {
 
           {metodoAtual === "cartao" && pixGerado && (
             <div className="mb-4 p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-blue-200">
-              <img 
-                src={pixQrCode} 
-                alt="QR Code Checkout" 
-                className="w-48 h-48 mx-auto mb-3 border border-gray-200 rounded-xl" 
-              />
-              <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">QR Code do Link de Pagamento</p>
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">Checkout Gerado com Sucesso</p>
               
               <div className="mb-4">
                 <input
@@ -765,7 +760,7 @@ export default function PosApp() {
                   className="w-full bg-gray-100 text-blue-600 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-center cursor-pointer overflow-ellipsis"
                   title="Clique para copiar"
                 />
-                <p className="text-gray-400 text-[10px] mt-1">Clique acima para copiar o Link de Checkout</p>
+                <p className="text-gray-400 text-[10px] mt-1">Clique acima para copiar o Link de Pagamento Digital</p>
               </div>
 
               <div className="flex gap-2">
