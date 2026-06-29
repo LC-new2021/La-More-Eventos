@@ -44,15 +44,14 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
     }
 
-    // Retorna as configurações, mascarando parcialmente os tokens por segurança
     const eventoInfo = {
       gatewayActive: eventoConfig.gatewayActive,
-      asaasToken: eventoConfig.asaasToken ? maskToken(eventoConfig.asaasToken) : '',
+      asaasToken: eventoConfig.asaasToken || '',
       asaasUrl: eventoConfig.asaasUrl,
       mercadoPagoPublicKey: eventoConfig.mercadoPagoPublicKey || '',
-      mercadoPagoAccessToken: eventoConfig.mercadoPagoAccessToken ? maskToken(eventoConfig.mercadoPagoAccessToken) : '',
-      pagbankToken: eventoConfig.pagbankToken ? maskToken(eventoConfig.pagbankToken) : '',
-      stoneToken: eventoConfig.stoneToken ? maskToken(eventoConfig.stoneToken) : '',
+      mercadoPagoAccessToken: eventoConfig.mercadoPagoAccessToken || '',
+      pagbankToken: eventoConfig.pagbankToken || '',
+      stoneToken: eventoConfig.stoneToken || '',
       permitirEdicaoGateway: usuario.role === 'MASTER' ? true : (eventoConfig.permitirEdicaoGateway || false)
     };
 
@@ -115,30 +114,12 @@ export async function POST(req) {
       gatewayActive
     };
 
-    // Só atualiza os tokens se eles não estiverem mascarados (ou seja, se o usuário digitou um novo valor)
-    if (asaasToken && !asaasToken.includes('***') && !asaasToken.includes('...')) {
-      dataToUpdate.asaasToken = asaasToken.trim();
-    }
-    
-    if (asaasUrl) {
-      dataToUpdate.asaasUrl = asaasUrl.trim();
-    }
-
-    if (mercadoPagoPublicKey) {
-      dataToUpdate.mercadoPagoPublicKey = mercadoPagoPublicKey.trim();
-    }
-
-    if (mercadoPagoAccessToken && !mercadoPagoAccessToken.includes('***') && !mercadoPagoAccessToken.includes('...')) {
-      dataToUpdate.mercadoPagoAccessToken = mercadoPagoAccessToken.trim();
-    }
-
-    if (pagbankToken && !pagbankToken.includes('***') && !pagbankToken.includes('...')) {
-      dataToUpdate.pagbankToken = pagbankToken.trim();
-    }
-
-    if (stoneToken && !stoneToken.includes('***') && !stoneToken.includes('...')) {
-      dataToUpdate.stoneToken = stoneToken.trim();
-    }
+    if (asaasToken) dataToUpdate.asaasToken = asaasToken.trim();
+    if (asaasUrl) dataToUpdate.asaasUrl = asaasUrl.trim();
+    if (mercadoPagoPublicKey) dataToUpdate.mercadoPagoPublicKey = mercadoPagoPublicKey.trim();
+    if (mercadoPagoAccessToken) dataToUpdate.mercadoPagoAccessToken = mercadoPagoAccessToken.trim();
+    if (pagbankToken) dataToUpdate.pagbankToken = pagbankToken.trim();
+    if (stoneToken) dataToUpdate.stoneToken = stoneToken.trim();
 
     const eventoAtualizado = await prisma.evento.update({
       where: { id: targetEventoId },
@@ -150,10 +131,4 @@ export async function POST(req) {
     console.error('Erro POST /api/org/configuracoes:', error);
     return NextResponse.json({ error: 'Falha ao salvar configurações' }, { status: 500 });
   }
-}
-
-function maskToken(token) {
-  if (!token) return '';
-  if (token.length <= 8) return '***';
-  return `${token.substring(0, 4)}...${token.substring(token.length - 4)}`;
 }
