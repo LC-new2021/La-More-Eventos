@@ -145,12 +145,14 @@ export async function POST(req) {
           description: "Recarga de Saldo - La More Eventos",
           payment_method_id: "pix",
           payer: {
-            email: "financeiro@lamore.com.br",
+            email: `cliente-${txid}@lamore.com.br`,
             first_name: clienteNome || "Consumidor La More",
-            identification: {
-              type: "CPF",
-              number: cpf ? cpf.replace(/\D/g, "") : "00000000000"
-            }
+            ...(cpf && cpf.replace(/\D/g, "").length === 11 ? {
+              identification: {
+                type: "CPF",
+                number: cpf.replace(/\D/g, "")
+              }
+            } : {})
           },
           external_reference: txid
         };

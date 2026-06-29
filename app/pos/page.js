@@ -429,6 +429,37 @@ export default function PosApp() {
     }
   }
 
+  async function iniciarCheckoutOnline() {
+    if (!cartaoEncontrado?.codigo) {
+      setErro("Você precisa criar e localizar o cartão do cliente primeiro antes de cobrar via Cartão Digital.");
+      return;
+    }
+    setProcessandoCartao(true);
+    setErro("");
+    try {
+      const res = await fetch("/api/pagamentos/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          codigo: cartaoEncontrado.codigo,
+          valor: valorRestante
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setErro(data.error || "Erro ao gerar checkout");
+      } else {
+        setPixCopiaCola(data.url);
+        setPixQrCode(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(data.url)}`);
+        setPixGerado(true);
+      }
+    } catch (err) {
+      setErro("Erro de rede ao gerar checkout: " + err.message);
+    } finally {
+      setProcessandoCartao(false);
+    }
+  }
+
   async function processarCartaoAsaas() {
     const rawCpf = cpf ? cpf.replace(/\D/g, "") : "";
     if (!rawCpf || rawCpf.length !== 11) {
@@ -698,7 +729,7 @@ export default function PosApp() {
 
           {metodoAtual === "cartao" && !pixGerado && (
             <div className="mb-4 text-center">
-              <p className="text-gray-500 font-bold mb-3">Cobrança Digital Mercado Pago (Cartão no Celular)</p>
+              <p className="text-gray-500 font-bold mb-3">Cobrança Digital (Cartão no Celular)</p>
               {erro && <p className="text-red-500 text-sm font-bold mb-3">{erro}</p>}
               <button
                 type="button"
@@ -707,8 +738,57 @@ export default function PosApp() {
                 className="w-full bg-blue-600 text-white font-black text-lg py-4 rounded-2xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                 style={{minHeight: "52px"}}
               >
-                {processandoCartao ? "Gerando Link..." : "⚡ Gerar Link de Cartão"}
+                {processandoCartao ? "Gerando Link..." : "⚡ Gerar Link de Pagamento"}
               </button>
+            </div>
+          )}
+
+          {metodoAtual === "cartao" && pixGerado && (
+            <div className="mb-4 p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-blue-200">
+              <img 
+                src={pixQrCode} 
+                alt="QR Code Checkout" 
+                className="w-48 h-48 mx-auto mb-3 border border-gray-200 rounded-xl" 
+              />
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">QR Code do Link de Pagamento</p>
+              
+              <div className="mb-4">
+                <input
+                  type="text"
+                  readOnly
+                  value={pixCopiaCola}
+                  onClick={(e) => {
+                    e.target.select();
+                    navigator.clipboard.writeText(pixCopiaCola);
+                    alert("Link copiado!");
+                  }}
+                  className="w-full bg-gray-100 text-blue-600 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-center cursor-pointer overflow-ellipsis"
+                  title="Clique para copiar"
+                />
+                <p className="text-gray-400 text-[10px] mt-1">Clique acima para copiar o Link de Checkout</p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.open(pixCopiaCola, "_blank")}
+                  className="w-1/2 bg-gray-800 text-white font-black text-lg py-4 rounded-2xl hover:bg-gray-900 transition-colors"
+                  style={{minHeight: "52px"}}
+                >
+                  🔗 Abrir Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    adicionarPagamento();
+                    setPixGerado(false);
+                  }}
+                  className="w-1/2 bg-green-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-green-600 transition-colors"
+                  style={{minHeight: "52px"}}
+                >
+                  ✅ Confirmar
+                </button>
+              </div>
             </div>
           )}
 
