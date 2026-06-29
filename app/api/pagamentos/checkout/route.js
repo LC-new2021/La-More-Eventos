@@ -20,12 +20,13 @@ export async function POST(req) {
     if (cartao.status !== 'ATIVO') throw new Error('Cartão inativo');
 
     const gateway = cartao.evento.gatewayActive || 'ASAAS';
-    let baseUrl = process.env.NEXTAUTH_URL || 'https://la-more-eventos-production.up.railway.app';
-    if (!baseUrl.startsWith('http')) {
-      baseUrl = `https://${baseUrl}`;
-    }
-    baseUrl = baseUrl.replace(/\/+$/, ''); // Remove trailing slashes
+    
+    // Obter o host atual dinamicamente para garantir a URL correta (Railway)
+    const host = req.headers.get('host') || 'la-more-eventos-production.up.railway.app';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
     const successUrl = `${baseUrl}/cartao/${cartao.codigo}?sucesso=true`;
+    const failureUrl = `${baseUrl}/cartao/${cartao.codigo}`;
 
     // STONE (Pagar.me)
     if (gateway === 'STONE') {
@@ -153,8 +154,8 @@ export async function POST(req) {
         ],
         back_urls: {
           success: successUrl,
-          failure: `${baseUrl}/cartao/${cartao.codigo}`,
-          pending: `${baseUrl}/cartao/${cartao.codigo}`
+          failure: failureUrl,
+          pending: failureUrl
         },
         auto_return: "approved",
         external_reference: cartao.codigo

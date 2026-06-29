@@ -170,6 +170,9 @@ export async function POST(req) {
         const data = await res.json();
 
         if (!res.ok) {
+          if (data.message?.includes("live credentials")) {
+            throw new Error("Sua conta do Mercado Pago não está autorizada para Produção (Checkout Transparente). Acesse o painel de desenvolvedor do Mercado Pago e preencha o formulário 'Ir para Produção'.");
+          }
           throw new Error(data.message || "Erro ao criar Pix no Mercado Pago");
         }
 
