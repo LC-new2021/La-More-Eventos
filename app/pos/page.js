@@ -787,7 +787,47 @@ export default function PosApp() {
             </div>
           )}
 
-          {metodoAtual && metodoAtual !== "pix" && metodoAtual !== "cartao" && (
+          {metodoAtual === "wallet" && !pixGerado && (
+            <div className="mb-4 text-center">
+              <p className="text-gray-500 font-bold mb-3">Cobrança via Carteira Digital</p>
+              {erro && <p className="text-red-500 text-sm font-bold mb-3">{erro}</p>}
+              <button
+                type="button"
+                onClick={iniciarCheckoutOnline}
+                disabled={processandoCartao}
+                className="w-full bg-purple-600 text-white font-black text-lg py-4 rounded-2xl hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                style={{minHeight: "52px"}}
+              >
+                {processandoCartao ? "Gerando QR Code..." : "📱 Gerar QR Code para o Cliente"}
+              </button>
+            </div>
+          )}
+
+          {metodoAtual === "wallet" && pixGerado && (
+            <div className="mb-4 p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-purple-200">
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">Peça para o cliente escanear o QR Code abaixo</p>
+              <img 
+                src={pixQrCode} 
+                alt="QR Code Carteira Digital" 
+                className="w-56 h-56 mx-auto mb-3 border border-gray-200 rounded-xl" 
+              />
+              <p className="text-gray-400 text-[10px] mt-1 mb-4">O cliente será direcionado para o Apple Pay / Google Pay / Mercado Pago no celular dele.</p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  adicionarPagamento();
+                  setPixGerado(false);
+                }}
+                className="w-full bg-green-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-green-600 transition-colors"
+                style={{minHeight: "52px"}}
+              >
+                ✅ Confirmar Pagamento do Cliente
+              </button>
+            </div>
+          )}
+
+          {metodoAtual && metodoAtual !== "pix" && metodoAtual !== "cartao" && metodoAtual !== "wallet" && (
             <div className="mb-4 text-center">
               <button 
                 onClick={adicionarPagamento} 

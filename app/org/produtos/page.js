@@ -96,6 +96,7 @@ export default function ProdutosPage() {
           const defaultPgs = [
             { id: "pix", label: "Pix", emoji: "🟢", ativo: true, descricao: "Chave Pix gerada pelo caixa — confirmação manual pelo operador" },
             { id: "cartao", label: "Cartão de Crédito/Débito", emoji: "💳", ativo: true, descricao: "Integrado via POS/Maquininha física ou manual" },
+            { id: "wallet", label: "Carteira Digital (QR)", emoji: "📱", ativo: true, descricao: "Gera QR Code para o cliente pagar no próprio celular" },
             { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, descricao: "Dinheiro em espécie (com calculadora de troco no caixa)", troco: true },
           ];
           setPagamentosConfig(defaultPgs);
