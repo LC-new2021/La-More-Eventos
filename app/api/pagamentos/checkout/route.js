@@ -162,7 +162,8 @@ export async function POST(req) {
         payment_methods: {
           excluded_payment_types: [
             { id: "ticket" },
-            { id: "bank_transfer" }
+            { id: "bank_transfer" },
+            { id: "atm" }
           ],
           excluded_payment_methods: [
             { id: "pix" },
