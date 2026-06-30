@@ -34,7 +34,7 @@ export default function LoginPage() {
 
     if (role === "MASTER") router.push("/master");
     else if (role === "ORGANIZADOR") router.push("/org");
-    else if (role === "CAIXA") router.push("/pos");
+    else if (role === "CAIXA" || role === "TESOURARIA") router.push("/pos");
     else if (role === "OPERADOR_BAR") router.push("/bar");
     else router.push("/acessos");
   }

@@ -61,7 +61,7 @@ export default function AcessosPage() {
         <div className="space-y-4">
           {/* Acesso direto ao perfil do usuário logado */}
           {perfil && (
-            <Link href={perfil.href} onClick={(e) => { e.preventDefault(); window.location.href = perfil.href; }} className={`flex items-center gap-5 p-5 ${perfil.cor} rounded-3xl border-2 border-gray-200 shadow-sm hover:shadow-lg transition-all group cursor-pointer`}>
+            <a href={perfil.href} className={`flex items-center gap-5 p-5 ${perfil.cor} rounded-3xl border-2 border-gray-200 shadow-sm hover:shadow-lg transition-all group cursor-pointer block`}>
               <div className={`w-16 h-16 ${perfil.bgCor} rounded-2xl flex items-center justify-center shrink-0 text-3xl`}>{perfil.emoji}</div>
               <div className="flex-1">
                 <p className={`text-xs font-black uppercase tracking-widest ${perfil.textoCor} mb-1`}>{role}</p>
@@ -69,12 +69,12 @@ export default function AcessosPage() {
                 <p className="text-gray-500 text-sm mt-1">{perfil.desc}</p>
               </div>
               <span className="text-2xl text-gray-300 group-hover:text-[#1D3461] transition-colors">→</span>
-            </Link>
+            </a>
           )}
 
           {/* Master pode acessar tudo */}
           {role === "MASTER" && Object.entries(perfis).filter(([r]) => r !== "MASTER").map(([r, p]) => (
-            <Link key={r} href={p.href} onClick={(e) => { e.preventDefault(); window.location.href = p.href; }} className="flex items-center gap-5 p-5 bg-white rounded-3xl border-2 border-gray-100 hover:border-gray-300 shadow-sm hover:shadow-lg transition-all group cursor-pointer">
+            <a key={r} href={p.href} className="flex items-center gap-5 p-5 bg-white rounded-3xl border-2 border-gray-100 hover:border-gray-300 shadow-sm hover:shadow-lg transition-all group cursor-pointer block">
               <div className={`w-16 h-16 ${p.bgCor} rounded-2xl flex items-center justify-center shrink-0 text-3xl`}>{p.emoji}</div>
               <div className="flex-1">
                 <p className={`text-xs font-black uppercase tracking-widest ${p.textoCor} mb-1`}>{r}</p>
@@ -82,7 +82,7 @@ export default function AcessosPage() {
                 <p className="text-gray-500 text-sm mt-1">{p.desc}</p>
               </div>
               <span className="text-2xl text-gray-300 group-hover:text-[#1D3461] transition-colors">→</span>
-            </Link>
+            </a>
           ))}
 
           {/* Sair */}
