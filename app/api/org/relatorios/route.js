@@ -19,11 +19,32 @@ export async function GET(req) {
       return NextResponse.json({ error: 'ID do evento não fornecido' }, { status: 400 });
     }
 
+    const dataInicio = searchParams.get('dataInicio');
+    const dataFim = searchParams.get('dataFim');
+
+    let dateFilter = {};
+    if (dataInicio || dataFim) {
+      dateFilter.criadaEm = {};
+      if (dataInicio) {
+        const start = new Date(dataInicio);
+        start.setUTCHours(0, 0, 0, 0);
+        dateFilter.criadaEm.gte = start;
+      }
+      if (dataFim) {
+        const end = new Date(dataFim);
+        end.setUTCHours(23, 59, 59, 999);
+        dateFilter.criadaEm.lte = end;
+      }
+    }
+
     // Fetch all cards and their transactions for the event
     const [cartoes, movimentacoes, produtos] = await Promise.all([
       prisma.cartao.findMany({ where: { eventoId } }),
       prisma.movimentacao.findMany({
-        where: { cartao: { eventoId } },
+        where: { 
+          cartao: { eventoId },
+          ...(Object.keys(dateFilter).length > 0 ? dateFilter : {})
+        },
         include: {
           cartao: { include: { cliente: true } },
           produto: true,
