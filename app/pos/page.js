@@ -251,10 +251,12 @@ export default function PosApp() {
     }
   }, [codigoCartao]);
 
-  // Polling para confirmação automática do Pix
+  // Polling para confirmação automática (Pix e Cartão/Wallet)
   useEffect(() => {
     let intervalId;
-    if (pixGerado && pixTxid && eventoId) {
+    
+    // Polling do Pix
+    if (metodoAtual === "pix" && pixGerado && pixTxid && eventoId) {
       const checkStatus = async () => {
         try {
           const res = await fetch(`/api/pagamentos/status/${pixTxid}?eventoId=${eventoId}`);
@@ -278,11 +280,38 @@ export default function PosApp() {
       checkStatus();
       intervalId = setInterval(checkStatus, 3000);
     }
+    
+    // Polling do Cartão/Wallet
+    if ((metodoAtual === "cartao" || metodoAtual === "wallet") && pixGerado && cartaoEncontrado?.codigo) {
+      const checkStatusCartao = async () => {
+        try {
+          const res = await fetch(`/api/pagamentos/status-cartao/${cartaoEncontrado.codigo}`);
+          const data = await res.json();
+          if (data.status === "CONFIRMED") {
+            setPagamentos(prev => {
+              const gatewayId = data.gatewayId || cartaoEncontrado.codigo;
+              const jaAdicionado = prev.some(p => (p.metodo === "cartao" || p.metodo === "wallet") && p.gatewayId === gatewayId);
+              if (jaAdicionado) return prev;
+              return [...prev, { metodo: metodoAtual, valor: valorRestante, gatewayId: gatewayId }];
+            });
+            setPixGerado(false);
+            setMetodoAtual("");
+            setErro("✨ Pagamento Digital aprovado com sucesso!");
+            setTimeout(() => setErro(prev => prev.startsWith("✨") ? "" : prev), 4000);
+          }
+        } catch (e) {
+          console.error("Erro ao verificar status do Cartão/Wallet:", e);
+        }
+      };
+
+      checkStatusCartao();
+      intervalId = setInterval(checkStatusCartao, 4000);
+    }
 
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [pixGerado, pixTxid, eventoId, valorRestante]);
+  }, [pixGerado, pixTxid, eventoId, valorRestante, metodoAtual, cartaoEncontrado]);
 
   async function buscarCliente() {
     if (!eventoId) {
@@ -690,13 +719,12 @@ export default function PosApp() {
 
           {metodoAtual === "pix" && pixGerado && (
             <div className="mb-4 p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-teal-200">
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">Peça para o cliente escanear o QR Code abaixo</p>
               <img 
                 src={pixQrCode} 
-                alt={`QR Code Pix ${evento?.gatewayActive === "ASAAS" ? "Asaas" : evento?.gatewayActive === "PAGBANK" ? "PagBank" : "Simulado"}`} 
-                className="w-48 h-48 mx-auto mb-3 border border-gray-200 rounded-xl" 
+                alt="QR Code Pix" 
+                className="w-56 h-56 mx-auto mb-3 border border-gray-200 rounded-xl" 
               />
-              <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">QR Code de Recarga Pix</p>
-              
               <div className="mb-4">
                 <input
                   type="text"
@@ -705,25 +733,18 @@ export default function PosApp() {
                   onClick={(e) => {
                     e.target.select();
                     navigator.clipboard.writeText(pixCopiaCola);
-                    alert("Copia e Cola copiado!");
+                    alert("Pix Copia e Cola copiado!");
                   }}
-                  className="w-full bg-gray-100 text-gray-600 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-center cursor-pointer overflow-ellipsis"
+                  className="w-full bg-gray-100 text-teal-700 border border-teal-200 rounded-xl px-3 py-2 text-xs font-mono text-center cursor-pointer overflow-ellipsis"
                   title="Clique para copiar"
                 />
-                <p className="text-gray-400 text-[10px] mt-1">Clique acima para copiar o código Copia e Cola</p>
+                <p className="text-gray-400 text-[10px] mt-1">Clique acima para copiar o Pix Copia e Cola</p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  adicionarPagamento();
-                  setPixGerado(false);
-                }}
-                className="w-full bg-green-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-green-600 transition-colors"
-                style={{minHeight: "52px"}}
-              >
-                ✅ Confirmar Recebimento do Pix
-              </button>
+              <div className="flex items-center justify-center gap-2 mt-4 text-teal-600 font-bold animate-pulse">
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                Aguardando confirmação do banco...
+              </div>
             </div>
           )}
 
@@ -767,22 +788,15 @@ export default function PosApp() {
                 <button
                   type="button"
                   onClick={() => window.open(pixCopiaCola, "_blank")}
-                  className="w-1/2 bg-gray-800 text-white font-black text-lg py-4 rounded-2xl hover:bg-gray-900 transition-colors"
+                  className="w-full bg-gray-800 text-white font-black text-lg py-4 rounded-2xl hover:bg-gray-900 transition-colors"
                   style={{minHeight: "52px"}}
                 >
-                  🔗 Abrir Link
+                  🔗 Abrir Link de Pagamento
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    adicionarPagamento();
-                    setPixGerado(false);
-                  }}
-                  className="w-1/2 bg-green-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-green-600 transition-colors"
-                  style={{minHeight: "52px"}}
-                >
-                  ✅ Confirmar
-                </button>
+              </div>
+              <div className="flex items-center justify-center gap-2 mt-4 text-blue-600 font-bold animate-pulse">
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                Aguardando confirmação do cartão...
               </div>
             </div>
           )}
@@ -813,17 +827,10 @@ export default function PosApp() {
               />
               <p className="text-gray-400 text-[10px] mt-1 mb-4">O cliente será direcionado para o Apple Pay / Google Pay / Mercado Pago no celular dele.</p>
 
-              <button
-                type="button"
-                onClick={() => {
-                  adicionarPagamento();
-                  setPixGerado(false);
-                }}
-                className="w-full bg-green-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-green-600 transition-colors"
-                style={{minHeight: "52px"}}
-              >
-                ✅ Confirmar Pagamento do Cliente
-              </button>
+              <div className="flex items-center justify-center gap-2 mt-4 text-purple-600 font-bold animate-pulse">
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                Aguardando pagamento no celular...
+              </div>
             </div>
           )}
 

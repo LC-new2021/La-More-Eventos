@@ -158,7 +158,19 @@ export async function POST(req) {
           pending: failureUrl
         },
         auto_return: "approved",
-        external_reference: cartao.codigo
+        external_reference: cartao.codigo,
+        payment_methods: {
+          excluded_payment_types: [
+            { id: "ticket" },
+            { id: "bank_transfer" }
+          ],
+          excluded_payment_methods: [
+            { id: "pix" },
+            { id: "bolbanc" },
+            { id: "pec" }
+          ],
+          installments: 12
+        }
       };
 
       const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
