@@ -85,20 +85,22 @@ export default function OrgDashboard() {
 
       {dados && (
         <div className={`mb-6 p-4 rounded-2xl border-2 flex items-center justify-between font-black text-sm ${
-          dados.mercadoPagoUserId 
+          (dados.mercadoPagoUserId || dados.gatewayActive === 'MERCADO_PAGO')
             ? 'bg-green-50 border-green-100 text-green-700' 
             : 'bg-yellow-50 border-yellow-100 text-yellow-700'
         }`}>
           <div>
             <span>🔌 Recebimento: </span>
             <span>
-              {dados.mercadoPagoUserId 
-                ? `Split Ativo (Conta Mercado Pago vinculada - ID: ${dados.mercadoPagoUserId})` 
-                : 'Configuração Padrão (Sem split ativo)'}
+              {dados.gatewayActive === 'MERCADO_PAGO'
+                ? 'Mercado Pago Ativo (Processamento em tempo real)'
+                : dados.mercadoPagoUserId 
+                  ? `Split Ativo (Conta Mercado Pago vinculada - ID: ${dados.mercadoPagoUserId})` 
+                  : 'Configuração Padrão (Sem split ativo)'}
             </span>
           </div>
           <span className="text-xs opacity-75 font-semibold">
-            {dados.mercadoPagoUserId ? '🟩 CONFIGURADO' : '⚠️ VINCULAÇÃO OPCIONAL VIA MASTER'}
+            {dados.gatewayActive === 'MERCADO_PAGO' ? 'VENDAS DIRETAS' : 'VINCULAÇÃO OPCIONAL VIA MASTER'}
           </span>
         </div>
       )}

@@ -10,7 +10,32 @@ export async function GET() {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const eventoId = searchParams.get('eventoId');
+    const dataInicio = searchParams.get('dataInicio');
+    const dataFim = searchParams.get('dataFim');
+
+    const where = {};
+    if (eventoId) {
+      where.cartao = { eventoId };
+    }
+    
+    if (dataInicio || dataFim) {
+      where.criadaEm = {};
+      if (dataInicio) {
+        const start = new Date(dataInicio);
+        start.setUTCHours(0,0,0,0);
+        where.criadaEm.gte = start;
+      }
+      if (dataFim) {
+        const end = new Date(dataFim);
+        end.setUTCHours(23,59,59,999);
+        where.criadaEm.lte = end;
+      }
+    }
+
     const movimentacoes = await prisma.movimentacao.findMany({
+      where,
       include: {
         cartao: {
           include: {
@@ -21,7 +46,7 @@ export async function GET() {
         operador: { select: { nome: true, role: true } }
       },
       orderBy: { criadaEm: 'desc' },
-      take: 50
+      take: (dataInicio || dataFim) ? 1000 : 50
     });
 
     return NextResponse.json(movimentacoes);

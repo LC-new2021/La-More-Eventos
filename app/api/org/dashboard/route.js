@@ -26,7 +26,7 @@ export async function GET(req) {
       prisma.produto.findMany({ where: { eventoId, ativo: true } }),
       prisma.evento.findUnique({
         where: { id: eventoId },
-        select: { mercadoPagoUserId: true }
+        select: { mercadoPagoUserId: true, gatewayActive: true }
       })
     ]);
 
@@ -52,7 +52,8 @@ export async function GET(req) {
       totalPedidos: movimentacoes.filter(m => m.tipo === 'DEBITO').length,
       movimentacoes: movimentacoes.slice(0, 20),
       ranking,
-      mercadoPagoUserId: evento?.mercadoPagoUserId || null
+      mercadoPagoUserId: evento?.mercadoPagoUserId || null,
+      gatewayActive: evento?.gatewayActive || null
     });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

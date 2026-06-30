@@ -18,14 +18,14 @@ export async function GET(req) {
     // Build query filters for movimentacoes
     const movFilters = { tipo: 'RECARGA' };
     if (dataInicio && dataFim) {
-      movFilters.criadoEm = {
+      movFilters.criadaEm = {
         gte: new Date(`${dataInicio}T00:00:00.000Z`),
         lte: new Date(`${dataFim}T23:59:59.999Z`)
       };
     } else if (dataInicio) {
-      movFilters.criadoEm = { gte: new Date(`${dataInicio}T00:00:00.000Z`) };
+      movFilters.criadaEm = { gte: new Date(`${dataInicio}T00:00:00.000Z`) };
     } else if (dataFim) {
-      movFilters.criadoEm = { lte: new Date(`${dataFim}T23:59:59.999Z`) };
+      movFilters.criadaEm = { lte: new Date(`${dataFim}T23:59:59.999Z`) };
     }
 
     const eventosQuery = {
