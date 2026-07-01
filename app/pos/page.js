@@ -196,9 +196,9 @@ export default function PosApp() {
     }
   };
 
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-  }, [status]);
+// useEffect(() => {
+  //   if (status === "unauthenticated") router.push("/login");
+  // }, [status]);
 
   useEffect(() => {
     if (isMaster) {
