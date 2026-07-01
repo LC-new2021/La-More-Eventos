@@ -16,7 +16,7 @@ export default async function proxy(req) {
     return NextResponse.redirect(new URL('/acessos', req.url));
   if (pathname.startsWith('/org') && !['MASTER','ORGANIZADOR'].includes(token.role))
     return NextResponse.redirect(new URL('/acessos', req.url));
-  if (pathname.startsWith('/pos') && !['MASTER','CAIXA'].includes(token.role))
+  if (pathname.startsWith('/pos') && !['MASTER','CAIXA','TESOURARIA'].includes(token.role))
     return NextResponse.redirect(new URL('/acessos', req.url));
   if (pathname.startsWith('/bar') && !['MASTER','OPERADOR_BAR'].includes(token.role))
     return NextResponse.redirect(new URL('/acessos', req.url));
