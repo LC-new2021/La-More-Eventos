@@ -1,14 +1,27 @@
 "use client";
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function LoginPage() {
+  const { data: session, status } = useSession();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.role) {
+      const role = session.user.role;
+      if (role === "MASTER") router.push("/master");
+      else if (role === "ORGANIZADOR") router.push("/org");
+      else if (role === "CAIXA" || role === "TESOURARIA") router.push("/pos");
+      else if (role === "OPERADOR_BAR") router.push("/bar");
+      else router.push("/acessos");
+    }
+  }, [status, session, router]);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -25,18 +38,7 @@ export default function LoginPage() {
 
     if (res?.error) {
       setErro("Email ou senha incorretos.");
-      return;
     }
-
-    // Buscar sessão para redirecionar pelo role
-    const sessao = await fetch("/api/auth/session").then((r) => r.json());
-    const role = sessao?.user?.role;
-
-    if (role === "MASTER") router.push("/master");
-    else if (role === "ORGANIZADOR") router.push("/org");
-    else if (role === "CAIXA" || role === "TESOURARIA") router.push("/pos");
-    else if (role === "OPERADOR_BAR") router.push("/bar");
-    else router.push("/acessos");
   }
 
   return (
