@@ -19,14 +19,6 @@ export default function AcessosPage() {
   const [evento, setEvento] = useState(null);
   const eventoId = session?.user?.eventoId;
 
-  // Redirecionamento automático para funções de frente de caixa
-  useEffect(() => {
-    if (role === 'CAIXA' || role === 'TESOURARIA') {
-      // Usar window.location para forçar hard navigation e burlar qualquer cache do Next
-      window.location.replace('/pos');
-    }
-  }, [role]);
-
   useEffect(() => {
     if (eventoId) {
       fetch(`/api/eventos/${eventoId}`)
