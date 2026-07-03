@@ -65,8 +65,8 @@ export async function GET(req) {
 
     // Aggregations
     const vendasPorGrupoMap = {};
-    const recebimentosMap = { Pix: 0, Cartão: 0, Dinheiro: 0 };
-    const recebimentosQtd = { Pix: 0, Cartão: 0, Dinheiro: 0 };
+    const recebimentosMap = { Pix: 0, Cartão: 0, Dinheiro: 0, Débito: 0, Crédito: 0, Cortesia: 0 };
+    const recebimentosQtd = { Pix: 0, Cartão: 0, Dinheiro: 0, Débito: 0, Crédito: 0, Cortesia: 0 };
 
     movimentacoes.forEach(m => {
       if (m.tipo === 'DEBITO' && m.produto) {
@@ -80,12 +80,20 @@ export async function GET(req) {
 
       if (m.tipo === 'RECARGA') {
         const descLower = (m.descricao || '').toLowerCase();
-        let metodo = 'Pix';
-        if (descLower.includes('cartão') || descLower.includes('cartao')) {
+        let metodo = 'Pix'; // default
+        
+        if (descLower.includes('debito_offline') || descLower.includes('débito')) {
+          metodo = 'Débito';
+        } else if (descLower.includes('credito_offline') || descLower.includes('crédito')) {
+          metodo = 'Crédito';
+        } else if (descLower.includes('cartão') || descLower.includes('cartao') || descLower.includes('wallet')) {
           metodo = 'Cartão';
         } else if (descLower.includes('dinheiro')) {
           metodo = 'Dinheiro';
+        } else if (descLower.includes('cortesia')) {
+          metodo = 'Cortesia';
         }
+
         recebimentosMap[metodo] += m.valor;
         recebimentosQtd[metodo] += 1;
       }

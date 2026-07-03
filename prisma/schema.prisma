@@ -30,6 +30,8 @@ model Usuario {
   pagbankKey    String?
   stoneToken    String?
   pushSubscriptionJson String?
+  criadoPorId   String?
+  criadoPorNome String?
   criadoEm DateTime @default(now())
 }
 
@@ -56,6 +58,7 @@ model Evento {
   mercadoPagoUserId       String?
   permiteDevolucao        Boolean  @default(false)
   permitirEdicaoGateway   Boolean  @default(false)
+  modoOperacao            String   @default("INTEGRADO")
   cartoes       Cartao[]
   produtos      Produto[]
   usuarios      Usuario[]
@@ -74,6 +77,8 @@ model Cliente {
   creditCardBrand      String?
   creditCardLastDigits String?
   pushSubscriptionJson String?
+  criadoPorId          String?
+  criadoPorNome        String?
   cartoes  Cartao[]
   criadoEm DateTime @default(now())
 }
@@ -122,6 +127,9 @@ model Produto {
   imagem   String?
   eventoId String
   evento   Evento @relation(fields: [eventoId], references: [id])
+  criadoPorId   String?
+  criadoPorNome String?
+  atualizadoPorNome String?
   movimentacoes Movimentacao[]
   criadoEm DateTime @default(now())
 }

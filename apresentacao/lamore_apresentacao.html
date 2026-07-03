@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>La More Eventos — Apresentação</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --navy: #050C2E; --navy2: #0D1B4B; --purple: #6C3FC5; --purple2: #8B5CF6;
+      --blue: #2563EB; --blue2: #60A5FA; --gold: #F59E0B; --white: #FFFFFF; --gray: #94A3B8;
+    }
+    body { font-family: 'Inter', sans-serif; background: #000; color: var(--white); }
+    .slide {
+      width: 100%; min-height: 100vh; position: relative; overflow: hidden;
+      display: none; flex-direction: column;
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+    }
+    .slide.active { display: flex; }
+    .slide::before {
+      content: ''; position: absolute; width: 500px; height: 500px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(108,63,197,0.2) 0%, transparent 70%);
+      top: -150px; right: -150px; pointer-events: none;
+    }
+    .slide::after {
+      content: ''; position: absolute; width: 350px; height: 350px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(37,99,235,0.15) 0%, transparent 70%);
+      bottom: -100px; left: -100px; pointer-events: none;
+    }
+    .slide-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 28px 48px 0;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; }
+    .brand-dot { width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg, var(--purple2), var(--blue2)); }
+    .brand-name { font-size: 11px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: var(--gray); }
+    .slide-num { font-size: 11px; font-weight: 600; color: rgba(148,163,184,0.4); letter-spacing: 1px; }
+    .slide-body { flex: 1; padding: 32px 48px 24px; position: relative; z-index: 2; }
+    .tag {
+      display: inline-block;
+      background: linear-gradient(135deg, rgba(108,63,197,0.3), rgba(37,99,235,0.3));
+      border: 1px solid rgba(139,92,246,0.4); color: var(--purple2);
+      font-size: 9px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
+      padding: 5px 14px; border-radius: 20px; margin-bottom: 12px;
+    }
+    h2.section-title { font-size: 30px; font-weight: 900; letter-spacing: -0.5px; color: var(--white); margin-bottom: 16px; line-height: 1.15; }
+    h2.section-title span { color: var(--purple2); }
+
+    /* HERO */
+    .hero-slide .slide-body { display: flex; flex-direction: column; justify-content: center; }
+    .hero-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+    .hero-logo { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; }
+    .hero-logo-icon { width: 64px; height: 64px; background: linear-gradient(135deg, var(--purple), var(--blue)); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+    h1.slide-title { font-size: 56px; font-weight: 900; line-height: 1; letter-spacing: -2px; }
+    h1.slide-title span { color: var(--purple2); }
+    .subtitle { font-size: 15px; color: var(--gray); line-height: 1.7; max-width: 600px; margin-bottom: 20px; }
+    .hero-divider { width: 70px; height: 3px; background: linear-gradient(90deg, var(--purple2), var(--blue2)); border-radius: 2px; margin: 20px 0; }
+    .hero-stats { display: flex; gap: 36px; }
+    .stat { display: flex; flex-direction: column; }
+    .stat-value { font-size: 26px; font-weight: 900; color: var(--white); }
+    .stat-label { font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--gray); }
+    .stat-accent { color: var(--purple2); }
+
+    /* PROBLEMS */
+    .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+    .problem-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 20px 22px; }
+    .problem-icon { font-size: 26px; margin-bottom: 8px; }
+    .problem-title { font-size: 14px; font-weight: 800; color: var(--white); margin-bottom: 6px; }
+    .problem-desc { font-size: 12px; color: var(--gray); line-height: 1.6; }
+
+    /* SOLUTION */
+    .solution-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 16px; align-items: start; }
+    .solution-text p { font-size: 13px; color: var(--gray); line-height: 1.7; margin-bottom: 14px; }
+    .solution-highlight { background: linear-gradient(135deg, rgba(108,63,197,0.15), rgba(37,99,235,0.1)); border: 1px solid rgba(139,92,246,0.3); border-radius: 14px; padding: 16px 18px; }
+    .solution-highlight p { font-size: 13px; font-weight: 700; color: var(--white) !important; margin: 0; }
+    .solution-bullets { display: flex; flex-direction: column; gap: 10px; }
+    .bullet { display: flex; align-items: flex-start; gap: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 12px 16px; }
+    .bullet-icon { font-size: 20px; flex-shrink: 0; }
+    .bullet-text { font-size: 13px; font-weight: 700; color: var(--white); }
+    .bullet-sub { font-size: 11px; color: var(--gray); margin-top: 3px; }
+
+    /* FLOW */
+    .flow-steps { display: flex; align-items: stretch; gap: 0; margin-top: 22px; }
+    .flow-step { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); padding: 20px 16px; text-align: center; border-radius: 0; }
+    .flow-step:first-child { border-radius: 14px 0 0 14px; }
+    .flow-step:last-child { border-radius: 0 14px 14px 0; }
+    .flow-arrow { width: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--purple2); font-size: 16px; background: var(--navy); }
+    .step-num { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: linear-gradient(135deg, var(--purple), var(--blue)); border-radius: 50%; font-size: 11px; font-weight: 900; margin-bottom: 10px; }
+    .step-emoji { font-size: 26px; margin-bottom: 8px; display: block; }
+    .step-title { font-size: 13px; font-weight: 800; color: var(--white); margin-bottom: 6px; }
+    .step-desc { font-size: 11px; color: var(--gray); line-height: 1.5; }
+
+    /* FEATURES */
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+    .feature-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 18px; }
+    .feature-icon-wrap { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 10px; }
+    .feature-name { font-size: 13px; font-weight: 800; color: var(--white); margin-bottom: 5px; }
+    .feature-desc { font-size: 11px; color: var(--gray); line-height: 1.5; }
+    .bg-purple { background: rgba(108,63,197,0.2); } .bg-blue { background: rgba(37,99,235,0.2); }
+    .bg-green { background: rgba(16,185,129,0.2); } .bg-gold { background: rgba(245,158,11,0.2); }
+    .bg-red { background: rgba(239,68,68,0.2); } .bg-pink { background: rgba(236,72,153,0.2); }
+
+    /* ROLES */
+    .roles-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 16px; }
+    .role-card { border-radius: 14px; padding: 18px 12px; text-align: center; border: 1px solid rgba(255,255,255,0.07); }
+    .role-emoji { font-size: 28px; margin-bottom: 8px; display: block; }
+    .role-name { font-size: 12px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
+    .role-access { font-size: 10px; color: var(--gray); line-height: 1.5; }
+    .role-tag { display: inline-block; font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 5px; margin-bottom: 8px; }
+
+    /* TECH */
+    .tech-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 16px; }
+    .tech-group-title { font-size: 9px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: var(--purple2); margin-bottom: 10px; }
+    .tech-pills { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 20px; }
+    .pill { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 7px; padding: 5px 12px; font-size: 11px; font-weight: 600; color: var(--white); }
+    .pill.accent { background: rgba(108,63,197,0.2); border-color: rgba(139,92,246,0.4); color: var(--purple2); }
+    .security-items { display: flex; flex-direction: column; gap: 9px; }
+    .sec-item { display: flex; align-items: center; gap: 9px; font-size: 11px; color: var(--gray); }
+    .sec-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple2); flex-shrink: 0; }
+
+    /* CLOSING */
+    .closing-slide { background: linear-gradient(135deg, #050C2E 0%, #1a0a3d 50%, #050C2E 100%); }
+    .closing-slide .slide-body { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+    .closing-title { font-size: 52px; font-weight: 900; letter-spacing: -1.5px; margin-bottom: 10px; }
+    .closing-sub { font-size: 16px; color: var(--gray); margin-bottom: 30px; }
+    .closing-badges { display: flex; gap: 14px; margin-bottom: 32px; flex-wrap: wrap; justify-content: center; }
+    .badge { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 30px; padding: 7px 18px; font-size: 11px; font-weight: 700; }
+    .gold-line { width: 80px; height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 16px auto; }
+    .closing-contact { font-size: 12px; color: rgba(148,163,184,0.5); letter-spacing: 2px; }
+
+    /* FOOTER */
+    .slide-footer { padding: 0 48px 20px; position: relative; z-index: 2; }
+    .footer-line { height: 1px; background: linear-gradient(90deg, transparent, rgba(139,92,246,0.4), transparent); margin-bottom: 8px; }
+    .footer-brand { font-size: 10px; font-weight: 700; color: rgba(148,163,184,0.35); letter-spacing: 1.5px; text-transform: uppercase; }
+    .footer-url { font-size: 10px; color: rgba(148,163,184,0.3); }
+
+    /* NAV */
+    .nav-bar {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: rgba(5,12,46,0.92); border: 1px solid rgba(139,92,246,0.35);
+      backdrop-filter: blur(16px); border-radius: 50px;
+      padding: 10px 24px; display: flex; align-items: center; gap: 14px; z-index: 1000;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .nav-bar button {
+      background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.4);
+      color: white; border-radius: 24px; padding: 6px 18px; font-size: 12px;
+      font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s;
+    }
+    .nav-bar button:hover { background: rgba(139,92,246,0.45); }
+    .nav-counter { font-size: 12px; color: var(--gray); font-family: 'Inter', sans-serif; min-width: 56px; text-align: center; }
+    .btn-pdf { background: rgba(245,158,11,0.2) !important; border-color: rgba(245,158,11,0.45) !important; }
+    .btn-pdf:hover { background: rgba(245,158,11,0.4) !important; }
+
+    @media print {
+      .nav-bar { display: none !important; }
+      .slide { display: flex !important; min-height: 100vh; page-break-after: always; break-after: page; }
+      @page { size: A4 landscape; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SLIDE 1 — CAPA -->
+<div class="slide hero-slide active" data-slide="1">
+  <div class="slide-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">La More Eventos</span></div>
+    <span class="slide-num">01 / 08</span>
+  </div>
+  <div class="slide-body">
+    <div class="hero-eyebrow">▸ Apresentação Institucional do Sistema</div>
+    <div class="hero-logo">
+      <div class="hero-logo-icon">🎪</div>
+      <h1 class="slide-title">La More<br><span>Eventos</span></h1>
+    </div>
+    <div class="subtitle">Sistema completo de gestão de consumo virtual para eventos.<br>Cartão digital, controle de caixa e relatórios em tempo real.</div>
+    <div class="hero-divider"></div>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-value stat-accent">100%</span><span class="stat-label">Digital</span></div>
+      <div class="stat"><span class="stat-value stat-accent">Multi</span><span class="stat-label">Pagamentos</span></div>
+      <div class="stat"><span class="stat-value stat-accent">Real-Time</span><span class="stat-label">Relatórios</span></div>
+      <div class="stat"><span class="stat-value stat-accent">5</span><span class="stat-label">Perfis de Acesso</span></div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <div class="footer-line"></div>
+    <div style="display:flex;justify-content:space-between">
+      <span class="footer-brand">La More Eventos — Sistema de Bilheteria Digital</span>
+      <span class="footer-url">la-more-eventos-production.up.railway.app</span>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 2 — PROBLEMA -->
+<div class="slide" data-slide="2">
+  <div class="slide-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">La More Eventos</span></div>
+    <span class="slide-num">02 / 08</span>
+  </div>
+  <div class="slide-body">
+    <div class="tag">O Desafio</div>
+    <h2 class="section-title">Eventos tradicionais<br><span>têm grandes problemas</span></h2>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="problem-icon">💸</div>
+        <div class="problem-title">Dinheiro em Excesso</div>
+        <div class="problem-desc">Filas no caixa, troco errado, furtos e dificuldade de controle financeiro no encerramento do evento.</div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">📊</div>
+        <div class="problem-title">Falta de Visibilidade</div>
+        <div class="problem-desc">Produtores não sabem em tempo real quanto está sendo vendido, nem qual produto lidera as vendas.</div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">🔓</div>
+        <div class="problem-title">Sem Controle de Acesso</div>
+        <div class="problem-desc">Qualquer operador acessa qualquer função. Sem hierarquia de responsabilidades ou rastreamento de ações.</div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">📉</div>
+        <div class="problem-title">Perda de Receita</div>
+        <div class="problem-desc">Saldos não utilizados, devoluções sem controle e recargas manuais sem rastreamento geram prejuízo oculto.</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <div class="footer-line"></div>
+    <div style="display:flex;justify-content:space-between">
+      <span class="footer-brand">La More Eventos — Sistema de Bilheteria Digital</span>
+      <span class="footer-url">Confidencial</span>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 3 — SOLUÇÃO -->
+<div class="slide" data-slide="3">
+  <div class="slide-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">La More Eventos</span></div>
+    <span class="slide-num">03 / 08</span>
+  </div>
+  <div class="slide-body">
+    <div class="tag">A Solução</div>
+    <h2 class="section-title">Cartão de Consumo <span>100% Digital</span></h2>
+    <div class="solution-layout">
+      <div class="solution-text">
+        <p>O La More Eventos transforma a experiência de consumo nos eventos. Cada participante recebe um <strong style="color:white">cartão virtual com QR Code único</strong>. Todas as transações — recargas, consumos e devoluções — são registradas em tempo real no sistema.</p>
+        <div class="solution-highlight">
+          <p>💡 O produtor acompanha cada centavo movimentado, em qualquer dispositivo, durante e após o evento.</p>
+        </div>
+      </div>
+      <div class="solution-bullets">
+        <div class="bullet"><span class="bullet-icon">💳</span><div><div class="bullet-text">Cartão Virtual com QR Code</div><div class="bullet-sub">Identificação única e segura de cada cliente</div></div></div>
+        <div class="bullet"><span class="bullet-icon">💰</span><div><div class="bullet-text">Múltiplos Métodos de Pagamento</div><div class="bullet-sub">Pix, cartão, dinheiro e carteira digital</div></div></div>
+        <div class="bullet"><span class="bullet-icon">📱</span><div><div class="bullet-text">Funciona em Qualquer Dispositivo</div><div class="bullet-sub">Celular, tablet ou computador — sem app obrigatório</div></div></div>
+        <div class="bullet"><span class="bullet-icon">🔄</span><div><div class="bullet-text">Devolução Automática de Saldo</div><div class="bullet-sub">Controle total das devoluções ao final do evento</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <div class="footer-line"></div>
+    <div style="display:flex;justify-content:space-between">
+      <span class="footer-brand">La More Eventos — Sistema de Bilheteria Digital</span>
+      <span class="footer-url">Confidencial</span>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 4 — FLUXO -->
+<div class="slide" data-slide="4">
+  <div class="slide-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">La More Eventos</span></div>
+    <span class="slide-num">04 / 08</span>
+  </div>
+  <div class="slide-body">
+    <div class="tag">Jornada do Cliente</div>
+    <h2 class="section-title">Como <span>Funciona</span> na Prática</h2>
+    <div class="flow-steps">
+      <div class="flow-step"><span class="step-num">1</span><span class="step-emoji">🚶</span><div class="step-title">Cliente Chega</div><div class="step-desc">Cadastro rápido com nome e telefone. Recebe cartão virtual com QR Code único e pessoal.</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="step-num">2</span><span class="step-emoji">💳</span><div class="step-title">Recarga no Caixa</div><div class="step-desc">Operador realiza recarga via Pix, cartão ou dinheiro. Saldo disponível instantaneamente.</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="step-num">3</span><span class="step-emoji">🍺</span><div class="step-title">Consumo no Bar</div><div class="step-desc">Operador escaneia o QR Code e seleciona o produto. Débito instantâneo no saldo do cliente.</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="step-num">4</span><span class="step-emoji">💚</span><div class="step-title">Saldo Devolvido</div><div class="step-desc">Ao final do evento, o saldo remanescente é devolvido de forma controlada e totalmente auditada.</div></div>
+    </div>
+    <div style="margin-top:18px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:14px 18px;">
+      <p style="font-size:12px; color:var(--gray); text-align:center; line-height:1.5;">📊 Cada etapa é registrada em tempo real no painel do organizador — com logs, horários e operadores responsáveis.</p>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <div class="footer-line"></div>
+    <div style="display:flex;justify-content:space-between">
+      <span class="footer-brand">La More Eventos — Sistema de Bilheteria Digital</span>
+      <span class="footer-url">Confidencial</span>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 5 — FUNCIONALIDADES -->
+<div class="slide" data-slide="5">
+  <div class="slide-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">La More Eventos</span></div>
+    <span class="slide-num">05 / 08</span>
+  </div>
+  <div class="slide-body">
+    <div class="tag">Funcionalidades</div>
+    <h2 class="section-title">Tudo que você precisa <span>em um só lugar</span></h2>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon-wrap bg-purple">💳</div><div class="feature-name">Cartão Virtual com QR</div><div class="feature-desc">Cartão digital único por cliente com QR Code para transações instantâneas e sem contato.</div></div>
+      <div class="feature-card"><div class="feature-icon-wrap bg-blue">💰</div><div class="feature-name">Multi-Pagamento</div><div class="feature-desc">Pix com confirmação automática, cartão de crédito/débito, dinheiro em espécie e carteira digital.</div></div>
+      <div class="feature-card"><div class="feature-icon-wrap bg-green">📊</div><div class="feature-name">Relatórios em Tempo Real</div><div class="feature-desc">Dashboard com faturamento, movimentações, produtos mais vendidos e fechamento de caixa.</div></div>
+      <div class="feature-card"><div class="feature-icon-wrap bg-gold">🔍</div><div class="feature-name">Auditoria Completa</div><div class="feature-desc">Log de todas as transações com filtros por data, evento e tipo. Rastreabilidade 100% garantida.</div></div>
+      <div class="feature-card"><div class="feature-icon-wrap bg-red">🔔</div><div class="feature-name">Notificações Push</div><div class="feature-desc">Alertas em tempo real sobre recargas e consumos diretamente no dispositivo do operador.</div></div>
+      <div class="feature-card"><div class="feature-icon-wrap bg-pink">🎪</div><div class="feature-name">Gestão Multi-Eventos</div><div class="feature-desc">Múltiplos eventos simultâneos com equipes independentes e relatórios separados por evento.</div></div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <div class="footer-line"></div>
+    <div style="display:flex;justify-content:space-between">
+      <span class="footer-brand">La More Eventos — Sistema de Bilheteria Digital</span>
+      <span class="footer-url">Confidencial</span>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 6 — PERFIS DE ACESSO -->
+<div class="slide" data-slide="6">
+  <div class="slide-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">La More Eventos</span></div>
+    <span class="slide-num">06 / 08</span>
+  </div>
+  <div class="slide-body">
+    <div class="tag">Controle de Acesso</div>
+    <h2 class="section-title">Perfis <span>hierárquicos</span> por função</h2>
+    <div class="roles-grid">
+      <div class="role-card" style="background:rgba(168,85,247,0.08); border-color:rgba(168,85,247,0.25)">
+        <span class="role-tag" style="background:rgba(168,85,247,0.2); color:#C084FC">MASTER</span>
+        <span class="role-emoji">👑</span>
+        <div class="role-name">Admin Master</div>
+        <div class="role-access">Acesso total: todos os eventos, usuários, taxas e auditoria global.</div>
+      </div>
+      <div class="role-card" style="background:rgba(37,99,235,0.08); border-color:rgba(37,99,235,0.25)">
+        <span class="role-tag" style="background:rgba(37,99,235,0.2); color:#60A5FA">PRODUTOR</span>
+        <span class="role-emoji">🎯</span>
+        <div class="role-name">Organizador</div>
+        <div class="role-access">Gerencia seu evento: produtos, operadores, relatórios e configurações.</div>
+      </div>
+      <div class="role-card" style="background:rgba(16,185,129,0.08); border-color:rgba(16,185,129,0.25)">
+        <span class="role-tag" style="background:rgba(16,185,129,0.2); color:#34D399">CAIXA</span>
+        <span class="role-emoji">💳</span>
+        <div class="role-name">Op. de Caixa</div>
+        <div class="role-access">Cadastro de clientes e recargas via Pix e cartão. Sem acesso a dinheiro.</div>
+      </div>
+      <div class="role-card" style="background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.25)">
+        <span class="role-tag" style="background:rgba(245,158,11,0.2); color:#FBBF24">TESOURARIA</span>
+        <span class="role-emoji">💵</span>
+        <div class="role-name">Tesoureiro</div>
+        <div class="role-access">Caixa físico completo: Pix, cartão e dinheiro em espécie com troco.</div>
+      </div>
+      <div class="role-card" style="background:rgba(249,115,22,0.08); border-color:rgba(249,115,22,0.25)">
+        <span class="role-tag" style="background:rgba(249,115,22,0.2); color:#FB923C">BAR</span>
+        <span class="role-emoji">🍺</span>
+        <div class="role-name">Op. de Bar</div>
+        <div class="role-access">Escaneia QR Code, seleciona produto e confirma débito. Sem acesso ao caixa.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; padding:12px 18px;">
+      <p style="font-size:11px; color:var(--gray);">🔐 Cada perfil acessa apenas as funcionalidades de sua função. Tentativas de acesso indevido são bloqueadas automaticamente pelo middleware de segurança.</p>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <div class="footer-line"></div>
+    <div style="display:flex;justify-content:space-between">
+      <span class="footer-brand">La More Eventos — Sistema de Bilheteria Digital</span>
+      <span class="footer-url">Confidencial</span>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 7 — TECNOLOGIA -->
+<div class="slide" data-slide="7">
+  <div class="slide-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">La More Eventos</span></div>
+    <span class="slide-num">07 / 08</span>
+  </div>
+  <div class="slide-body">
+    <div class="tag">Tecnologia & Infraestrutura</div>
+    <h2 class="section-title">Stack <span>de primeiro nível</span></h2>
+    <div class="tech-layout">
+      <div>
+        <div class="tech-group-title">Frontend & Framework</div>
+        <div class="tech-pills"><span class="pill accent">Next.js 16</span><span class="pill accent">React 19</span><span class="pill">Tailwind CSS</span><span class="pill">PWA</span></div>
+        <div class="tech-group-title">Backend & Banco de Dados</div>
+        <div class="tech-pills"><span class="pill accent">Node.js</span><span class="pill accent">Prisma ORM</span><span class="pill">PostgreSQL</span><span class="pill">API REST</span></div>
+        <div class="tech-group-title">Gateways de Pagamento</div>
+        <div class="tech-pills"><span class="pill">Asaas</span><span class="pill">Mercado Pago</span><span class="pill">PagBank</span><span class="pill">Stone</span></div>
+      </div>
+      <div>
+        <div class="tech-group-title">Segurança & Infraestrutura</div>
+        <div class="security-items">
+          <div class="sec-item"><div class="sec-dot"></div>Autenticação JWT com NextAuth.js — sessões criptografadas</div>
+          <div class="sec-item"><div class="sec-dot"></div>Controle de rotas por middleware server-side</div>
+          <div class="sec-item"><div class="sec-dot"></div>Deploy contínuo via Railway com HTTPS automático</div>
+          <div class="sec-item"><div class="sec-dot"></div>Webhooks validados para confirmação automática de Pix</div>
+          <div class="sec-item"><div class="sec-dot"></div>Notificações Push via Web Push API (PWA)</div>
+          <div class="sec-item"><div class="sec-dot"></div>Logs de auditoria com rastreamento por usuário e data</div>
+          <div class="sec-item"><div class="sec-dot"></div>Senhas criptografadas com bcrypt (salt 10)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-footer">
+    <div class="footer-line"></div>
+    <div style="display:flex;justify-content:space-between">
+      <span class="footer-brand">La More Eventos — Sistema de Bilheteria Digital</span>
+      <span class="footer-url">Confidencial</span>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 8 — FECHAMENTO -->
+<div class="slide closing-slide" data-slide="8">
+  <div class="slide-header">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">La More Eventos</span></div>
+    <span class="slide-num">08 / 08</span>
+  </div>
+  <div class="slide-body">
+    <div class="tag">O Futuro dos Eventos</div>
+    <div class="closing-title">La More <span style="color:var(--purple2)">Eventos</span></div>
+    <div class="closing-sub">O futuro dos eventos está no digital.</div>
+    <div class="gold-line"></div>
+    <div class="closing-badges">
+      <div class="badge">✓ Gestão Completa</div>
+      <div class="badge">✓ Segurança Total</div>
+      <div class="badge">✓ Experiência Premium</div>
+      <div class="badge">✓ Tempo Real</div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:18px; padding:18px 40px; margin-bottom:24px; max-width:600px;">
+      <p style="font-size:14px; color:var(--gray); text-align:center; line-height:1.8;">Menos dinheiro em espécie. Menos filas. Menos erros.<br><strong style="color:white">Mais controle, mais lucro, mais experiência para o seu público.</strong></p>
+    </div>
+    <p class="closing-contact">🌐 la-more-eventos-production.up.railway.app</p>
+  </div>
+  <div class="slide-footer">
+    <div class="footer-line"></div>
+    <div style="display:flex;justify-content:space-between">
+      <span class="footer-brand">La More Eventos © 2025 — Todos os direitos reservados</span>
+      <span class="footer-url">Confidencial</span>
+    </div>
+  </div>
+</div>
+
+<!-- NAVEGAÇÃO -->
+<div class="nav-bar">
+  <button onclick="navSlide(-1)">← Anterior</button>
+  <span class="nav-counter" id="navCounter">1 / 8</span>
+  <button onclick="navSlide(1)">Próximo →</button>
+  <button class="btn-pdf" onclick="window.print()">🖨️ Exportar PDF</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let current = 0;
+  function showSlide(n) {
+    slides.forEach((s,i) => s.classList.toggle('active', i === n));
+    document.getElementById('navCounter').textContent = (n+1) + ' / ' + slides.length;
+  }
+  function navSlide(dir) {
+    current = Math.max(0, Math.min(slides.length-1, current+dir));
+    showSlide(current);
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key==='ArrowRight'||e.key==='ArrowDown') navSlide(1);
+    if (e.key==='ArrowLeft'||e.key==='ArrowUp') navSlide(-1);
+  });
+</script>
+</body>
+</html>

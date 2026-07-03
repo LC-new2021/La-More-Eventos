@@ -40,7 +40,7 @@ export async function GET(req) {
       const operador = recargaInicial?.operador;
       return {
         ...c,
-        cadastradoPor: operador ? `${operador.nome} (${operador.role})` : "Sistema / Outro"
+        cadastradoPor: c.cliente?.criadoPorNome || (operador ? `${operador.nome} (${operador.role})` : "Sistema / Outro")
       };
     });
 
@@ -107,7 +107,16 @@ export async function POST(req) {
 
     let cliente = cpf?.replace(/\D/g,'') ? await prisma.cliente.findFirst({ where: { cpf: cpf.replace(/\D/g,'') } }) : null;
     if (!cliente) {
-      cliente = await prisma.cliente.create({ data: { nome, cpf: cpf?.replace(/\D/g,''), celular: celular?.replace(/\D/g,''), email } });
+      cliente = await prisma.cliente.create({ 
+        data: { 
+          nome, 
+          cpf: cpf?.replace(/\D/g,''), 
+          celular: celular?.replace(/\D/g,''), 
+          email,
+          criadoPorId: session?.user?.id,
+          criadoPorNome: session?.user?.nome
+        } 
+      });
     }
 
     const cartaoExistenteNoDB = await prisma.cartao.findFirst({ where: { clienteId: cliente.id, eventoId } });

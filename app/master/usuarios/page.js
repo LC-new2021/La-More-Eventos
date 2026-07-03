@@ -205,6 +205,7 @@ export default function MasterUsuarios() {
                   <th className="p-6">Nome</th>
                   <th className="p-6">E-mail</th>
                   <th className="p-6">Função</th>
+                  <th className="p-6">Criado Por</th>
                   <th className="p-6">Evento Vinculado</th>
                   <th className="p-6">Ações</th>
                 </tr>
@@ -223,6 +224,9 @@ export default function MasterUsuarios() {
                       }`}>
                         {u.role.replace('_', ' ')}
                       </span>
+                    </td>
+                    <td className="p-6 font-bold text-gray-700">
+                      {u.criadoPorNome || <span className="text-gray-400 font-semibold text-xs">Sistema / Desconhecido</span>}
                     </td>
                     <td className="p-6 font-bold text-gray-700">
                       {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}

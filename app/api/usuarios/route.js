@@ -95,6 +95,8 @@ export async function POST(req) {
         pagbankToken,
         pagbankKey,
         stoneToken,
+        criadoPorId: session?.user?.id,
+        criadoPorNome: session?.user?.nome,
       },
     });
 

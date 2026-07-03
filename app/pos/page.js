@@ -50,6 +50,10 @@ export default function PosApp() {
     { id: "pix", label: "Pix", emoji: "🟢", ativo: true },
     { id: "cartao", label: "Cartão", emoji: "💳", ativo: true },
     { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, troco: true },
+    { id: "debito_offline", label: "Débito (Máquininha)", emoji: "💳", ativo: true },
+    { id: "credito_offline", label: "Crédito (Máquininha)", emoji: "💳", ativo: true },
+    { id: "pix_offline", label: "Pix (Offline)", emoji: "🟢", ativo: true },
+    { id: "cortesia", label: "Cortesia", emoji: "🎁", ativo: true },
   ]);
 
   // Pix Dinâmico PagBank
@@ -227,14 +231,23 @@ export default function PosApp() {
                 { id: "pix", label: "Pix", emoji: "🟢", ativo: true },
                 { id: "cartao", label: "Cartão", emoji: "💳", ativo: true },
                 { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, troco: true },
+                { id: "debito_offline", label: "Débito (Máquininha)", emoji: "💳", ativo: true },
+                { id: "credito_offline", label: "Crédito (Máquininha)", emoji: "💳", ativo: true },
+                { id: "pix_offline", label: "Pix (Offline)", emoji: "🟢", ativo: true },
+                { id: "cortesia", label: "Cortesia", emoji: "🎁", ativo: true },
               ];
             }
             
-            // Restrição Rigorosa de Dinheiro
+            // Restrição Rigorosa de Dinheiro e Cortesia
             const role = session?.user?.role;
             const canAcceptCash = role === 'MASTER' || role === 'TESOURARIA';
             if (!canAcceptCash) {
-              metodos = metodos.filter(m => m.id !== 'dinheiro');
+              metodos = metodos.filter(m => m.id !== 'dinheiro' && m.id !== 'cortesia');
+            }
+
+            // Modo Gerencial - Remove os métodos Online (API)
+            if (data.modoOperacao === 'GERENCIAL') {
+              metodos = metodos.filter(m => m.id !== 'pix' && m.id !== 'cartao' && m.id !== 'wallet');
             }
             
             setMetodosPagamento(metodos);

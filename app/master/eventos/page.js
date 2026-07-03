@@ -126,6 +126,20 @@ export default function MasterEventos() {
     }
   };
 
+  const handleMudarModoOperacao = async (id, modoAtual) => {
+    const proximoModo = modoAtual === 'INTEGRADO' ? 'GERENCIAL' : 'INTEGRADO';
+    try {
+      const res = await fetch(`/api/eventos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modoOperacao: proximoModo })
+      });
+      if (res.ok) carregarEventos();
+    } catch (e) {
+      console.error('Erro ao atualizar modo de operacao', e);
+    }
+  };
+
   const handleExcluir = async (id, nome) => {
     if (window.confirm(`TEM CERTEZA ABSOLUTA que deseja EXCLUIR o evento "${nome}"?\n\nIsso apagará TODOS os cartões, vendas, e clientes atrelados a ele! Essa ação NÃO PODE ser desfeita.`)) {
       setLoading(true);
@@ -248,6 +262,18 @@ export default function MasterEventos() {
                   }`}>
                     {evt.status}
                   </span>
+                </div>
+                <div className="mb-4 text-center">
+                  <button
+                    onClick={() => handleMudarModoOperacao(evt.id, evt.modoOperacao || 'INTEGRADO')}
+                    className={`w-full py-2.5 rounded-xl font-black text-sm transition-all border-2 flex items-center justify-center gap-2 ${
+                      (evt.modoOperacao || 'INTEGRADO') === 'INTEGRADO' 
+                        ? 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100' 
+                        : 'bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-100'
+                    }`}
+                  >
+                    <span>{(evt.modoOperacao || 'INTEGRADO') === 'INTEGRADO' ? '🔌 Modo Integrado' : '📇 Modo Gerencial'}</span>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 bg-gray-50 rounded-2xl p-4 mb-4 text-center">

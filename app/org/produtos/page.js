@@ -94,10 +94,14 @@ export default function ProdutosPage() {
           setPagamentosConfig(JSON.parse(data.metodosPagamentoJson));
         } else {
           const defaultPgs = [
-            { id: "pix", label: "Pix", emoji: "🟢", ativo: true, descricao: "Chave Pix gerada pelo caixa — confirmação manual pelo operador" },
-            { id: "cartao", label: "Cartão de Crédito/Débito", emoji: "💳", ativo: true, descricao: "Integrado via POS/Maquininha física ou manual" },
+            { id: "pix", label: "Pix Online (QR Code)", emoji: "🟢", ativo: true, descricao: "Gera QRCode via Gateway. Confirma automático." },
+            { id: "cartao", label: "Cartão Online", emoji: "💳", ativo: true, descricao: "Digitação do cartão no sistema via Asaas/Mercado Pago" },
             { id: "wallet", label: "Carteira Digital (QR)", emoji: "📱", ativo: true, descricao: "Gera QR Code para o cliente pagar no próprio celular" },
             { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, descricao: "Dinheiro em espécie (com calculadora de troco no caixa)", troco: true },
+            { id: "debito_offline", label: "Débito (Máquininha)", emoji: "💳", ativo: true, descricao: "Uso de POS Física. O sistema só registra a venda offline." },
+            { id: "credito_offline", label: "Crédito (Máquininha)", emoji: "💳", ativo: true, descricao: "Uso de POS Física. O sistema só registra a venda offline." },
+            { id: "pix_offline", label: "Pix (Offline)", emoji: "🟢", ativo: true, descricao: "Transferência direta sem gateway. Caixa confirma manualmente." },
+            { id: "cortesia", label: "Cortesia", emoji: "🎁", ativo: true, descricao: "Adiciona saldo sem cobrar nada. Apenas Tesouraria e Master." },
           ];
           setPagamentosConfig(defaultPgs);
         }
@@ -472,6 +476,16 @@ export default function ProdutosPage() {
                           <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-0.5 rounded-full inline-block mt-0.5">
                             {p.grupo}
                           </span>
+                          {p.criadoPorNome && (
+                            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full inline-block mt-0.5 ml-2">
+                              👤 {p.criadoPorNome}
+                            </span>
+                          )}
+                          {p.atualizadoPorNome && p.atualizadoPorNome !== p.criadoPorNome && (
+                            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full inline-block mt-0.5 ml-2" title="Última edição">
+                              ✏️ {p.atualizadoPorNome}
+                            </span>
+                          )}
                         </div>
                         <p className="font-black text-[#1D3461] text-2xl shrink-0 text-right sm:w-32">
                           R$ {p.preco.toFixed(2).replace(".", ",")}

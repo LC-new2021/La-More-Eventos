@@ -1,13 +1,20 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+
 export async function PATCH(req, { params }) {
   try {
+    const session = await getServerSession(authOptions);
     const { id } = await params;
     const body = await req.json();
     const produto = await prisma.produto.update({
       where: { id },
-      data: body,
+      data: {
+        ...body,
+        atualizadoPorNome: session?.user?.nome
+      },
     });
     return NextResponse.json(produto);
   } catch (e) {

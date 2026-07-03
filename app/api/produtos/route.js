@@ -15,8 +15,12 @@ export async function GET(req) {
   }
 }
 
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+
 export async function POST(req) {
   try {
+    const session = await getServerSession(authOptions);
     const body = await req.json();
     const produto = await prisma.produto.create({
       data: {
@@ -26,6 +30,8 @@ export async function POST(req) {
         eventoId: body.eventoId,
         imagem: body.imagem || "📦",
         ativo: true,
+        criadoPorId: session?.user?.id,
+        criadoPorNome: session?.user?.nome,
       },
     });
     return NextResponse.json(produto, { status: 201 });
