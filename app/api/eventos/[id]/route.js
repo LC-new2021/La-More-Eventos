@@ -76,6 +76,7 @@ export async function PATCH(req, { params }) {
     if (body.mercadoPagoUserId !== undefined) updateData.mercadoPagoUserId = body.mercadoPagoUserId;
     if (body.permiteDevolucao !== undefined) updateData.permiteDevolucao = body.permiteDevolucao;
     if (body.permitirEdicaoGateway !== undefined) updateData.permitirEdicaoGateway = body.permitirEdicaoGateway;
+    if (body.modoOperacao !== undefined) updateData.modoOperacao = body.modoOperacao;
 
     const evento = await prisma.evento.update({
       where: { id },
