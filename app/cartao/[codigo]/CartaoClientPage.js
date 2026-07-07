@@ -590,7 +590,7 @@ export default function CartaoClientPage() {
         )}
 
         {/* RECARGA RAPIDA ONLINE */}
-        {cartao.status === 'ATIVO' && (
+        {cartao.status === 'ATIVO' && cartao.evento?.modoOperacao !== 'GERENCIAL' && (
           <div className="bg-white/5 rounded-3xl p-5 border border-white/5 shadow-inner mb-4 flex flex-col gap-3">
             <h3 className="text-white font-black text-lg flex items-center gap-2"><span>⚡</span> Recarga Rápida Online</h3>
             <p className="text-xs text-blue-200">Adicione saldo ao seu cartão de consumação instantaneamente via Pix ou Cartão de Crédito.</p>
