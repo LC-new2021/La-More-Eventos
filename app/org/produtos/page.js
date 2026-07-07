@@ -90,19 +90,26 @@ export default function ProdutosPage() {
       const res = await fetch(`/api/eventos/${eventoId}`);
       const data = await res.json();
       if (!data.error) {
+        const defaultPgs = [
+          { id: "pix", label: "Pix Online (QR Code)", emoji: "🟢", ativo: true, descricao: "Gera QRCode via Gateway. Confirma automático." },
+          { id: "cartao", label: "Cartão Online", emoji: "💳", ativo: true, descricao: "Digitação do cartão no sistema via Asaas/Mercado Pago" },
+          { id: "wallet", label: "Carteira Digital (QR)", emoji: "📱", ativo: true, descricao: "Gera QR Code para o cliente pagar no próprio celular" },
+          { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, descricao: "Dinheiro em espécie (com calculadora de troco no caixa)", troco: true },
+          { id: "debito_offline", label: "Débito (Máquininha)", emoji: "💳", ativo: true, descricao: "Uso de POS Física. O sistema só registra a venda offline." },
+          { id: "credito_offline", label: "Crédito (Máquininha)", emoji: "💳", ativo: true, descricao: "Uso de POS Física. O sistema só registra a venda offline." },
+          { id: "pix_offline", label: "Pix (Offline)", emoji: "🟢", ativo: true, descricao: "Transferência direta sem gateway. Caixa confirma manualmente." },
+          { id: "cortesia", label: "Cortesia", emoji: "🎁", ativo: true, descricao: "Adiciona saldo sem cobrar nada. Apenas Tesouraria e Master." },
+        ];
+
         if (data.metodosPagamentoJson) {
-          setPagamentosConfig(JSON.parse(data.metodosPagamentoJson));
+          const savedPgs = JSON.parse(data.metodosPagamentoJson);
+          defaultPgs.forEach(defM => {
+            if (!savedPgs.find(m => m.id === defM.id)) {
+              savedPgs.push(defM);
+            }
+          });
+          setPagamentosConfig(savedPgs);
         } else {
-          const defaultPgs = [
-            { id: "pix", label: "Pix Online (QR Code)", emoji: "🟢", ativo: true, descricao: "Gera QRCode via Gateway. Confirma automático." },
-            { id: "cartao", label: "Cartão Online", emoji: "💳", ativo: true, descricao: "Digitação do cartão no sistema via Asaas/Mercado Pago" },
-            { id: "wallet", label: "Carteira Digital (QR)", emoji: "📱", ativo: true, descricao: "Gera QR Code para o cliente pagar no próprio celular" },
-            { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, descricao: "Dinheiro em espécie (com calculadora de troco no caixa)", troco: true },
-            { id: "debito_offline", label: "Débito (Máquininha)", emoji: "💳", ativo: true, descricao: "Uso de POS Física. O sistema só registra a venda offline." },
-            { id: "credito_offline", label: "Crédito (Máquininha)", emoji: "💳", ativo: true, descricao: "Uso de POS Física. O sistema só registra a venda offline." },
-            { id: "pix_offline", label: "Pix (Offline)", emoji: "🟢", ativo: true, descricao: "Transferência direta sem gateway. Caixa confirma manualmente." },
-            { id: "cortesia", label: "Cortesia", emoji: "🎁", ativo: true, descricao: "Adiciona saldo sem cobrar nada. Apenas Tesouraria e Master." },
-          ];
           setPagamentosConfig(defaultPgs);
         }
 

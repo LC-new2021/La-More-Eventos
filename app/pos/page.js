@@ -223,19 +223,26 @@ export default function PosApp() {
           if (!data.error) {
             setEvento(data);
             let metodos = [];
+            const defaultMethods = [
+              { id: "pix", label: "Pix", emoji: "🟢", ativo: true },
+              { id: "cartao", label: "Cartão", emoji: "💳", ativo: true },
+              { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, troco: true },
+              { id: "debito_offline", label: "Débito (Máquininha)", emoji: "💳", ativo: true },
+              { id: "credito_offline", label: "Crédito (Máquininha)", emoji: "💳", ativo: true },
+              { id: "pix_offline", label: "Pix (Offline)", emoji: "🟢", ativo: true },
+              { id: "cortesia", label: "Cortesia", emoji: "🎁", ativo: true },
+            ];
+
             if (data.metodosPagamentoJson) {
               const list = JSON.parse(data.metodosPagamentoJson);
+              defaultMethods.forEach(defM => {
+                if (!list.find(m => m.id === defM.id)) {
+                  list.push(defM);
+                }
+              });
               metodos = list.filter(p => p.ativo);
             } else {
-              metodos = [
-                { id: "pix", label: "Pix", emoji: "🟢", ativo: true },
-                { id: "cartao", label: "Cartão", emoji: "💳", ativo: true },
-                { id: "dinheiro", label: "Dinheiro", emoji: "💵", ativo: true, troco: true },
-                { id: "debito_offline", label: "Débito (Máquininha)", emoji: "💳", ativo: true },
-                { id: "credito_offline", label: "Crédito (Máquininha)", emoji: "💳", ativo: true },
-                { id: "pix_offline", label: "Pix (Offline)", emoji: "🟢", ativo: true },
-                { id: "cortesia", label: "Cortesia", emoji: "🎁", ativo: true },
-              ];
+              metodos = defaultMethods.filter(p => p.ativo);
             }
             
             // Restrição Rigorosa de Dinheiro e Cortesia
