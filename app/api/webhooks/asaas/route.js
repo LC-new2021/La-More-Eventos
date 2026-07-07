@@ -59,28 +59,7 @@ export async function POST(req) {
             ).catch(console.error);
           }
 
-          // Notificar operadores vinculados ao evento
-          try {
-            const { enviarNotificacao } = require('@/lib/push');
-            const operadores = await prisma.usuario.findMany({
-              where: {
-                eventoId: cartao.eventoId,
-                pushSubscriptionJson: { not: null }
-              }
-            });
-            const formattedValue = valor.toFixed(2).replace('.', ',');
-            const formattedSaldo = (cartao.saldo + valor).toFixed(2).replace('.', ',');
-            operadores.forEach(operador => {
-              enviarNotificacao(
-                operador.pushSubscriptionJson,
-                'Nova Recarga Confirmada ⚡',
-                `O cliente ${cartao.cliente.nome} realizou recarga online de R$ ${formattedValue}. Novo saldo: R$ ${formattedSaldo}.`,
-                '/pos'
-              ).catch(console.error);
-            });
-          } catch (pushError) {
-            console.error('Erro ao notificar operadores no Asaas Webhook:', pushError);
-          }
+          // Notificacao para operadores removida para evitar spam
 
           console.log(`[Asaas Webhook] Cartão ${codigo} recarregado com R$ ${valor} via Pix.`);
         }

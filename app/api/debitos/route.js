@@ -60,27 +60,7 @@ export async function POST(req) {
       ).catch(console.error);
     }
 
-    // Enviar notificação push para operadores/caixas ativos vinculados ao evento
-    try {
-      const operadores = await prisma.usuario.findMany({
-        where: {
-          eventoId: cartao.eventoId,
-          pushSubscriptionJson: { not: null }
-        }
-      });
-      const formattedTotal = valorTotal.toFixed(2).replace('.', ',');
-      const formattedSaldo = cartaoAtualizado.saldo.toFixed(2).replace('.', ',');
-      operadores.forEach(operador => {
-        enviarNotificacao(
-          operador.pushSubscriptionJson,
-          'Novo Consumo Registrado 🧾',
-          `${cartao.cliente.nome} consumiu ${qty > 1 ? `${qty}x ` : ''}${produto.nome} (R$ ${formattedTotal}). Novo saldo do cliente: R$ ${formattedSaldo}.`,
-          '/pos'
-        ).catch(console.error);
-      });
-    } catch (pushError) {
-      console.error('Erro ao notificar operadores no débito:', pushError);
-    }
+    // Notificação removida para operadores (era disparada em loop para todo mundo)
 
     return NextResponse.json({
       ok: true,

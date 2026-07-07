@@ -448,10 +448,6 @@ export default function BarApp() {
                 className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-3xl shadow-xl flex items-center justify-center gap-2 cursor-pointer" style={{minHeight:"52px"}}>
                 📷 Ativar Câmera
               </button>
-              <label className="w-full bg-white/10 text-white font-black text-lg py-4 rounded-3xl border-2 border-white/20 hover:bg-white/20 transition-all cursor-pointer flex items-center justify-center gap-2" style={{minHeight:"52px"}}>
-                <span>🖼️</span> Tirar Foto / Galeria
-                <input type="file" accept="image/*" capture="environment" onChange={lerImagemQR} className="hidden" />
-              </label>
               <button onClick={() => { setErro(""); setBuscaAtiva(true); }}
                 className="w-full bg-teal-500 hover:bg-teal-600 text-white font-black text-lg py-4 rounded-3xl transition-all flex items-center justify-center gap-2 cursor-pointer" style={{minHeight:"52px"}}>
                 🔍 Buscar por Nome / CPF
