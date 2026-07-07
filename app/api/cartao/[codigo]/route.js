@@ -8,7 +8,7 @@ export async function GET(req, { params }) {
       where: { codigo: codigo.toUpperCase() },
       include: {
         cliente: true,
-        evento: { select: { id: true, nome: true, status: true, mercadoPagoPublicKey: true } },
+        evento: { select: { id: true, nome: true, status: true, mercadoPagoPublicKey: true, modoOperacao: true } },
         movimentacoes: {
           orderBy: { criadaEm: 'desc' },
           take: 10,
