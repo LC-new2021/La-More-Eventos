@@ -313,7 +313,7 @@ export default function MasterUsuarios() {
                   >
                     <option value="OPERADOR_BAR">Operador de Bar</option>
                     <option value="CAIXA">Operador de Caixa (Sem Dinheiro)</option>
-                    <option value="TESOURARIA">Tesouraria (Recebe Dinheiro)</option>
+                    <option value="TESOURARIA">Tesouraria (Acesso Multi)</option>
                     <option value="ORGANIZADOR">Produtor</option>
                     <option value="CLIENTE">Cliente Final (Portal)</option>
                     <option value="MASTER">Master Admin</option>
