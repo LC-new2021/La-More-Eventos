@@ -76,6 +76,11 @@ export default function CartaoClientPage() {
   const [testSuccess, setTestSuccess] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
 
+  // Cardápio states
+  const [abaAtiva, setAbaAtiva] = useState('conta'); // 'conta' | 'cardapio'
+  const [cardapio, setCardapio] = useState([]);
+  const [loadingCardapio, setLoadingCardapio] = useState(false);
+
   useEffect(() => {
     carregarCartao();
     if (typeof window !== 'undefined') {
@@ -90,6 +95,20 @@ export default function CartaoClientPage() {
       }
     }
   }, [codigo]);
+
+  // Carrega cardápio quando o cartao é carregado
+  useEffect(() => {
+    if (cartao?.eventoId) {
+      setLoadingCardapio(true);
+      fetch(`/api/produtos?eventoId=${cartao.eventoId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.error) setCardapio(data);
+        })
+        .catch(console.error)
+        .finally(() => setLoadingCardapio(false));
+    }
+  }, [cartao?.eventoId]);
 
   const inscreverPush = async (clienteId) => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !clienteId) return;
@@ -388,9 +407,33 @@ export default function CartaoClientPage() {
       <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center">
         
         {/* CABEÇALHO DO EVENTO */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-4">
           <p className="text-blue-300 font-bold text-xs uppercase tracking-widest">Cartão de Consumação</p>
           <h2 className="text-2xl font-black text-white mt-1">{cartao.evento.nome}</h2>
+        </div>
+
+        {/* NAVEGAÇÃO DE ABAS */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setAbaAtiva('conta')}
+            className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 ${
+              abaAtiva === 'conta'
+                ? 'bg-white text-[#1D3461] shadow-lg'
+                : 'bg-white/10 text-white/60 hover:bg-white/15'
+            }`}
+          >
+            💳 Minha Conta
+          </button>
+          <button
+            onClick={() => setAbaAtiva('cardapio')}
+            className={`flex-1 py-3 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 ${
+              abaAtiva === 'cardapio'
+                ? 'bg-white text-[#1D3461] shadow-lg'
+                : 'bg-white/10 text-white/60 hover:bg-white/15'
+            }`}
+          >
+            🍽️ Cardápio
+          </button>
         </div>
 
         {/* CARTÃO VIRTUAL PREMIUM */}
@@ -610,7 +653,7 @@ export default function CartaoClientPage() {
         )}
 
         {/* HISTÓRICO DE MOVIMENTAÇÕES */}
-        {cartao.movimentacoes.length > 0 && (
+        {cartao.movimentacoes.length > 0 && abaAtiva === 'conta' && (
           <div className="bg-white/5 rounded-3xl p-5 border border-white/5 shadow-inner mb-6">
             <h3 className="text-white font-black text-lg mb-3 flex items-center gap-2">
               <span>🧾</span> Histórico de Uso
@@ -628,6 +671,50 @@ export default function CartaoClientPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ABA CARDÁPIO */}
+        {abaAtiva === 'cardapio' && (
+          <div className="mb-6">
+            {loadingCardapio ? (
+              <div className="text-center py-10">
+                <p className="text-blue-200 font-semibold animate-pulse">Carregando cardápio...</p>
+              </div>
+            ) : cardapio.length === 0 ? (
+              <div className="bg-white/5 rounded-3xl p-8 border border-white/5 text-center">
+                <p className="text-5xl mb-3">🍽️</p>
+                <p className="text-white font-bold">Cardápio não disponível</p>
+                <p className="text-blue-300/60 text-sm mt-1">O organizador ainda não cadastrou os produtos.</p>
+              </div>
+            ) : (
+              (() => {
+                const grupos = [...new Set(cardapio.map(p => p.grupo))].sort();
+                return grupos.map(grupo => (
+                  <div key={grupo} className="mb-4">
+                    <p className="text-teal-300 font-black text-xs uppercase tracking-widest mb-2 px-1">{grupo}</p>
+                    <div className="bg-white/5 rounded-3xl border border-white/5 overflow-hidden">
+                      {cardapio.filter(p => p.grupo === grupo).map((produto, idx, arr) => (
+                        <div
+                          key={produto.id}
+                          className={`flex items-center justify-between px-5 py-3.5 ${
+                            idx < arr.length - 1 ? 'border-b border-white/5' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{produto.imagem || '📦'}</span>
+                            <p className="text-white font-semibold text-sm">{produto.nome}</p>
+                          </div>
+                          <span className="text-teal-300 font-black text-sm whitespace-nowrap">
+                            R$ {produto.preco.toFixed(2).replace('.', ',')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()
+            )}
           </div>
         )}
 
