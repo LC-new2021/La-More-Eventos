@@ -238,14 +238,10 @@ export default function CartaoClientPage() {
       .finally(() => setLoading(false));
   };
 
-  const handleBack = () => {
-    if (typeof window !== 'undefined') {
-      if (window.history.length > 1) {
-        router.back();
-      } else {
-        router.push('/pos');
-      }
-    }
+  const tentarNovamente = () => {
+    setLoading(true);
+    setErro('');
+    carregarCartao();
   };
 
   const gerarPixOnline = async () => {
@@ -389,10 +385,10 @@ export default function CartaoClientPage() {
       <h1 className="text-3xl font-black text-white">{erro}</h1>
       <p className="text-red-200 mt-2 font-semibold">Verifique se o código está correto ou se o cartão foi emitido.</p>
       <button 
-        onClick={handleBack} 
+        onClick={tentarNovamente} 
         className="mt-6 bg-white text-red-600 font-bold px-6 py-2.5 rounded-xl"
       >
-        ← Voltar
+        Tentar Novamente
       </button>
     </div>
   );
