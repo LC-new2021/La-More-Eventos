@@ -125,6 +125,8 @@ model Produto {
   grupo    String
   ativo    Boolean @default(true)
   imagem   String?
+  observacao String?
+  precoVariavel Boolean @default(false)
   eventoId String
   evento   Evento @relation(fields: [eventoId], references: [id])
   criadoPorId   String?

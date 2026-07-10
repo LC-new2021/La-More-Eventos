@@ -7,7 +7,7 @@ import { enviarNotificacao } from '@/lib/push';
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
-    const { codigo, produtoId, quantidade } = await req.json();
+    const { codigo, produtoId, quantidade, precoCustom } = await req.json();
     const qty = parseInt(quantidade) || 1;
 
     const cartao = await prisma.cartao.findUnique({
@@ -24,7 +24,10 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Este cartão pertence a outro evento e não pode ser cobrado neste bar' }, { status: 400 });
     }
 
-    const valorTotal = produto.preco * qty;
+    const precoUnitario = (produto.precoVariavel && precoCustom && parseFloat(precoCustom) > 0)
+      ? parseFloat(precoCustom)
+      : produto.preco;
+    const valorTotal = precoUnitario * qty;
     if (cartao.saldo < valorTotal) {
       return NextResponse.json({ error: 'Saldo insuficiente', saldo: cartao.saldo }, { status: 402 });
     }

@@ -27,6 +27,8 @@ export default function ProdutosPage() {
   const [preco, setPreco] = useState("");
   const [grupo, setGrupo] = useState("Bebidas");
   const [imagem, setImagem] = useState("📦");
+  const [observacao, setObservacao] = useState("");
+  const [precoVariavel, setPrecoVariavel] = useState(false);
   const [novoGrupo, setNovoGrupo] = useState("");
   const [mostrarNovoGrupoInput, setMostrarNovoGrupoInput] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -266,6 +268,8 @@ export default function ProdutosPage() {
     setPreco("");
     setGrupo("Bebidas");
     setImagem("📦");
+    setObservacao("");
+    setPrecoVariavel(false);
     setNovoGrupo("");
     setMostrarNovoGrupoInput(false);
     setModalProduto(true);
@@ -277,6 +281,8 @@ export default function ProdutosPage() {
     setPreco(p.preco.toString());
     setGrupo(p.grupo);
     setImagem(p.imagem || "📦");
+    setObservacao(p.observacao || "");
+    setPrecoVariavel(p.precoVariavel || false);
     setNovoGrupo("");
     setMostrarNovoGrupoInput(false);
     setModalProduto(true);
@@ -301,6 +307,8 @@ export default function ProdutosPage() {
           preco: parseFloat(preco),
           grupo: grupoFinal,
           imagem,
+          observacao: observacao.trim() || null,
+          precoVariavel,
           eventoId
         })
       });
@@ -884,6 +892,33 @@ export default function ProdutosPage() {
                   placeholder="Ou digite outro emoji/ícone..."
                   className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
+              </div>
+
+              {/* Observação */}
+              <div>
+                <label className="block font-black text-gray-700 text-base mb-2">Observação <span className="font-normal text-gray-400">(opcional)</span></label>
+                <input
+                  type="text"
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  placeholder="Ex: Serve 2 pessoas, disponível até meia-noite..."
+                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                />
+              </div>
+
+              {/* Preço Variável */}
+              <div className="flex items-center justify-between bg-amber-50 border-2 border-amber-200 rounded-2xl px-5 py-4">
+                <div>
+                  <p className="font-black text-gray-800 text-sm">💲 Preço Variável</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Operador digita o valor na hora da venda</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPrecoVariavel(!precoVariavel)}
+                  className={`relative w-14 h-7 rounded-full transition-colors ${precoVariavel ? 'bg-amber-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${precoVariavel ? 'translate-x-7' : 'translate-x-0'}`} />
+                </button>
               </div>
 
               <div className="flex gap-3 mt-8 pt-4">

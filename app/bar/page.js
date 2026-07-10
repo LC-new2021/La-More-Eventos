@@ -27,6 +27,7 @@ export default function BarApp() {
   const [resultadosBusca, setResultadosBusca] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [totalFesta, setTotalFesta] = useState(0);
+  const [precoVariavelInput, setPrecoVariavelInput] = useState(""); // para produtos de preco livre
 
   const eventoId = session?.user?.eventoId;
   const [evento, setEvento] = useState(null);
@@ -204,10 +205,13 @@ export default function BarApp() {
     setCarregando(true);
     setErro("");
     try {
+      const precoFinal = produtoSel.precoVariavel && precoVariavelInput ? parseFloat(precoVariavelInput) : produtoSel.preco;
+      const body = { codigo: cartao.codigo, produtoId: produtoSel.id, quantidade };
+      if (produtoSel.precoVariavel && precoVariavelInput) body.precoCustom = precoFinal;
       const res = await fetch("/api/debitos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codigo: cartao.codigo, produtoId: produtoSel.id, quantidade }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -246,7 +250,8 @@ export default function BarApp() {
 
   // ── Confirmar Débito ──
   if (etapa === "confirmar" && produtoSel) {
-    const totalDebito = produtoSel.preco * quantidade;
+    const precoUnit = produtoSel.precoVariavel && precoVariavelInput ? parseFloat(precoVariavelInput) || 0 : produtoSel.preco;
+    const totalDebito = precoUnit * quantidade;
     const saldoInsuficiente = cartao?.saldo < totalDebito;
 
     return (
@@ -260,7 +265,23 @@ export default function BarApp() {
           <div className="bg-white rounded-3xl p-8 w-full max-w-sm text-center mb-8">
             <p className="text-gray-500 text-xl font-bold mb-2">{produtoSel.grupo}</p>
             <h3 className="text-3xl font-black text-gray-900 mb-2">{produtoSel.nome}</h3>
-            <p className="text-xl font-bold text-gray-500 mb-4">Unidade: R$ {produtoSel.preco.toFixed(2).replace(".",",")}</p>
+            {produtoSel.observacao && <p className="text-sm text-gray-400 font-semibold mb-3 italic">{produtoSel.observacao}</p>}
+            {produtoSel.precoVariavel ? (
+              <div className="mb-4">
+                <p className="text-sm font-bold text-amber-600 mb-2">💲 Produto de Preço Variável — informe o valor:</p>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={precoVariavelInput}
+                  onChange={(e) => setPrecoVariavelInput(e.target.value)}
+                  placeholder="R$ 0,00"
+                  className="w-full border-2 border-amber-300 rounded-2xl px-4 py-3 text-2xl font-black text-center text-gray-900 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            ) : (
+              <p className="text-xl font-bold text-gray-500 mb-4">Unidade: R$ {produtoSel.preco.toFixed(2).replace(".",",")}</p>
+            )}
             
             {/* Seletor de Quantidade */}
             <div className="flex items-center justify-center gap-6 mb-6">
