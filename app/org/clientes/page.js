@@ -6,6 +6,21 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+function maskCpf(cpf) {
+  if (!cpf) return "—";
+  const c = cpf.replace(/\D/g, "");
+  if (c.length !== 11) return cpf;
+  return `${c.slice(0, 3)}.***.***-${c.slice(9)}`;
+}
+
+function maskPhone(phone) {
+  if (!phone) return "—";
+  const p = phone.replace(/\D/g, "");
+  if (p.length === 11) return `(${p.slice(0, 2)}) *****-${p.slice(7)}`;
+  if (p.length === 10) return `(${p.slice(0, 2)}) ****-${p.slice(6)}`;
+  return phone;
+}
+
 export default function ClientesPage({ isMasterView = false }) {
   const { data: session } = useSession();
   const [clientes, setClientes] = useState([]);
@@ -36,11 +51,12 @@ export default function ClientesPage({ isMasterView = false }) {
     headerRow.alignment = { horizontal: 'center' };
 
     clientes.forEach((c, index) => {
+      const isMaster = isMasterView && session?.user?.role === 'MASTER';
       const row = ws.addRow([
         c.cliente.nome,
         c.codigo,
-        c.cliente.cpf || "",
-        c.cliente.celular || "",
+        isMaster ? (c.cliente.cpf || "") : maskCpf(c.cliente.cpf),
+        isMaster ? (c.cliente.celular || "") : maskPhone(c.cliente.celular),
         c.saldo,
         c.cadastradoPor || "Sistema"
       ]);
@@ -68,14 +84,15 @@ export default function ClientesPage({ isMasterView = false }) {
     doc.text(`Relatório de Cadastro de Clientes`, 14, 28);
     doc.text(`Total: ${clientes.length} clientes cadastrados`, 14, 34);
 
+    const isMaster = isMasterView && session?.user?.role === 'MASTER';
     autoTable(doc, {
       startY: 40,
       head: [["Nome", "Código", "CPF", "Celular", "Saldo (R$)", "Cadastrado Por"]],
       body: clientes.map(c => [
         c.cliente.nome,
         c.codigo,
-        c.cliente.cpf || "—",
-        c.cliente.celular || "—",
+        isMaster ? (c.cliente.cpf || "—") : maskCpf(c.cliente.cpf),
+        isMaster ? (c.cliente.celular || "—") : maskPhone(c.cliente.celular),
         c.saldo.toFixed(2).replace(".", ","),
         c.cadastradoPor || "Sistema"
       ]),
@@ -234,14 +251,21 @@ export default function ClientesPage({ isMasterView = false }) {
                     <span className="uppercase">Cód: {c.codigo}</span>
                     <span>•</span>
                     <span className="text-blue-500/80">Reg: {c.cadastradoPor}</span>
-                    {c.cliente.cpf && <span className="md:hidden">• CPF: {c.cliente.cpf}</span>}
+                {/* CPF mobile */}
+                    {c.cliente.cpf && <span className="md:hidden">• CPF: {
+                      (isMasterView && session?.user?.role === 'MASTER') ? c.cliente.cpf : maskCpf(c.cliente.cpf)
+                    }</span>}
                   </div>
                 </div>
                 <p className="hidden md:block md:col-span-3 text-gray-500 font-semibold text-base">
-                  {c.cliente.cpf || <span className="text-gray-300 italic">—</span>}
+                  {(isMasterView && session?.user?.role === 'MASTER')
+                    ? (c.cliente.cpf || <span className="text-gray-300 italic">—</span>)
+                    : <span>{maskCpf(c.cliente.cpf)}</span>}
                 </p>
                 <p className="hidden md:block md:col-span-3 text-gray-500 font-semibold text-base">
-                  {c.cliente.celular || <span className="text-gray-300 italic">—</span>}
+                  {(isMasterView && session?.user?.role === 'MASTER')
+                    ? (c.cliente.celular || <span className="text-gray-300 italic">—</span>)
+                    : <span>{maskPhone(c.cliente.celular)}</span>}
                 </p>
                 <div className="col-span-4 md:col-span-2 flex flex-col items-end gap-1">
                   <p className={`font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
