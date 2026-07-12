@@ -12,11 +12,15 @@ const COLORS_PAGTO = ["#10B981", "#3B82F6", "#F59E0B"];
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
+    const item = payload[0].payload;
     return (
       <div className="bg-white p-3 border-2 border-gray-100 rounded-xl shadow-lg">
         <p className="font-bold text-gray-900">{label || payload[0].name}</p>
         <p className="font-black text-[#1D3461] text-lg">
           R$ {payload[0].value.toFixed(2).replace(".", ",")}
+          {item.percent !== undefined && (
+            <span className="text-sm text-gray-500 ml-2">({item.percent}%)</span>
+          )}
         </p>
       </div>
     );
@@ -333,7 +337,10 @@ export default function RelatoriosPage() {
               ) : (
                 <ResponsiveContainer width="100%" height="80%">
                   <PieChart>
-                    <Pie data={recebimentos} cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value">
+                    <Pie 
+                      data={recebimentos.map(r => ({...r, percent: summary.totalRecarregado > 0 ? ((r.value/summary.totalRecarregado)*100).toFixed(1) : 0}))} 
+                      cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value"
+                    >
                       {recebimentos.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS_PAGTO[index % COLORS_PAGTO.length]} />
                       ))}
@@ -412,7 +419,10 @@ export default function RelatoriosPage() {
                   <div className="flex justify-between items-center mb-2">
                     <p className="font-black text-gray-900 text-xl">{r.name}</p>
                     <div className="text-right">
-                      <p className="font-black text-[#1D3461] text-2xl">R$ {r.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+                      <p className="font-black text-[#1D3461] text-2xl">
+                        R$ {r.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        <span className="text-sm text-gray-500 ml-2 font-bold">({summary.totalRecarregado > 0 ? ((r.value / summary.totalRecarregado) * 100).toFixed(1) : 0}%)</span>
+                      </p>
                       <p className="text-gray-400 text-sm font-semibold">{r.qtd} transações</p>
                     </div>
                   </div>
@@ -441,7 +451,10 @@ export default function RelatoriosPage() {
                       <div className="flex justify-between items-center mb-2">
                         <p className="font-black text-gray-900 text-xl">{g.name}</p>
                         <div className="text-right">
-                          <p className="font-black text-[#1D3461] text-2xl">R$ {g.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+                          <p className="font-black text-[#1D3461] text-2xl">
+                            R$ {g.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            <span className="text-sm text-gray-500 ml-2 font-bold">({summary.totalDebito > 0 ? ((g.value / summary.totalDebito) * 100).toFixed(1) : 0}%)</span>
+                          </p>
                           <p className="text-gray-400 text-sm font-semibold">{g.qtd} pedidos</p>
                         </div>
                       </div>
@@ -460,10 +473,13 @@ export default function RelatoriosPage() {
                ) : (
                   <ResponsiveContainer width="100%" height="80%">
                     <PieChart>
-                      <Pie data={vendasPorGrupo} cx="50%" cy="50%" innerRadius={0} outerRadius={110} dataKey="value">
+                      <Pie 
+                        data={vendasPorGrupo.map(v => ({...v, percent: summary.totalDebito > 0 ? ((v.value/summary.totalDebito)*100).toFixed(1) : 0}))} 
+                        cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value"
+                      >
                         {vendasPorGrupo.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS_GRUPO[index % COLORS_GRUPO.length]} />))}
                       </Pie>
-                      <Tooltip content={<CustomTooltip />} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                       <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontWeight: 'bold', color: '#374151' }} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -490,7 +506,10 @@ export default function RelatoriosPage() {
                       <tr key={p.name} className="hover:bg-blue-50/50 transition-colors">
                         <td className="p-4 font-bold text-gray-900">{idx + 1}. {p.name}</td>
                         <td className="p-4 font-black text-[#1D3461] text-center">{p.qtd}</td>
-                        <td className="p-4 font-black text-gray-900 text-right">R$ {p.value.toFixed(2).replace(".", ",")}</td>
+                        <td className="p-4 font-black text-gray-900 text-right">
+                          R$ {p.value.toFixed(2).replace(".", ",")}
+                          <span className="text-sm text-gray-500 ml-2 font-bold">({summary.totalDebito > 0 ? ((p.value / summary.totalDebito) * 100).toFixed(1) : 0}%)</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
