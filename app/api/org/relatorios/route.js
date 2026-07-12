@@ -26,13 +26,11 @@ export async function GET(req) {
     if (dataInicio || dataFim) {
       dateFilter.criadaEm = {};
       if (dataInicio) {
-        const start = new Date(dataInicio);
-        start.setUTCHours(0, 0, 0, 0);
+        const start = new Date(`${dataInicio}T00:00:00-03:00`);
         dateFilter.criadaEm.gte = start;
       }
       if (dataFim) {
-        const end = new Date(dataFim);
-        end.setUTCHours(23, 59, 59, 999);
+        const end = new Date(`${dataFim}T23:59:59.999-03:00`);
         dateFilter.criadaEm.lte = end;
       }
     }
