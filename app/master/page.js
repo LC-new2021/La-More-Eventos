@@ -34,8 +34,8 @@ export default function MasterDashboard() {
   const statsCards = [
     { label: "Eventos Ativos", valor: metrics.eventosAtivos.toString(), emoji: "🎪", cor: "bg-blue-50 text-blue-700" },
     { label: "Cartões Emitidos", valor: metrics.cartoesEmitidos.toString(), emoji: "💳", cor: "bg-green-50 text-green-700" },
-    { label: "Total Recarregado", valor: `R$ ${metrics.totalRecarregado.toFixed(2).replace('.', ',')}`, emoji: "💰", cor: "bg-yellow-50 text-yellow-700" },
-    { label: "Taxa La More", valor: `R$ ${metrics.taxaLaMore.toFixed(2).replace('.', ',')}`, emoji: "👑", cor: "bg-purple-50 text-purple-700" },
+    { label: "Total Recarregado", valor: `R$ ${metrics.totalRecarregado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, emoji: "💰", cor: "bg-yellow-50 text-yellow-700" },
+    { label: "Taxa La More", valor: `R$ ${metrics.taxaLaMore.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, emoji: "👑", cor: "bg-purple-50 text-purple-700" },
   ];
 
   return (

@@ -17,7 +17,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       <div className="bg-white p-3 border-2 border-gray-100 rounded-xl shadow-lg">
         <p className="font-bold text-gray-900">{label || payload[0].name}</p>
         <p className="font-black text-[#1D3461] text-lg">
-          R$ {payload[0].value.toFixed(2).replace(".", ",")}
+          R$ {payload[0].value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           {item.percent !== undefined && (
             <span className="text-sm text-gray-500 ml-2">({item.percent}%)</span>
           )}
@@ -303,7 +303,7 @@ export default function RelatoriosPage() {
             <div className="bg-gray-50 border-2 border-gray-200 rounded-3xl p-5 flex items-center justify-between">
               <div>
                 <p className="text-gray-500 font-bold text-sm uppercase tracking-widest">Ticket Médio</p>
-                <p className="text-3xl font-black text-gray-800 mt-1">R$ {summary.ticketMedio.toFixed(2).replace(".", ",")}</p>
+                <p className="text-3xl font-black text-gray-800 mt-1">R$ {summary.ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
               <span className="text-5xl opacity-50">📊</span>
             </div>
@@ -396,7 +396,7 @@ export default function RelatoriosPage() {
                       <td className="p-4 font-semibold text-gray-600">{v.cliente}</td>
                       <td className="p-4 font-semibold text-gray-600">{v.operador}</td>
                       <td className="p-4 font-semibold text-gray-600">{v.pagto}</td>
-                      <td className="p-4 font-black text-gray-900 text-right">R$ {v.valor.toFixed(2).replace(".", ",")}</td>
+                      <td className="p-4 font-black text-gray-900 text-right">R$ {v.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
                   ))
                 )}
@@ -507,7 +507,7 @@ export default function RelatoriosPage() {
                         <td className="p-4 font-bold text-gray-900">{idx + 1}. {p.name}</td>
                         <td className="p-4 font-black text-[#1D3461] text-center">{p.qtd}</td>
                         <td className="p-4 font-black text-gray-900 text-right">
-                          R$ {p.value.toFixed(2).replace(".", ",")}
+                          R$ {p.value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           <span className="text-sm text-gray-500 ml-2 font-bold">({summary.totalDebito > 0 ? ((p.value / summary.totalDebito) * 100).toFixed(1) : 0}%)</span>
                         </td>
                       </tr>

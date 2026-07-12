@@ -51,7 +51,7 @@ export default function OrgDashboard() {
     finally { setCarregando(false); }
   }
 
-  const fmt = (v) => `R$ ${(v || 0).toFixed(2).replace(".", ",")}`;
+  const fmt = (v) => `R$ ${(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtHora = (d) => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
   const metricas = dados ? [
