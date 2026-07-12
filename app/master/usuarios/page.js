@@ -202,21 +202,21 @@ export default function MasterUsuarios() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold">
-                  <th className="p-6">Nome</th>
-                  <th className="p-6">E-mail</th>
-                  <th className="p-6">Função</th>
-                  <th className="p-6">Criado Por</th>
-                  <th className="p-6">Evento Vinculado</th>
-                  <th className="p-6">Ações</th>
+                  <th className="p-4">Nome</th>
+                  <th className="p-4">E-mail</th>
+                  <th className="p-4">Função</th>
+                  <th className="p-4">Criado Por</th>
+                  <th className="p-4">Evento Vinculado</th>
+                  <th className="p-4 text-center">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {usuarios.map((u) => (
                   <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="p-6 font-bold text-gray-900">{u.nome}</td>
-                    <td className="p-6 font-semibold text-gray-500">{u.email}</td>
-                    <td className="p-6">
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${
+                    <td className="p-4 font-bold text-gray-900">{u.nome}</td>
+                    <td className="p-4 font-semibold text-gray-500">{u.email}</td>
+                    <td className="p-4">
+                      <span className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider ${
                         u.role === 'MASTER' ? 'bg-purple-100 text-purple-700' :
                         u.role === 'ORGANIZADOR' ? 'bg-blue-100 text-blue-700' :
                         u.role === 'CAIXA' ? 'bg-yellow-100 text-yellow-700' :
@@ -225,22 +225,22 @@ export default function MasterUsuarios() {
                         {u.role.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="p-6 font-bold text-gray-700">
-                      {u.criadoPorNome || <span className="text-gray-400 font-semibold text-xs">Sistema / Desconhecido</span>}
+                    <td className="p-4 font-bold text-gray-700">
+                      {u.criadoPorNome || <span className="text-gray-400 font-semibold text-xs">Sistema</span>}
                     </td>
-                    <td className="p-6 font-bold text-gray-700">
+                    <td className="p-4 font-bold text-gray-700">
                       {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}
                     </td>
-                    <td className="p-6 flex gap-2">
+                    <td className="p-4 flex flex-col xl:flex-row items-center justify-center gap-2">
                       <button
                         onClick={() => abrirEditar(u)}
-                        className="font-black text-sm px-4 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-100 hover:bg-gray-50"
+                        className="w-full xl:w-auto font-black text-sm px-3 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-100 hover:bg-gray-50 text-center"
                       >
                         ✏️ Editar
                       </button>
                       <button
                         onClick={() => handleExcluir(u.id)}
-                        className="font-black text-sm px-4 py-2 rounded-xl transition-all border-2 text-red-600 border-red-100 hover:bg-red-50"
+                        className="w-full xl:w-auto font-black text-sm px-3 py-2 rounded-xl transition-all border-2 text-red-600 border-red-100 hover:bg-red-50 text-center"
                       >
                         🗑️ Excluir
                       </button>
