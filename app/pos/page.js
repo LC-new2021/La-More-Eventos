@@ -621,7 +621,7 @@ export default function PosApp() {
 
   // ── Cupom ──
   if (etapa === "cupom") {
-    const dataHora = new Date().toLocaleString("pt-BR");
+    const dataHora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
     return (
       <div className="min-h-screen bg-gray-100 flex flex-col items-center py-10 px-4">
         <div className="bg-white p-8 rounded-none w-full max-w-[350px] shadow-lg font-mono text-sm leading-tight border-t-8 border-[#1D3461] text-gray-900" id="cupom-print">

@@ -296,7 +296,7 @@ export default function MasterEventos() {
 
               <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
                 <div className="flex justify-between items-center text-gray-400 text-sm font-semibold">
-                  <span>📅 {new Date(evt.data).toLocaleDateString('pt-BR')}</span>
+                  <span>📅 {new Date(evt.data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
                 </div>
                 <div className="flex gap-2">
                   <button

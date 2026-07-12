@@ -32,6 +32,22 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Saldo insuficiente', saldo: cartao.saldo }, { status: 402 });
     }
 
+    // Anti-duplicidade: checar se há uma compra idêntica nos últimos 15 segundos
+    const tempoLimite = new Date(Date.now() - 15000); // 15 segundos atrás
+    const duplicada = await prisma.movimentacao.findFirst({
+      where: {
+        cartaoId: cartao.id,
+        produtoId: produto.id,
+        valor: valorTotal,
+        operadorId: session?.user?.id,
+        criadaEm: { gte: tempoLimite }
+      }
+    });
+
+    if (duplicada) {
+      return NextResponse.json({ error: 'Transação muito rápida bloqueada por segurança. Tente novamente em alguns segundos se não foi processada.', duplicada: true }, { status: 429 });
+    }
+
     // Débito atômico
     const [cartaoAtualizado] = await prisma.$transaction([
       prisma.cartao.update({

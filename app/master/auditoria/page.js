@@ -87,7 +87,7 @@ export default function MasterAuditoria() {
     
     logs.forEach((log) => {
       worksheet.addRow({
-        data: new Date(log.criadaEm).toLocaleString('pt-BR'),
+        data: new Date(log.criadaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
         evento: log.cartao?.evento?.nome || 'Sem Evento',
         tipo: log.tipo,
         cliente: `${log.cartao?.cliente?.nome || '—'} (Cód: ${log.cartao?.codigo})`,
@@ -118,7 +118,7 @@ export default function MasterAuditoria() {
       startY: 40,
       head: [["Data/Hora", "Evento", "Tipo", "Cliente / Cód", "Operador", "Valor (R$)"]],
       body: logs.map(log => [
-        new Date(log.criadaEm).toLocaleString('pt-BR'),
+        new Date(log.criadaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
         log.cartao?.evento?.nome || 'Sem Evento',
         log.tipo,
         `${log.cartao?.cliente?.nome || '—'} (${log.cartao?.codigo})`,
@@ -202,7 +202,7 @@ export default function MasterAuditoria() {
                   logs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50/50">
                       <td className="p-6 text-sm text-gray-500">
-                        {new Date(log.criadaEm).toLocaleString('pt-BR')}
+                        {new Date(log.criadaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                       </td>
                       <td className="p-6 text-sm text-gray-900 font-bold">
                         {log.cartao?.evento?.nome || 'Sem Evento'}

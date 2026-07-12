@@ -144,8 +144,8 @@ export async function GET(req) {
 
     const vendasMestre = movimentacoes.map(m => ({
       id: m.id,
-      data: new Date(m.criadaEm).toLocaleDateString('pt-BR'),
-      hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+      hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
       cliente: m.cartao?.cliente?.nome || '—',
       produto: m.produto?.nome || (m.tipo === 'RECARGA' ? 'Recarga Cartão' : m.tipo),
       categoria: m.produto?.grupo || m.tipo,

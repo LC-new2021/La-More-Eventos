@@ -90,7 +90,7 @@ export default function DevolucoesPage() {
               ) : solicitacoes.map((s) => (
                 <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-4 font-semibold text-gray-600">
-                    {new Date(s.criadoEm).toLocaleString('pt-BR')}
+                    {new Date(s.criadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                   </td>
                   <td className="px-6 py-4 font-bold text-gray-900">
                     {s.cartao.cliente.nome}<br/>

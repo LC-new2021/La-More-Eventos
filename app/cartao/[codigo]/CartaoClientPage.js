@@ -393,7 +393,7 @@ export default function CartaoClientPage() {
     </div>
   );
 
-  const dataFormatada = (d) => new Date(d).toLocaleString('pt-BR');
+  const dataFormatada = (d) => new Date(d).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const isFestaBarco = (cartao.evento.nome || '').toLowerCase().includes('barco') || (cartao.evento.nome || '').toLowerCase().includes('summer');
   const cardUrl = typeof window !== 'undefined' ? window.location.href : '';
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(cardUrl)}`;
@@ -728,7 +728,7 @@ export default function CartaoClientPage() {
           </p>
         )}
         <p className="text-[10px] text-blue-300/40 mt-1">
-          La More Eventos © {new Date().getFullYear()}
+          La More Eventos © {new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', year: 'numeric' })}
         </p>
       </div>
 

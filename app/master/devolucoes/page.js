@@ -102,7 +102,7 @@ export default function MasterDevolucoesPage() {
     
     solicitacoes.forEach(s => {
       worksheet.addRow({
-        data: new Date(s.criadoEm).toLocaleString('pt-BR'),
+        data: new Date(s.criadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
         cliente: s.cartao.cliente.nome,
         cartao: s.cartao.codigo,
         pix: s.chavePix,
@@ -120,7 +120,7 @@ export default function MasterDevolucoesPage() {
     const doc = new jsPDF("landscape");
     doc.text("Relatório de Devoluções de Saldo", 14, 15);
     const tableData = solicitacoes.map(s => [
-      new Date(s.criadoEm).toLocaleString('pt-BR'),
+      new Date(s.criadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
       s.cartao.cliente.nome,
       s.cartao.codigo,
       s.chavePix,
@@ -209,7 +209,7 @@ export default function MasterDevolucoesPage() {
                 ) : solicitacoes.map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4 font-semibold text-gray-600">
-                      {new Date(s.criadoEm).toLocaleString('pt-BR')}
+                      {new Date(s.criadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                     </td>
                     <td className="px-6 py-4 font-bold text-gray-900">
                       {s.cartao?.cliente?.nome || 'Cliente Excluído'}<br/>

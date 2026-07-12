@@ -103,7 +103,7 @@ export default function OrgLayout({ children }) {
                   {loading ? "Carregando..." : (evento ? evento.nome : "Sem evento vinculado")}
                 </p>
                 <p className="text-blue-200 text-sm">
-                  {evento?.data ? new Date(evento.data).toLocaleDateString('pt-BR') : "—"}
+                  {evento?.data ? new Date(evento.data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : "—"}
                 </p>
               </>
             )}

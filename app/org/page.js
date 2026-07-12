@@ -52,7 +52,7 @@ export default function OrgDashboard() {
   }
 
   const fmt = (v) => `R$ ${(v || 0).toFixed(2).replace(".", ",")}`;
-  const fmtHora = (d) => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const fmtHora = (d) => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
   const metricas = dados ? [
     { label: "Total Recarregado", valor: fmt(dados.totalRecarregado), emoji: "💰", cor: "bg-green-50 text-green-700 border-green-100" },
