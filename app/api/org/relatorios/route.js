@@ -127,7 +127,7 @@ export async function GET(req) {
       name: k,
       value: recebimentosMap[k],
       qtd: recebimentosQtd[k]
-    }));
+    })).filter(r => r.value > 0);
 
     // Grouping by hour
     const horasMap = {};
