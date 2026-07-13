@@ -15,7 +15,7 @@ export async function GET(req) {
 
     if (!eventoId) return NextResponse.json({ error: 'Sem evento' }, { status: 400 });
 
-    const [cartoes, movimentacoes, produtos, evento] = await Promise.all([
+    const [cartoes, ultimasMovimentacoes, todasMovimentacoes, evento] = await Promise.all([
       prisma.cartao.findMany({ where: { eventoId } }),
       prisma.movimentacao.findMany({
         where: { cartao: { eventoId } },
@@ -23,20 +23,23 @@ export async function GET(req) {
         orderBy: { criadaEm: 'desc' },
         take: 50,
       }),
-      prisma.produto.findMany({ where: { eventoId, ativo: true } }),
+      prisma.movimentacao.findMany({
+        where: { cartao: { eventoId } },
+        select: { tipo: true, valor: true, produto: { select: { id: true, nome: true } } }
+      }),
       prisma.evento.findUnique({
         where: { id: eventoId },
         select: { mercadoPagoUserId: true, gatewayActive: true }
       })
     ]);
 
-    const totalRecarregado = movimentacoes.filter(m => m.tipo === 'RECARGA').reduce((s, m) => s + m.valor, 0);
-    const totalDebitos = movimentacoes.filter(m => m.tipo === 'DEBITO').reduce((s, m) => s + m.valor, 0);
+    const totalRecarregado = todasMovimentacoes.filter(m => m.tipo === 'RECARGA').reduce((s, m) => s + m.valor, 0);
+    const totalDebitos = todasMovimentacoes.filter(m => m.tipo === 'DEBITO').reduce((s, m) => s + m.valor, 0);
     const saldoEmAberto = cartoes.reduce((s, c) => s + c.saldo, 0);
 
     // Ranking de produtos
     const rankingMap = {};
-    for (const m of movimentacoes.filter(m => m.tipo === 'DEBITO' && m.produto)) {
+    for (const m of todasMovimentacoes.filter(m => m.tipo === 'DEBITO' && m.produto)) {
       const key = m.produto.id;
       if (!rankingMap[key]) rankingMap[key] = { nome: m.produto.nome, qtd: 0, total: 0 };
       rankingMap[key].qtd++;
@@ -49,8 +52,8 @@ export async function GET(req) {
       totalDebitos,
       saldoEmAberto,
       cartoesAtivos: cartoes.filter(c => c.status === 'ATIVO').length,
-      totalPedidos: movimentacoes.filter(m => m.tipo === 'DEBITO').length,
-      movimentacoes: movimentacoes.slice(0, 20),
+      totalPedidos: todasMovimentacoes.filter(m => m.tipo === 'DEBITO').length,
+      movimentacoes: ultimasMovimentacoes.slice(0, 20),
       ranking,
       mercadoPagoUserId: evento?.mercadoPagoUserId || null,
       gatewayActive: evento?.gatewayActive || null
