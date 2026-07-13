@@ -308,9 +308,14 @@ export default function RelatoriosPage() {
                 <p className="text-center text-gray-400 font-bold py-12">Nenhuma venda realizada.</p>
               ) : (
                 <ResponsiveContainer width="100%" height="80%">
-                  <BarChart data={vendasPorHora} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+                  <BarChart data={vendasPorHora} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
                     <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontWeight: 'bold' }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF' }} />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                      tickFormatter={(val) => val >= 1000 ? `R$ ${(val/1000).toFixed(1).replace('.',',')}k` : `R$ ${val}`} 
+                    />
                     <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                     <Bar dataKey="valor" fill="#1D3461" radius={[8, 8, 0, 0]} />
                   </BarChart>
