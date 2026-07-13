@@ -98,13 +98,13 @@ export default function OrgLayout({ children }) {
                 ))}
               </select>
             ) : (
-              <>
                 <p className="text-white font-black text-base truncate">
                   {loading ? "Carregando..." : (evento ? evento.nome : "Sem evento vinculado")}
                 </p>
-                <p className="text-blue-200 text-sm">
-                  {evento?.data ? new Date(evento.data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : "—"}
-                </p>
+                <div className="flex items-center justify-between text-blue-200 text-sm mt-1">
+                  <span>📅 {evento?.data ? new Date(evento.data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : "—"}</span>
+                  <span className="font-bold text-white truncate ml-2">👤 {session?.user?.nome?.split(' ')[0] || 'Usuário'}</span>
+                </div>
               </>
             )}
           </div>

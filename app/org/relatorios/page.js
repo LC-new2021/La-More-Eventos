@@ -7,6 +7,11 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
+const getTodayBR = () => {
+  const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
+};
+
 const COLORS_GRUPO = ["#1D3461", "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6"];
 const COLORS_PAGTO = ["#10B981", "#3B82F6", "#F59E0B"];
 
@@ -34,8 +39,8 @@ export default function RelatoriosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [aba, setAba] = useState("bi"); // bi | vendas | produtos | recebimentos
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
+  const [dataInicio, setDataInicio] = useState(getTodayBR());
+  const [dataFim, setDataFim] = useState(getTodayBR());
 
   const [eventoId, setEventoId] = useState(null);
 
