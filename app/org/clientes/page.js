@@ -204,16 +204,26 @@ export default function ClientesPage({ isMasterView = false }) {
       )}
 
       {/* Resumo */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-5">
           <span className="text-4xl">👤</span>
           <p className="text-3xl font-black text-blue-700 mt-2">{clientes.length}</p>
-          <p className="text-blue-600 font-bold text-lg">Total de Clientes</p>
+          <p className="text-blue-600 font-bold text-lg">Total de Cartões</p>
         </div>
         <div className="bg-yellow-50 border-2 border-yellow-100 rounded-3xl p-5">
           <span className="text-4xl">⏳</span>
           <p className="text-3xl font-black text-yellow-700 mt-2">R$ {totalSaldo.toFixed(2).replace(".", ",")}</p>
           <p className="text-yellow-600 font-bold text-lg">Saldo em Aberto</p>
+        </div>
+        <div className="bg-green-50 border-2 border-green-100 rounded-3xl p-5">
+          <span className="text-4xl">📱</span>
+          <p className="text-3xl font-black text-green-700 mt-2">{clientes.filter(c => c.cadastradoPor === "Sistema / Outro").length}</p>
+          <p className="text-green-600 font-bold text-lg">Auto-cadastro (QR)</p>
+        </div>
+        <div className="bg-purple-50 border-2 border-purple-100 rounded-3xl p-5">
+          <span className="text-4xl">🏪</span>
+          <p className="text-3xl font-black text-purple-700 mt-2">{clientes.filter(c => c.cadastradoPor !== "Sistema / Outro").length}</p>
+          <p className="text-purple-600 font-bold text-lg">Cadastros no Caixa</p>
         </div>
       </div>
 
