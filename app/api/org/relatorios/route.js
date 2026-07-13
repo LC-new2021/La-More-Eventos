@@ -131,7 +131,8 @@ export async function GET(req) {
     const horasMap = {};
     movimentacoes.forEach(m => {
       if (m.tipo === 'DEBITO') {
-        const hour = new Date(m.criadaEm).getHours() + 'h';
+        const hourStr = new Date(m.criadaEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit' });
+        const hour = parseInt(hourStr, 10) + 'h';
         horasMap[hour] = (horasMap[hour] || 0) + m.valor;
       }
     });
