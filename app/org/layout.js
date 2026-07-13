@@ -98,6 +98,7 @@ export default function OrgLayout({ children }) {
                 ))}
               </select>
             ) : (
+              <>
                 <p className="text-white font-black text-base truncate">
                   {loading ? "Carregando..." : (evento ? evento.nome : "Sem evento vinculado")}
                 </p>
