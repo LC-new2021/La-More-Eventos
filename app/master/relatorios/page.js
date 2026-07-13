@@ -161,6 +161,11 @@ export default function RelatoriosPage() {
     wsProdutos.getRow(1).font = { bold: true };
     vendasPorProduto.forEach((p) => wsProdutos.addRow([p.name, p.qtd, p.value]));
 
+    const wsRecebimentos = workbook.addWorksheet("Recebimentos", { properties: { tabColor: { argb: 'FFF59E0B' } } });
+    wsRecebimentos.getRow(1).values = ["Forma de Pagamento", "Qtd de Transações", "Faturamento (R$)"];
+    wsRecebimentos.getRow(1).font = { bold: true };
+    recebimentos.forEach((r) => wsRecebimentos.addRow([r.name, r.qtd, r.value]));
+
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     saveAs(blob, "LaMore_Relatorio_Geral.xlsx");
@@ -216,6 +221,18 @@ export default function RelatoriosPage() {
       body: vendasPorProduto.map(p => [p.name, p.qtd, p.value.toFixed(2)]),
       theme: 'grid',
       headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255] }
+    });
+
+    let posY = doc.lastAutoTable.finalY + 15;
+    doc.setFontSize(14);
+    doc.setTextColor(50);
+    doc.text("Origem das Recargas (Recebimentos)", 14, posY);
+    autoTable(doc, {
+      startY: posY + 3,
+      head: [["Forma de Pagamento", "Qtd", "Faturamento (R$)"]],
+      body: recebimentos.map(r => [r.name, r.qtd, r.value.toFixed(2)]),
+      theme: 'grid',
+      headStyles: { fillColor: [245, 158, 11], textColor: [255, 255, 255] }
     });
 
     doc.save(`LaMoreEventos_Relatorio.pdf`);
