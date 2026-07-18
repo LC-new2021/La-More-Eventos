@@ -398,14 +398,8 @@ export default function CartaoClientPage() {
       <span className="text-8xl mb-4">🔒</span>
       <h1 className="text-3xl font-black text-white">Cartão Encerrado</h1>
       <p className="text-gray-400 mt-2 font-semibold text-lg">
-        A festa acabou ou este cartão foi desativado pelo organizador.
+        A festa acabou e esse cartão não tem mais funcionalidade.
       </p>
-      <div className="mt-8 bg-gray-800 p-6 rounded-3xl border-2 border-gray-700 w-full max-w-sm">
-        <p className="text-gray-400 text-sm font-bold uppercase tracking-widest mb-1">Seu Saldo Restante</p>
-        <p className="text-3xl font-black text-white">
-          R$ {(cartao?.saldo || 0).toFixed(2).replace('.', ',')}
-        </p>
-      </div>
     </div>
   );
 

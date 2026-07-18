@@ -222,9 +222,11 @@ export default function ClientesPage({ isMasterView = false }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={encerrarTodosCartoes} className="bg-gray-800 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-black transition-all flex items-center gap-2">
-            <span>🔒</span> Encerrar Todos
-          </button>
+          {isMasterView && session?.user?.role === 'MASTER' && (
+            <button onClick={encerrarTodosCartoes} className="bg-gray-800 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-black transition-all flex items-center gap-2">
+              <span>🔒</span> Encerrar Todos
+            </button>
+          )}
           <button onClick={exportarClientesXLSX} className="bg-green-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2">
             <span>📊</span> Planilha Excel
           </button>
@@ -332,13 +334,15 @@ export default function ClientesPage({ isMasterView = false }) {
                           {estornando === c.codigo ? "..." : "Devolver"}
                         </button>
                       )}
-                      <button 
-                        onClick={() => encerrarCartao(c.id)}
-                        className="bg-gray-800 hover:bg-black text-white font-bold text-[10px] px-3 py-1.5 rounded-lg transition-all shadow-sm"
-                        title="Bloquear/Encerrar acesso ao Web App"
-                      >
-                        🔒
-                      </button>
+                      {isMasterView && session?.user?.role === 'MASTER' && (
+                        <button 
+                          onClick={() => encerrarCartao(c.id)}
+                          className="bg-gray-800 hover:bg-black text-white font-bold text-[10px] px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                          title="Bloquear/Encerrar acesso ao Web App"
+                        >
+                          🔒
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
