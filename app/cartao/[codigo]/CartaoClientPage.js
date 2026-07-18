@@ -393,6 +393,22 @@ export default function CartaoClientPage() {
     </div>
   );
 
+  if (cartao?.status === 'ENCERRADO') return (
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center">
+      <span className="text-8xl mb-4">🔒</span>
+      <h1 className="text-3xl font-black text-white">Cartão Encerrado</h1>
+      <p className="text-gray-400 mt-2 font-semibold text-lg">
+        A festa acabou ou este cartão foi desativado pelo organizador.
+      </p>
+      <div className="mt-8 bg-gray-800 p-6 rounded-3xl border-2 border-gray-700 w-full max-w-sm">
+        <p className="text-gray-400 text-sm font-bold uppercase tracking-widest mb-1">Seu Saldo Restante</p>
+        <p className="text-3xl font-black text-white">
+          R$ {(cartao?.saldo || 0).toFixed(2).replace('.', ',')}
+        </p>
+      </div>
+    </div>
+  );
+
   const dataFormatada = (d) => new Date(d).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const isFestaBarco = (cartao.evento.nome || '').toLowerCase().includes('barco') || (cartao.evento.nome || '').toLowerCase().includes('summer');
   const cardUrl = typeof window !== 'undefined' ? window.location.href : '';

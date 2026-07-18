@@ -167,6 +167,40 @@ export default function ClientesPage({ isMasterView = false }) {
     }
   };
 
+  const encerrarCartao = async (cartaoId) => {
+    if (!confirm("Deseja realmente encerrar este cartão? O acesso à carteira digital será bloqueado para este cliente.")) return;
+    try {
+      const res = await fetch("/api/org/clientes/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventoId, cartaoId, status: "ENCERRADO" })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      carregarClientes();
+    } catch (e) {
+      alert("Erro: " + e.message);
+    }
+  };
+
+  const encerrarTodosCartoes = async () => {
+    const p = prompt("ATENÇÃO: Isso irá ENCERRAR TODOS OS CARTÕES deste evento, bloqueando o acesso de todos os clientes à carteira digital.\\nDigite 'ENCERRAR' para confirmar:");
+    if (p !== "ENCERRAR") return;
+    try {
+      const res = await fetch("/api/org/clientes/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventoId, status: "ENCERRADO" })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      alert(data.message);
+      carregarClientes();
+    } catch (e) {
+      alert("Erro: " + e.message);
+    }
+  };
+
   const totalSaldo = clientes.reduce((acc, c) => acc + (c.saldo || 0), 0);
 
   if (!eventoId) {
@@ -187,7 +221,10 @@ export default function ClientesPage({ isMasterView = false }) {
             {clientes.length} clientes com cartão ativo neste evento
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button onClick={encerrarTodosCartoes} className="bg-gray-800 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-black transition-all flex items-center gap-2">
+            <span>🔒</span> Encerrar Todos
+          </button>
           <button onClick={exportarClientesXLSX} className="bg-green-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2">
             <span>📊</span> Planilha Excel
           </button>
@@ -281,14 +318,28 @@ export default function ClientesPage({ isMasterView = false }) {
                   <p className={`font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
                     R$ {c.saldo.toFixed(2).replace(".", ",")}
                   </p>
-                  {isMasterView && session?.user?.role === 'MASTER' && c.saldo > 0 && (
-                    <button 
-                      onClick={() => handleEstornar(c.codigo, c.saldo)}
-                      disabled={estornando === c.codigo}
-                      className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg transition-all shadow-sm disabled:opacity-50"
-                    >
-                      {estornando === c.codigo ? "..." : "Devolver"}
-                    </button>
+                  
+                  {c.status === "ENCERRADO" ? (
+                    <span className="bg-gray-100 text-gray-500 font-bold text-[10px] px-3 py-1.5 rounded-lg border border-gray-200 uppercase">Encerrado</span>
+                  ) : (
+                    <div className="flex gap-1">
+                      {isMasterView && session?.user?.role === 'MASTER' && c.saldo > 0 && (
+                        <button 
+                          onClick={() => handleEstornar(c.codigo, c.saldo)}
+                          disabled={estornando === c.codigo}
+                          className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg transition-all shadow-sm disabled:opacity-50"
+                        >
+                          {estornando === c.codigo ? "..." : "Devolver"}
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => encerrarCartao(c.id)}
+                        className="bg-gray-800 hover:bg-black text-white font-bold text-[10px] px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                        title="Bloquear/Encerrar acesso ao Web App"
+                      >
+                        🔒
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
