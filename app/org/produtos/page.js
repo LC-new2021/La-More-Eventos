@@ -349,6 +349,24 @@ export default function ProdutosPage() {
     }
   };
 
+  const excluirGrupo = async (grupoNome) => {
+    if (!confirm(`Deseja excluir o grupo "${grupoNome}"?\nTodos os produtos pertencentes a ele serão movidos para o grupo "Outros".`)) return;
+    try {
+      const produtosDoGrupo = produtos.filter(p => p.grupo === grupoNome);
+      for (const p of produtosDoGrupo) {
+        await fetch(`/api/produtos/${p.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ grupo: "Outros" })
+        });
+      }
+      if (grupoFiltro === grupoNome) setGrupoFiltro("todos");
+      carregarProdutos();
+    } catch (e) {
+      console.error("Erro ao excluir grupo", e);
+    }
+  };
+
   const produtosFiltrados = (
     grupoFiltro === "todos"
       ? produtos
@@ -464,14 +482,23 @@ export default function ProdutosPage() {
                 Todos
               </button>
               {grupos.map((g) => (
-                <button
-                  key={g}
-                  onClick={() => setGrupoFiltro(g)}
-                  className={`px-5 py-3 rounded-2xl font-black text-base whitespace-nowrap transition-all ${grupoFiltro === g ? "bg-[#1D3461] text-white" : "bg-white text-gray-600 border-2 border-gray-100"}`}
-                  style={{ minHeight: "52px" }}
-                >
-                  {g}
-                </button>
+                <div key={g} className={`flex items-center rounded-2xl transition-all overflow-hidden ${grupoFiltro === g ? "bg-[#1D3461] text-white" : "bg-white border-2 border-gray-100 text-gray-600"}`} style={{ minHeight: "52px" }}>
+                  <button
+                    onClick={() => setGrupoFiltro(g)}
+                    className="px-5 py-3 font-black text-base whitespace-nowrap outline-none"
+                  >
+                    {g}
+                  </button>
+                  {g !== "Outros" && (
+                    <button 
+                      onClick={() => excluirGrupo(g)}
+                      className={`px-3 py-3 font-bold hover:bg-red-500 hover:text-white transition-colors ${grupoFiltro === g ? 'text-red-200 border-l border-white/20' : 'text-red-500 border-l border-gray-100'}`}
+                      title="Excluir grupo (move produtos para Outros)"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
 
