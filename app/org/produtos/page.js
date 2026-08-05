@@ -53,8 +53,8 @@ export default function ProdutosPage() {
   const [salvandoGateway, setSalvandoGateway] = useState(false);
   const [sucessoGateway, setSucessoGateway] = useState("");
 
-  // Extracted unique groups from products list
-  const grupos = [...new Set(["Bebidas", "Food", "Sobremesas", "Outros", ...produtos.map((p) => p.grupo).filter(Boolean)])];
+  // Extracted unique groups from products list. Only groups with products will exist!
+  const grupos = [...new Set(produtos.map((p) => p.grupo).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
   const [eventoId, setEventoId] = useState(null);
 
@@ -349,10 +349,11 @@ export default function ProdutosPage() {
     }
   };
 
-  const produtosFiltrados =
+  const produtosFiltrados = (
     grupoFiltro === "todos"
       ? produtos
-      : produtos.filter((p) => p.grupo === grupoFiltro);
+      : produtos.filter((p) => p.grupo === grupoFiltro)
+  ).sort((a, b) => a.nome.localeCompare(b.nome));
 
   return (
     <div className="max-w-5xl mx-auto">
