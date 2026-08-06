@@ -482,23 +482,14 @@ export default function ProdutosPage() {
                 Todos
               </button>
               {grupos.map((g) => (
-                <div key={g} className={`flex items-center rounded-2xl transition-all overflow-hidden ${grupoFiltro === g ? "bg-[#1D3461] text-white" : "bg-white border-2 border-gray-100 text-gray-600"}`} style={{ minHeight: "52px" }}>
-                  <button
-                    onClick={() => setGrupoFiltro(g)}
-                    className="px-5 py-3 font-black text-base whitespace-nowrap outline-none"
-                  >
-                    {g}
-                  </button>
-                  {g !== "Outros" && (
-                    <button 
-                      onClick={() => excluirGrupo(g)}
-                      className={`px-3 py-3 font-bold hover:bg-red-500 hover:text-white transition-colors ${grupoFiltro === g ? 'text-red-200 border-l border-white/20' : 'text-red-500 border-l border-gray-100'}`}
-                      title="Excluir grupo (move produtos para Outros)"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
+                <button
+                  key={g}
+                  onClick={() => setGrupoFiltro(g)}
+                  className={`px-5 py-3 rounded-2xl font-black text-base whitespace-nowrap transition-all ${grupoFiltro === g ? "bg-[#1D3461] text-white" : "bg-white text-gray-600 border-2 border-gray-100"}`}
+                  style={{ minHeight: "52px" }}
+                >
+                  {g}
+                </button>
               ))}
             </div>
 
@@ -864,7 +855,14 @@ export default function ProdutosPage() {
                 />
               </div>
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Grupo/Categoria *</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block font-black text-gray-700 text-base">Grupo/Categoria *</label>
+                  {(!mostrarNovoGrupoInput && grupo !== "Outros" && grupo) && (
+                    <button type="button" onClick={() => excluirGrupo(grupo)} className="text-red-500 text-xs font-bold hover:underline bg-red-50 px-2 py-1 rounded-md transition-colors hover:bg-red-100">
+                      Excluir "{grupo}"
+                    </button>
+                  )}
+                </div>
                 <select
                   value={mostrarNovoGrupoInput ? "novo" : grupo}
                   onChange={(e) => {

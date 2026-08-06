@@ -78,8 +78,8 @@ export default function OrgLayout({ children }) {
             </div>
           </div>
           {/* Evento ativo */}
-          <div className="mt-4 bg-white/10 rounded-2xl px-4 py-3">
-            <p className="text-blue-300 text-xs font-bold uppercase tracking-widest mb-1">Evento Ativo</p>
+          <div className="mt-4 bg-white/10 rounded-2xl px-4 py-2">
+            <p className="text-blue-300 text-[9px] font-bold uppercase tracking-widest mb-0.5">Evento Ativo</p>
             {isMaster ? (
               <select
                 value={eventoId || ""}
@@ -88,7 +88,7 @@ export default function OrgLayout({ children }) {
                   setEventoId(e.target.value);
                   window.location.reload();
                 }}
-                className="w-full bg-[#152544] text-white rounded-xl px-2 py-1.5 font-bold text-sm outline-none border-2 border-white/10 focus:border-white/30 transition-all cursor-pointer"
+                className="w-full bg-[#152544] text-white rounded-xl px-2 py-1 font-bold text-xs outline-none border-2 border-white/10 focus:border-white/30 transition-all cursor-pointer"
               >
                 <option value="">Selecione o Evento...</option>
                 {eventos.map((evt) => (
@@ -99,12 +99,16 @@ export default function OrgLayout({ children }) {
               </select>
             ) : (
               <>
-                <p className="text-white font-black text-base truncate">
-                  {loading ? "Carregando..." : (evento ? evento.nome : "Sem evento vinculado")}
+                <p className="text-white font-black text-xs truncate">
+                  {loading ? "Carregando..." : (evento ? evento.nome : "Sem evento")}
                 </p>
-                <div className="flex items-center justify-between text-blue-200 text-sm mt-1">
-                  <span>{evento?.data ? new Date(evento.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : "—"}</span>
-                  <span className="font-bold text-white truncate ml-2">👤 {session?.user?.nome || 'Usuário'}</span>
+                <div className="flex flex-col mt-1.5 gap-0.5">
+                  <span className="text-blue-300 text-[9px] font-bold tracking-wide">
+                    {evento?.data ? new Date(evento.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : "—"}
+                  </span>
+                  <span className="font-black text-white text-[11px] break-words whitespace-normal leading-tight">
+                    👤 {session?.user?.nome || 'Usuário'}
+                  </span>
                 </div>
               </>
             )}
