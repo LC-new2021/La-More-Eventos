@@ -436,19 +436,10 @@ export default function CartaoClientPage() {
           <h2 className="text-2xl font-black text-white mt-0.5">{cartao.evento.nome}</h2>
         </div>
 
-        {/* ⚠️ AVISO VISÍVEL NO TOPO: SALDO NÃO REEMBOLSÁVEL / POLÍTICA DE CONSUMAÇÃO */}
-        {!cartao.evento.permiteDevolucao ? (
-          <div className="bg-gradient-to-r from-amber-500/25 via-yellow-500/20 to-amber-500/25 border-2 border-amber-400/50 text-amber-100 rounded-2xl p-3.5 mb-4 text-center shadow-lg shadow-amber-950/30 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="flex items-center justify-center gap-1.5 font-black text-xs uppercase tracking-wider text-amber-300">
-              <span className="text-base">⚠️</span> AVISO IMPORTANTE: CONSUMO OBRIGATÓRIO
-            </div>
-            <p className="text-xs text-amber-100/90 font-bold mt-1 leading-snug">
-              O saldo recarregado <strong className="text-amber-300 underline decoration-amber-400 font-black">NÃO SERÁ DEVOLVIDO</strong>. Consuma todo o seu saldo durante o evento.
-            </p>
-          </div>
-        ) : (
-          <div className="bg-emerald-500/15 border border-emerald-400/30 text-emerald-200 rounded-2xl p-2.5 mb-3 text-center text-xs font-bold">
-            ℹ️ Este evento permite devolução de saldo não consumido antes do término.
+        {/* AVISO DISCRETO NO TOPO: SALDO RESTANTE DESTINADO PARA DOAÇÃO */}
+        {!cartao.evento.permiteDevolucao && (
+          <div className="bg-white/5 border border-white/10 text-blue-200/90 rounded-2xl py-2.5 px-4 mb-3 text-center text-xs font-semibold">
+            ℹ️ Em caso de saldo não consumido, o valor restante será destinado para doação.
           </div>
         )}
 
@@ -502,26 +493,16 @@ export default function CartaoClientPage() {
           {/* Mid: Saldo (left) and QR Code (right) */}
           <div className="flex justify-between items-center z-10 my-2">
             <div>
-              <div className="flex items-center gap-1.5">
-                <p className="text-[10px] text-teal-100/70 font-black uppercase tracking-wider">Saldo Disponível</p>
-                {!cartao.evento.permiteDevolucao && (
-                  <span className="bg-amber-400/20 text-amber-300 text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-amber-300/30">
-                    Não Reembolsável
-                  </span>
-                )}
-              </div>
+              <p className="text-[10px] text-teal-100/70 font-black uppercase tracking-wider">Saldo Disponível</p>
               <p className="text-3xl font-black tracking-tight mt-0.5">R$ {cartao.saldo.toFixed(2).replace('.', ',')}</p>
             </div>
             {cartao.status === 'ATIVO' && (
               <div 
                 onClick={() => setModalQrExpandido(true)}
-                className="bg-white p-2 rounded-2xl shadow-xl border-2 border-white/30 shrink-0 cursor-pointer hover:scale-105 transition-transform text-center group"
-                title="Clique para ampliar o QR Code"
+                className="bg-white p-1.5 rounded-2xl shadow-xl border border-white/20 shrink-0 cursor-pointer hover:scale-105 transition-transform text-center"
+                title="Toque para ampliar o QR Code"
               >
-                <img src={qrCodeUrl} alt="QR Code Consumação" className="w-32 h-32 md:w-36 md:h-36 rounded-xl block" />
-                <p className="text-[8px] font-black text-gray-800 uppercase tracking-tighter mt-1 group-hover:text-blue-600 transition-colors">
-                  🔍 Ampliar QR
-                </p>
+                <img src={qrCodeUrl} alt="QR Code Consumação" className="w-32 h-32 rounded-xl block" />
               </div>
             )}
           </div>
@@ -549,41 +530,6 @@ export default function CartaoClientPage() {
         }`}>
           {cartao.status === 'ATIVO' ? '● CARTÃO DIGITAL ATIVO' : '🔒 CARTÃO BLOQUEADO / INATIVO'}
         </div>
-
-        {/* 🍺 BLOCO DE ALTA VISIBILIDADE: QR CODE PARA LEITURA RÁPIDA NO BAR */}
-        {cartao.status === 'ATIVO' && abaAtiva === 'conta' && (
-          <div className="bg-white rounded-3xl p-6 shadow-2xl text-center mb-4 text-gray-900 border border-gray-100 animate-in fade-in duration-300">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <span className="text-xl">🍺</span>
-              <h3 className="font-black text-base text-[#1D3461] uppercase tracking-wide">
-                QR Code para Leitura no Bar
-              </h3>
-            </div>
-            <p className="text-xs text-gray-500 font-semibold mb-4">
-              Apresente o QR Code abaixo para o atendente ler e debitar seu pedido:
-            </p>
-
-            <div 
-              onClick={() => setModalQrExpandido(true)}
-              className="inline-block bg-gray-50 p-4 rounded-3xl border-2 border-dashed border-gray-300 hover:border-teal-500 cursor-pointer transition-all shadow-inner group"
-            >
-              <img 
-                src={qrCodeUrl} 
-                alt="QR Code Bar" 
-                className="w-48 h-48 sm:w-56 sm:h-56 mx-auto rounded-2xl group-hover:scale-102 transition-transform block" 
-              />
-              <div className="mt-3 flex items-center justify-center gap-1.5 text-xs font-black text-teal-700 bg-teal-50 py-1.5 px-3 rounded-full border border-teal-200 inline-flex">
-                <span>🔍</span> Toque para Tela Cheia (Máximo Brilho)
-              </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center px-2 text-xs font-bold text-gray-600">
-              <span className="truncate max-w-[120px]">👤 {cartao.cliente.nome.split(' ')[0]}</span>
-              <span className="font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-900 font-black tracking-wider">{cartao.codigo}</span>
-              <span className="text-emerald-600 font-black text-sm">R$ {cartao.saldo.toFixed(2).replace('.', ',')}</span>
-            </div>
-          </div>
-        )}
 
         {/* PWA & WEB PUSH NOTIFICATION SYSTEM */}
         {cartao.status === 'ATIVO' && (
