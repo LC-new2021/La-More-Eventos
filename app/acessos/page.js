@@ -19,6 +19,21 @@ export default function AcessosPage() {
   const [evento, setEvento] = useState(null);
   const eventoId = session?.user?.eventoId;
 
+  // Se o app foi aberto da tela inicial (PWA) sem sessão de operador,
+  // redireciona para o cartão salvo no localStorage (cartão do consumidor)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && status === 'unauthenticated') {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+      if (isStandalone) {
+        const codigoSalvo = localStorage.getItem('cartao_codigo');
+        if (codigoSalvo) {
+          window.location.href = `/cartao/${codigoSalvo}`;
+          return;
+        }
+      }
+    }
+  }, [status]);
+
   useEffect(() => {
     if (eventoId) {
       fetch(`/api/eventos/${eventoId}`)

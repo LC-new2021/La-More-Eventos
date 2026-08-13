@@ -7,7 +7,6 @@ const geist = Geist({ subsets: ["latin"] });
 export const metadata = {
   title: "La More Eventos",
   description: "Sistema de cartão de consumo virtual para eventos",
-  manifest: "/manifest.json",
   icons: {
     icon: "/logo.png?v=3",
     shortcut: "/logo.png?v=3",
@@ -27,7 +26,8 @@ export default function RootLayout({ children }) {
     <html lang="pt-BR">
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="La More" />
         <link rel="apple-touch-icon" href="/icon.png" />
       </head>
       <body className={geist.className}>

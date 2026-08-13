@@ -93,6 +93,22 @@ export default function CartaoClientPage() {
       } else {
         setPushPermission('unsupported');
       }
+
+      // Injeta o manifest dinâmico no <head> para garantir que iOS/Android
+      // salvem o link correto do cartão na tela inicial (PWA)
+      if (codigo) {
+        const codigoUpper = codigo.toUpperCase();
+        // Remove qualquer manifest anterior
+        const oldManifest = document.querySelector('link[rel="manifest"]');
+        if (oldManifest) oldManifest.remove();
+        // Injeta o manifest específico deste cartão
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = `/api/manifest/${codigoUpper}`;
+        document.head.appendChild(manifestLink);
+        // Salva o código no localStorage para recuperação em caso de falha
+        localStorage.setItem('cartao_codigo', codigoUpper);
+      }
     }
   }, [codigo]);
 
