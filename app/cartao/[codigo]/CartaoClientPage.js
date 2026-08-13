@@ -69,6 +69,7 @@ export default function CartaoClientPage() {
 
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [modalQrExpandido, setModalQrExpandido] = useState(false);
 
   // Push notification states
   const [pushPermission, setPushPermission] = useState('default');
@@ -422,17 +423,34 @@ export default function CartaoClientPage() {
   const dataFormatada = (d) => new Date(d).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const isFestaBarco = (cartao.evento.nome || '').toLowerCase().includes('barco') || (cartao.evento.nome || '').toLowerCase().includes('summer');
   const cardUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(cardUrl)}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=2&data=${encodeURIComponent(cardUrl)}`;
+  const qrCodeLargeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=2&data=${encodeURIComponent(cardUrl)}`;
 
   return (
-    <div className="min-h-screen bg-[#0F1C3F] p-5 flex flex-col justify-between relative">
+    <div className="min-h-screen bg-[#0F1C3F] p-4 md:p-6 flex flex-col justify-between relative">
       <div className="max-w-md mx-auto w-full flex-1 flex flex-col justify-center">
         
         {/* CABEÇALHO DO EVENTO */}
-        <div className="text-center mb-4">
+        <div className="text-center mb-3">
           <p className="text-blue-300 font-bold text-xs uppercase tracking-widest">Cartão de Consumação</p>
-          <h2 className="text-2xl font-black text-white mt-1">{cartao.evento.nome}</h2>
+          <h2 className="text-2xl font-black text-white mt-0.5">{cartao.evento.nome}</h2>
         </div>
+
+        {/* ⚠️ AVISO VISÍVEL NO TOPO: SALDO NÃO REEMBOLSÁVEL / POLÍTICA DE CONSUMAÇÃO */}
+        {!cartao.evento.permiteDevolucao ? (
+          <div className="bg-gradient-to-r from-amber-500/25 via-yellow-500/20 to-amber-500/25 border-2 border-amber-400/50 text-amber-100 rounded-2xl p-3.5 mb-4 text-center shadow-lg shadow-amber-950/30 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="flex items-center justify-center gap-1.5 font-black text-xs uppercase tracking-wider text-amber-300">
+              <span className="text-base">⚠️</span> AVISO IMPORTANTE: CONSUMO OBRIGATÓRIO
+            </div>
+            <p className="text-xs text-amber-100/90 font-bold mt-1 leading-snug">
+              O saldo recarregado <strong className="text-amber-300 underline decoration-amber-400 font-black">NÃO SERÁ DEVOLVIDO</strong>. Consuma todo o seu saldo durante o evento.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-emerald-500/15 border border-emerald-400/30 text-emerald-200 rounded-2xl p-2.5 mb-3 text-center text-xs font-bold">
+            ℹ️ Este evento permite devolução de saldo não consumido antes do término.
+          </div>
+        )}
 
         {/* NAVEGAÇÃO DE ABAS */}
         <div className="flex gap-2 mb-4">
@@ -484,12 +502,26 @@ export default function CartaoClientPage() {
           {/* Mid: Saldo (left) and QR Code (right) */}
           <div className="flex justify-between items-center z-10 my-2">
             <div>
-              <p className="text-[10px] text-teal-100/70 font-black uppercase tracking-wider">Saldo Disponível</p>
-              <p className="text-3xl font-black tracking-tight">R$ {cartao.saldo.toFixed(2).replace('.', ',')}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] text-teal-100/70 font-black uppercase tracking-wider">Saldo Disponível</p>
+                {!cartao.evento.permiteDevolucao && (
+                  <span className="bg-amber-400/20 text-amber-300 text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-amber-300/30">
+                    Não Reembolsável
+                  </span>
+                )}
+              </div>
+              <p className="text-3xl font-black tracking-tight mt-0.5">R$ {cartao.saldo.toFixed(2).replace('.', ',')}</p>
             </div>
             {cartao.status === 'ATIVO' && (
-              <div className="bg-white p-1 rounded-xl shadow-lg border border-white/10 shrink-0">
-                <img src={qrCodeUrl} alt="QR Code Consumação" className="w-32 h-32" />
+              <div 
+                onClick={() => setModalQrExpandido(true)}
+                className="bg-white p-2 rounded-2xl shadow-xl border-2 border-white/30 shrink-0 cursor-pointer hover:scale-105 transition-transform text-center group"
+                title="Clique para ampliar o QR Code"
+              >
+                <img src={qrCodeUrl} alt="QR Code Consumação" className="w-32 h-32 md:w-36 md:h-36 rounded-xl block" />
+                <p className="text-[8px] font-black text-gray-800 uppercase tracking-tighter mt-1 group-hover:text-blue-600 transition-colors">
+                  🔍 Ampliar QR
+                </p>
               </div>
             )}
           </div>
@@ -517,6 +549,41 @@ export default function CartaoClientPage() {
         }`}>
           {cartao.status === 'ATIVO' ? '● CARTÃO DIGITAL ATIVO' : '🔒 CARTÃO BLOQUEADO / INATIVO'}
         </div>
+
+        {/* 🍺 BLOCO DE ALTA VISIBILIDADE: QR CODE PARA LEITURA RÁPIDA NO BAR */}
+        {cartao.status === 'ATIVO' && abaAtiva === 'conta' && (
+          <div className="bg-white rounded-3xl p-6 shadow-2xl text-center mb-4 text-gray-900 border border-gray-100 animate-in fade-in duration-300">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <span className="text-xl">🍺</span>
+              <h3 className="font-black text-base text-[#1D3461] uppercase tracking-wide">
+                QR Code para Leitura no Bar
+              </h3>
+            </div>
+            <p className="text-xs text-gray-500 font-semibold mb-4">
+              Apresente o QR Code abaixo para o atendente ler e debitar seu pedido:
+            </p>
+
+            <div 
+              onClick={() => setModalQrExpandido(true)}
+              className="inline-block bg-gray-50 p-4 rounded-3xl border-2 border-dashed border-gray-300 hover:border-teal-500 cursor-pointer transition-all shadow-inner group"
+            >
+              <img 
+                src={qrCodeUrl} 
+                alt="QR Code Bar" 
+                className="w-48 h-48 sm:w-56 sm:h-56 mx-auto rounded-2xl group-hover:scale-102 transition-transform block" 
+              />
+              <div className="mt-3 flex items-center justify-center gap-1.5 text-xs font-black text-teal-700 bg-teal-50 py-1.5 px-3 rounded-full border border-teal-200 inline-flex">
+                <span>🔍</span> Toque para Tela Cheia (Máximo Brilho)
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center px-2 text-xs font-bold text-gray-600">
+              <span className="truncate max-w-[120px]">👤 {cartao.cliente.nome.split(' ')[0]}</span>
+              <span className="font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-900 font-black tracking-wider">{cartao.codigo}</span>
+              <span className="text-emerald-600 font-black text-sm">R$ {cartao.saldo.toFixed(2).replace('.', ',')}</span>
+            </div>
+          </div>
+        )}
 
         {/* PWA & WEB PUSH NOTIFICATION SYSTEM */}
         {cartao.status === 'ATIVO' && (
@@ -1046,7 +1113,55 @@ export default function CartaoClientPage() {
         </div>
       )}
 
-      {/* Script do Mercado Pago removido pois estamos usando Checkouts Universais */}
+      {/* 🔍 MODAL QR CODE EXPANDIDO EM TELA CHEIA (LEITURA ULTRA RÁPIDA EM AMBIENTES ESCUROS) */}
+      {modalQrExpandido && (
+        <div 
+          onClick={() => setModalQrExpandido(false)}
+          className="fixed inset-0 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 z-50 animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-[2.5rem] p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl relative animate-in zoom-in-95 duration-200 text-gray-900"
+          >
+            <button 
+              onClick={() => setModalQrExpandido(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-900 font-black text-xl w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+            >
+              ✕
+            </button>
+
+            <div className="inline-block bg-teal-100 text-teal-800 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full mb-2">
+              Leitura Rápida no Bar
+            </div>
+            
+            <h3 className="text-lg font-black text-[#1D3461] leading-tight mb-0.5">{cartao.evento.nome}</h3>
+            <p className="text-xs text-gray-500 font-semibold mb-4">{cartao.cliente.nome}</p>
+
+            <div className="bg-white p-3 rounded-3xl border-4 border-teal-500 shadow-2xl inline-block mb-3">
+              <img 
+                src={qrCodeLargeUrl} 
+                alt="QR Code Gigante" 
+                className="w-60 h-60 sm:w-64 sm:h-64 mx-auto rounded-xl block"
+              />
+            </div>
+
+            <div className="bg-gray-100 rounded-2xl py-2 px-4 mb-3 font-mono font-black text-xl text-gray-900 tracking-wider">
+              {cartao.codigo}
+            </div>
+
+            <p className="text-[11px] text-gray-500 font-semibold mb-4">
+              Aproxime da câmera do atendente para efetuar a leitura instantânea.
+            </p>
+
+            <button
+              onClick={() => setModalQrExpandido(false)}
+              className="w-full bg-[#1D3461] hover:bg-[#152A66] text-white font-black py-3.5 rounded-2xl transition-all text-sm"
+            >
+              Concluído / Fechar
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
