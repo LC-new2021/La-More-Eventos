@@ -39,8 +39,8 @@ export default function RelatoriosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [aba, setAba] = useState("bi"); // bi | vendas | produtos | recebimentos
-  const [dataInicio, setDataInicio] = useState(getTodayBR());
-  const [dataFim, setDataFim] = useState(getTodayBR());
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
 
   const [eventoId, setEventoId] = useState(null);
 
@@ -113,16 +113,6 @@ export default function RelatoriosPage() {
     vendasMestre: []
   };
 
-  // Filter list by date range if provided
-  const filteredVendasMestre = vendasMestre.filter(v => {
-    if (!v.data) return true;
-    const parts = v.data.split("/");
-    const dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
-    if (dataInicio && dateObj < new Date(dataInicio)) return false;
-    if (dataFim && dateObj > new Date(dataFim)) return false;
-    return true;
-  });
-
   async function exportarXLSX() {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "La More Eventos";
@@ -145,7 +135,7 @@ export default function RelatoriosPage() {
     headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
     headerRow.alignment = { horizontal: 'center' };
 
-    filteredVendasMestre.forEach((v, index) => {
+    vendasMestre.forEach((v, index) => {
       const row = wsGeral.addRow([v.id, v.data, v.hora, v.cliente, v.produto, v.categoria, v.pagto, v.valor]);
       if (index % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
       row.getCell(8).numFmt = '"R$ "#,##0.00';
@@ -205,7 +195,7 @@ export default function RelatoriosPage() {
     autoTable(doc, {
       startY: nextY + 3,
       head: [["Data", "Hora", "Cliente", "Produto/Ação", "Valor (R$)"]],
-      body: filteredVendasMestre.slice(0, 50).map(v => [v.data, v.hora, v.cliente, v.produto, v.valor.toFixed(2)]),
+      body: vendasMestre.slice(0, 50).map(v => [v.data, v.hora, v.cliente, v.produto, v.valor.toFixed(2)]),
       theme: 'striped',
       headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255] },
       styles: { fontSize: 8 }
@@ -390,7 +380,7 @@ export default function RelatoriosPage() {
         <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
           <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
             <h3 className="text-2xl font-black">Extrato Detalhado de Vendas</h3>
-            <p className="font-semibold text-blue-200">Exibindo {filteredVendasMestre.length} transações</p>
+            <p className="font-semibold text-blue-200">Exibindo {vendasMestre.length} transações</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -406,12 +396,12 @@ export default function RelatoriosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredVendasMestre.length === 0 ? (
+                {vendasMestre.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-400 font-bold">Nenhum registro encontrado.</td>
+                    <td colSpan={7} className="p-8 text-center text-gray-400 font-bold">Nenhum registro encontrado.</td>
                   </tr>
                 ) : (
-                  filteredVendasMestre.map((v) => (
+                  vendasMestre.map((v) => (
                     <tr key={v.id} className="hover:bg-blue-50/50 transition-colors">
                       <td className="p-4 font-bold text-gray-900">{v.data} {v.hora}</td>
                       <td className="p-4 font-black text-[#1D3461]">{v.produto}</td>

@@ -39,8 +39,8 @@ export default function RelatoriosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [aba, setAba] = useState("bi"); // bi | vendas | produtos | recebimentos
-  const [dataInicio, setDataInicio] = useState(getTodayBR());
-  const [dataFim, setDataFim] = useState(getTodayBR());
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
 
   const [eventoId, setEventoId] = useState(null);
 
