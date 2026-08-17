@@ -43,23 +43,24 @@ export default function RelatoriosPage() {
   const [dataFim, setDataFim] = useState("");
 
   const [eventoId, setEventoId] = useState(null);
+  const [eventos, setEventos] = useState([]);
 
   useEffect(() => {
     if (session) {
       if (session.user.role === 'MASTER') {
-        const stored = localStorage.getItem("activeEventoId");
-        if (stored) {
-          setEventoId(stored);
-        } else {
-          fetch("/api/eventos")
-            .then((res) => res.json())
-            .then((data) => {
-              if (data && data.length > 0) {
-                localStorage.setItem("activeEventoId", data[0].id);
-                setEventoId(data[0].id);
-              }
-            });
-        }
+        fetch("/api/eventos")
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.length > 0) {
+              setEventos(data);
+              const stored = localStorage.getItem("activeEventoId");
+              const existe = data.find(e => e.id === stored);
+              const idToSet = existe ? stored : data[0].id;
+              localStorage.setItem("activeEventoId", idToSet);
+              setEventoId(idToSet);
+            }
+          })
+          .catch(console.error);
       } else {
         setEventoId(session.user.eventoId);
       }
@@ -238,6 +239,24 @@ export default function RelatoriosPage() {
         </div>
         
         <div className="flex flex-wrap items-end gap-4">
+          {session?.user?.role === 'MASTER' && eventos.length > 0 && (
+            <div className="min-w-[220px]">
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Filtrar por Evento</label>
+              <select
+                value={eventoId || ""}
+                onChange={(e) => {
+                  setEventoId(e.target.value);
+                  localStorage.setItem("activeEventoId", e.target.value);
+                }}
+                className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2 font-bold text-[#1D3461] outline-none transition-all"
+              >
+                {eventos.map(ev => (
+                  <option key={ev.id} value={ev.id}>{ev.nome}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <div>
               <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Data Inicial</label>

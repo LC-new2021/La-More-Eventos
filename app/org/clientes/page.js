@@ -30,6 +30,7 @@ export default function ClientesPage({ isMasterView = false }) {
   const [estornando, setEstornando] = useState(null);
 
   const [eventoId, setEventoId] = useState(null);
+  const [eventos, setEventos] = useState([]);
 
   async function exportarClientesXLSX() {
     const workbook = new ExcelJS.Workbook();
@@ -107,19 +108,214 @@ export default function ClientesPage({ isMasterView = false }) {
   useEffect(() => {
     if (session) {
       if (session.user.role === 'MASTER') {
-        const stored = localStorage.getItem("activeEventoId");
-        if (stored) {
-          setEventoId(stored);
-        } else {
-          fetch("/api/eventos")
-            .then((res) => res.json())
-            .then((data) => {
-              if (data && data.length > 0) {
-                localStorage.setItem("activeEventoId", data[0].id);
-                setEventoId(data[0].id);
-              }
-            });
-        }
+        fetch("/api/eventos")
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.length > 0) {
+              setEventos(data);
+              const stored = localStorage.getItem("activeEventoId");
+              const existe = data.find(e => e.id === stored);
+              const idToSet = existe ? stored : data[0].id;
+              localStorage.setItem("activeEventoId", idToSet);
+              setEventoId(idToSet);
+            }
+          })
+          .catch(console.error);
+      } else {
+        setEventoId(session.user.eventoId);
+      }
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (eventoId) {
+      carregarClientes();
+    }
+  }, [eventoId, busca]);
+
+  const carregarClientes = async () => {
+    try {
+      const res = await fetch(`/api/clientes?eventoId=${eventoId}&q=${busca}`);
+      const data = await res.json();
+      if (data.error) setError(data.error);
+      else setClientes(data);
+    } catch (e) {
+      setError("Erro ao buscar lista de clientes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEstornar = async (codigo, saldo) => {
+    if (saldo <= 0) return alert("Este cartão não tem saldo para devolver.");
+    if (!confirm(`Tem certeza que deseja DEVOLVER e ZERAR o saldo de R$ ${saldo.toFixed(2).replace('.',',')} deste cartão?`)) return;
+    
+    setEstornando(codigo);
+    try {
+      const res = await fetch(`/api/org/clientes/estorno`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codigo })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      carregarClientes();
+      alert("Saldo devolvido e zerado com sucesso!");
+    } catch (e) {
+      alert("Erro: " + e.message);
+    } finally {
+      setEstornando(null);
+    }
+  };
+
+  const alterarStatusCartao = async (cartaoId, novoStatus, nomeCliente = '') => {
+    const acao = novoStatus === 'ATIVO' ? 'REATIVAR' : 'ENCERRAR';
+    const msg = novoStatus === 'ATIVO'
+      ? `Deseja realmente REATIVAR o cartão de "${nomeCliente || 'este cliente'}"?\nO acesso ao Web App e consumo será liberado novamente.`
+      : `Deseja realmente ENCERRAR o cartão de "${nomeCliente || 'este cliente'}"?\nO acesso à carteira digital será bloqueado.`;
+
+    if (!confirm(msg)) return;
+    try {
+      const res = await fetch("/api/org/clientes/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventoId, cartaoId, status: novoStatus })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      carregarClientes();
+    } catch (e) {
+      alert("Erro: " + e.message);
+    }
+  };
+
+  const alterarStatusTodosCartoes = async (novoStatus) => {
+    const acao = novoStatus === 'ATIVO' ? 'REATIVAR' : 'ENCERRAR';
+    const promptMsg = novoStatus === 'ATIVO'
+      ? "ATENÇÃO: Isso irá REATIVAR TODOS OS CARTÕES deste evento, liberando novamente o acesso e consumo de todos os clientes.\n\nDigite 'REATIVAR' para confirmar:"
+      : "ATENÇÃO: Isso irá ENCERRAR TODOS OS CARTÕES deste evento, bloqueando o acesso de todos os clientes à carteira digital.\n\nDigite 'ENCERRAR' para confirmar:";
+
+    const p = prompt(promptMsg);
+    if (p !== acao) return;
+
+    try {
+      const res = await fetch("/api/org/clientes/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventoId, status: novoStatus })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      alert(data.message || `${novoStatus === 'ATIVO' ? 'Reativação' : 'Encerramento'} concluído com sucesso!`);
+      carregarClientes();
+    } catch (e) {
+      alert("Erro: " + e.message);
+const p = phone.replace(/\D/g, "");
+  if (p.length === 11) return `(${p.slice(0, 2)}) *****-${p.slice(7)}`;
+  if (p.length === 10) return `(${p.slice(0, 2)}) ****-${p.slice(6)}`;
+  return phone;
+}
+
+export default function ClientesPage({ isMasterView = false }) {
+  const { data: session } = useSession();
+  const [clientes, setClientes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState("");
+  const [error, setError] = useState("");
+  const [estornando, setEstornando] = useState(null);
+
+  const [eventoId, setEventoId] = useState(null);
+  const [eventos, setEventos] = useState([]);
+
+  async function exportarClientesXLSX() {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "La More Eventos";
+    workbook.created = new Date();
+
+    const ws = workbook.addWorksheet("Clientes", { properties: { tabColor: { argb: 'FF1D3461' } } });
+    ws.mergeCells('A1:F2');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'LA MORE EVENTOS - Relatório de Cadastro de Clientes';
+    titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    const headerRow = ws.getRow(4);
+    headerRow.values = ["Nome", "Código Cartão", "CPF", "Celular", "Saldo Atual (R$)", "Cadastrado Por (Operador)"];
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
+    headerRow.alignment = { horizontal: 'center' };
+
+    clientes.forEach((c, index) => {
+      const isMaster = isMasterView && session?.user?.role === 'MASTER';
+      const row = ws.addRow([
+        c.cliente.nome,
+        c.codigo,
+        isMaster ? (c.cliente.cpf || "") : maskCpf(c.cliente.cpf),
+        isMaster ? (c.cliente.celular || "") : maskPhone(c.cliente.celular),
+        c.saldo,
+        c.cadastradoPor || "Sistema"
+      ]);
+      if (index % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      row.getCell(5).numFmt = '"R$ "#,##0.00';
+    });
+
+    ws.columns = [
+      { width: 30 }, { width: 15 }, { width: 18 }, { width: 18 }, { width: 15 }, { width: 30 }
+    ];
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, "LaMore_Cadastro_Clientes.xlsx");
+  }
+
+  function exportarClientesPDF() {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.setTextColor(29, 52, 97);
+    doc.text("LA MORE EVENTOS", 14, 20);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Relatório de Cadastro de Clientes`, 14, 28);
+    doc.text(`Total: ${clientes.length} clientes cadastrados`, 14, 34);
+
+    const isMaster = isMasterView && session?.user?.role === 'MASTER';
+    autoTable(doc, {
+      startY: 40,
+      head: [["Nome", "Código", "CPF", "Celular", "Saldo (R$)", "Cadastrado Por"]],
+      body: clientes.map(c => [
+        c.cliente.nome,
+        c.codigo,
+        isMaster ? (c.cliente.cpf || "—") : maskCpf(c.cliente.cpf),
+        isMaster ? (c.cliente.celular || "—") : maskPhone(c.cliente.celular),
+        c.saldo.toFixed(2).replace(".", ","),
+        c.cadastradoPor || "Sistema"
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255] },
+      styles: { fontSize: 9 }
+    });
+
+    doc.save(`LaMoreEventos_Cadastro_Clientes.pdf`);
+  }
+
+  useEffect(() => {
+    if (session) {
+      if (session.user.role === 'MASTER') {
+        fetch("/api/eventos")
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.length > 0) {
+              setEventos(data);
+              const stored = localStorage.getItem("activeEventoId");
+              const existe = data.find(e => e.id === stored);
+              const idToSet = existe ? stored : data[0].id;
+              localStorage.setItem("activeEventoId", idToSet);
+              setEventoId(idToSet);
+            }
+          })
+          .catch(console.error);
       } else {
         setEventoId(session.user.eventoId);
       }
@@ -261,6 +457,30 @@ export default function ClientesPage({ isMasterView = false }) {
           </button>
         </div>
       </div>
+
+      {/* SELETOR DE EVENTO PARA O PAINEL MASTER */}
+      {(isMasterView || session?.user?.role === 'MASTER') && eventos.length > 0 && (
+        <div className="bg-white p-5 rounded-3xl border-2 border-gray-100 shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="w-full md:w-auto flex-1">
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Filtrar Clientes por Evento</label>
+            <select
+              value={eventoId || ""}
+              onChange={(e) => {
+                setEventoId(e.target.value);
+                localStorage.setItem("activeEventoId", e.target.value);
+              }}
+              className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-bold text-[#1D3461] outline-none transition-all"
+            >
+              {eventos.map(ev => (
+                <option key={ev.id} value={ev.id}>🎪 {ev.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div className="text-right text-xs font-bold text-gray-400">
+            Alternando base de clientes em tempo real
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold">

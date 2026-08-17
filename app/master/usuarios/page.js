@@ -30,6 +30,10 @@ export default function MasterUsuarios() {
   // Modal states
   const [mostrarModal, setMostrarModal] = useState(false);
   const [usuarioParaEditar, setUsuarioParaEditar] = useState(null);
+
+  // Filtros
+  const [filtroEvento, setFiltroEvento] = useState('');
+  const [busca, setBusca] = useState('');
  
   useEffect(() => {
     carregarDados();
@@ -61,7 +65,7 @@ export default function MasterUsuarios() {
     setEmail('');
     setSenha('');
     setRole('OPERADOR_BAR');
-    setEventoId('');
+    setEventoId(filtroEvento || '');
     setRazaoSocial('');
     setCnpj('');
     setIe('');
@@ -102,36 +106,38 @@ export default function MasterUsuarios() {
     setSalvando(true);
     setError('');
  
+    const payload = {
+      nome: nome.trim(),
+      email: email.trim().toLowerCase(),
+      role,
+      eventoId: role === 'MASTER' ? null : (eventoId || null),
+      razaoSocial,
+      cnpj,
+      ie,
+      endereco,
+      telefone,
+      gatewayActive,
+      asaasToken,
+      asaasUrl,
+      pagbankToken,
+      pagbankKey,
+      stoneToken
+    };
+
+    if (senha) {
+      payload.senha = senha.trim();
+    }
+ 
     const url = usuarioParaEditar ? `/api/usuarios/${usuarioParaEditar.id}` : '/api/usuarios';
-    const method = usuarioParaEditar ? 'PATCH' : 'POST';
+    const method = usuarioParaEditar ? 'PUT' : 'POST';
  
     try {
-      console.log("Enviando dados de salvamento do usuário:", { nome, email, role, eventoId });
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: nome.trim(),
-          email: email.trim().toLowerCase(),
-          ...(senha && { senha: senha.trim() }),
-          role,
-          eventoId: role === 'MASTER' ? null : (eventoId || null),
-          razaoSocial,
-          cnpj,
-          ie,
-          endereco,
-          telefone,
-          gatewayActive,
-          asaasToken,
-          asaasUrl,
-          pagbankToken,
-          pagbankKey,
-          stoneToken
-        })
+        body: JSON.stringify(payload)
       });
-      console.log("Resposta recebida com status:", res.status);
       const result = await res.json();
-      console.log("Resultado retornado do JSON:", result);
       
       if (result.error) {
         setError(result.error);
@@ -152,7 +158,6 @@ export default function MasterUsuarios() {
         carregarDados();
       }
     } catch (e) {
-      console.error("Erro capturado no handleSubmit:", e);
       setError(usuarioParaEditar ? 'Erro ao atualizar usuário' : 'Erro ao criar usuário');
     } finally {
       setSalvando(false);
@@ -171,9 +176,22 @@ export default function MasterUsuarios() {
     }
   };
 
+  const usuariosFiltrados = usuarios.filter(u => {
+    if (filtroEvento && u.eventoId !== filtroEvento) return false;
+    if (busca.trim()) {
+      const q = busca.toLowerCase();
+      const nomeMatch = u.nome?.toLowerCase().includes(q);
+      const emailMatch = u.email?.toLowerCase().includes(q);
+      const roleMatch = u.role?.toLowerCase().includes(q);
+      const eventoMatch = u.evento?.nome?.toLowerCase().includes(q);
+      if (!nomeMatch && !emailMatch && !roleMatch && !eventoMatch) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-4xl font-black text-[#1D3461] mb-2">Usuários e Operadores</h2>
           <p className="text-gray-500 text-lg font-semibold">Gerencie os acessos de organizadores, caixas e operadores</p>
@@ -184,6 +202,35 @@ export default function MasterUsuarios() {
         >
           <span>➕</span> Novo Usuário
         </button>
+      </div>
+
+      {/* BARRA DE FILTROS: POR EVENTO E BUSCA */}
+      <div className="bg-white p-5 rounded-3xl border-2 border-gray-100 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 w-full">
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Filtrar por Evento</label>
+          <select
+            value={filtroEvento}
+            onChange={(e) => setFiltroEvento(e.target.value)}
+            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-bold text-[#1D3461] outline-none transition-all"
+          >
+            <option value="">🎪 Todos os Eventos ({usuarios.length} usuários)</option>
+            {eventos.map(ev => (
+              <option key={ev.id} value={ev.id}>
+                {ev.nome} ({usuarios.filter(u => u.eventoId === ev.id).length})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 w-full">
+          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Buscar por Nome / Email / Função</label>
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="🔍 Buscar usuário..."
+            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-semibold text-gray-900 outline-none transition-all"
+          />
+        </div>
       </div>
 
       {error && (
@@ -211,7 +258,12 @@ export default function MasterUsuarios() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {usuarios.map((u) => (
+                {usuariosFiltrados.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-400 font-bold">Nenhum usuário encontrado com os filtros selecionados.</td>
+                  </tr>
+                ) : (
+                  usuariosFiltrados.map((u) => (
                   <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="p-4 font-bold text-gray-900">{u.nome}</td>
                     <td className="p-4 font-semibold text-gray-500">{u.email}</td>
