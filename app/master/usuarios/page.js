@@ -264,41 +264,42 @@ export default function MasterUsuarios() {
                   </tr>
                 ) : (
                   usuariosFiltrados.map((u) => (
-                  <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="p-4 font-bold text-gray-900">{u.nome}</td>
-                    <td className="p-4 font-semibold text-gray-500">{u.email}</td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider ${
-                        u.role === 'MASTER' ? 'bg-purple-100 text-purple-700' :
-                        u.role === 'ORGANIZADOR' ? 'bg-blue-100 text-blue-700' :
-                        u.role === 'CAIXA' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-green-100 text-green-700'
-                      }`}>
-                        {u.role.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="p-4 font-bold text-gray-700">
-                      {u.criadoPorNome || <span className="text-gray-400 font-semibold text-xs">Sistema</span>}
-                    </td>
-                    <td className="p-4 font-bold text-gray-700">
-                      {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}
-                    </td>
-                    <td className="p-4 flex flex-col xl:flex-row items-center justify-center gap-2">
-                      <button
-                        onClick={() => abrirEditar(u)}
-                        className="w-full xl:w-auto font-black text-sm px-3 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-100 hover:bg-gray-50 text-center"
-                      >
-                        ✏️ Editar
-                      </button>
-                      <button
-                        onClick={() => handleExcluir(u.id)}
-                        className="w-full xl:w-auto font-black text-sm px-3 py-2 rounded-xl transition-all border-2 text-red-600 border-red-100 hover:bg-red-50 text-center"
-                      >
-                        🗑️ Excluir
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                    <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="p-4 font-bold text-gray-900">{u.nome}</td>
+                      <td className="p-4 font-semibold text-gray-500">{u.email}</td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider ${
+                          u.role === 'MASTER' ? 'bg-purple-100 text-purple-700' :
+                          u.role === 'ORGANIZADOR' ? 'bg-blue-100 text-blue-700' :
+                          u.role === 'CAIXA' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {u.role.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="p-4 font-bold text-gray-700">
+                        {u.criadoPorNome || <span className="text-gray-400 font-semibold text-xs">Sistema</span>}
+                      </td>
+                      <td className="p-4 font-bold text-gray-700">
+                        {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}
+                      </td>
+                      <td className="p-4 flex flex-col xl:flex-row items-center justify-center gap-2">
+                        <button
+                          onClick={() => abrirEditar(u)}
+                          className="w-full xl:w-auto font-black text-sm px-3 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-100 hover:bg-gray-50 text-center"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          onClick={() => handleExcluir(u.id)}
+                          className="w-full xl:w-auto font-black text-sm px-3 py-2 rounded-xl transition-all border-2 text-red-600 border-red-100 hover:bg-red-50 text-center"
+                        >
+                          🗑️ Excluir
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

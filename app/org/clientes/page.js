@@ -210,201 +210,6 @@ export default function ClientesPage({ isMasterView = false }) {
       carregarClientes();
     } catch (e) {
       alert("Erro: " + e.message);
-const p = phone.replace(/\D/g, "");
-  if (p.length === 11) return `(${p.slice(0, 2)}) *****-${p.slice(7)}`;
-  if (p.length === 10) return `(${p.slice(0, 2)}) ****-${p.slice(6)}`;
-  return phone;
-}
-
-export default function ClientesPage({ isMasterView = false }) {
-  const { data: session } = useSession();
-  const [clientes, setClientes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [busca, setBusca] = useState("");
-  const [error, setError] = useState("");
-  const [estornando, setEstornando] = useState(null);
-
-  const [eventoId, setEventoId] = useState(null);
-  const [eventos, setEventos] = useState([]);
-
-  async function exportarClientesXLSX() {
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "La More Eventos";
-    workbook.created = new Date();
-
-    const ws = workbook.addWorksheet("Clientes", { properties: { tabColor: { argb: 'FF1D3461' } } });
-    ws.mergeCells('A1:F2');
-    const titleCell = ws.getCell('A1');
-    titleCell.value = 'LA MORE EVENTOS - Relatório de Cadastro de Clientes';
-    titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
-    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-
-    const headerRow = ws.getRow(4);
-    headerRow.values = ["Nome", "Código Cartão", "CPF", "Celular", "Saldo Atual (R$)", "Cadastrado Por (Operador)"];
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
-    headerRow.alignment = { horizontal: 'center' };
-
-    clientes.forEach((c, index) => {
-      const isMaster = isMasterView && session?.user?.role === 'MASTER';
-      const row = ws.addRow([
-        c.cliente.nome,
-        c.codigo,
-        isMaster ? (c.cliente.cpf || "") : maskCpf(c.cliente.cpf),
-        isMaster ? (c.cliente.celular || "") : maskPhone(c.cliente.celular),
-        c.saldo,
-        c.cadastradoPor || "Sistema"
-      ]);
-      if (index % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
-      row.getCell(5).numFmt = '"R$ "#,##0.00';
-    });
-
-    ws.columns = [
-      { width: 30 }, { width: 15 }, { width: 18 }, { width: 18 }, { width: 15 }, { width: 30 }
-    ];
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    saveAs(blob, "LaMore_Cadastro_Clientes.xlsx");
-  }
-
-  function exportarClientesPDF() {
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.setTextColor(29, 52, 97);
-    doc.text("LA MORE EVENTOS", 14, 20);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text(`Relatório de Cadastro de Clientes`, 14, 28);
-    doc.text(`Total: ${clientes.length} clientes cadastrados`, 14, 34);
-
-    const isMaster = isMasterView && session?.user?.role === 'MASTER';
-    autoTable(doc, {
-      startY: 40,
-      head: [["Nome", "Código", "CPF", "Celular", "Saldo (R$)", "Cadastrado Por"]],
-      body: clientes.map(c => [
-        c.cliente.nome,
-        c.codigo,
-        isMaster ? (c.cliente.cpf || "—") : maskCpf(c.cliente.cpf),
-        isMaster ? (c.cliente.celular || "—") : maskPhone(c.cliente.celular),
-        c.saldo.toFixed(2).replace(".", ","),
-        c.cadastradoPor || "Sistema"
-      ]),
-      theme: 'grid',
-      headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255] },
-      styles: { fontSize: 9 }
-    });
-
-    doc.save(`LaMoreEventos_Cadastro_Clientes.pdf`);
-  }
-
-  useEffect(() => {
-    if (session) {
-      if (session.user.role === 'MASTER') {
-        fetch("/api/eventos")
-          .then((res) => res.json())
-          .then((data) => {
-            if (data && data.length > 0) {
-              setEventos(data);
-              const stored = localStorage.getItem("activeEventoId");
-              const existe = data.find(e => e.id === stored);
-              const idToSet = existe ? stored : data[0].id;
-              localStorage.setItem("activeEventoId", idToSet);
-              setEventoId(idToSet);
-            }
-          })
-          .catch(console.error);
-      } else {
-        setEventoId(session.user.eventoId);
-      }
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (eventoId) {
-      carregarClientes();
-    }
-  }, [eventoId, busca]);
-
-  const carregarClientes = async () => {
-    try {
-      const res = await fetch(`/api/clientes?eventoId=${eventoId}&q=${busca}`);
-      const data = await res.json();
-      if (data.error) setError(data.error);
-      else setClientes(data);
-    } catch (e) {
-      setError("Erro ao buscar lista de clientes");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEstornar = async (codigo, saldo) => {
-    if (saldo <= 0) return alert("Este cartão não tem saldo para devolver.");
-    if (!confirm(`Tem certeza que deseja DEVOLVER e ZERAR o saldo de R$ ${saldo.toFixed(2).replace('.',',')} deste cartão?`)) return;
-    
-    setEstornando(codigo);
-    try {
-      const res = await fetch(`/api/org/clientes/estorno`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codigo })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      carregarClientes();
-      alert("Saldo devolvido e zerado com sucesso!");
-    } catch (e) {
-      alert("Erro: " + e.message);
-    } finally {
-      setEstornando(null);
-    }
-  };
-
-  const alterarStatusCartao = async (cartaoId, novoStatus, nomeCliente = '') => {
-    const acao = novoStatus === 'ATIVO' ? 'REATIVAR' : 'ENCERRAR';
-    const msg = novoStatus === 'ATIVO'
-      ? `Deseja realmente REATIVAR o cartão de "${nomeCliente || 'este cliente'}"?\nO acesso ao Web App e consumo será liberado novamente.`
-      : `Deseja realmente ENCERRAR o cartão de "${nomeCliente || 'este cliente'}"?\nO acesso à carteira digital será bloqueado.`;
-
-    if (!confirm(msg)) return;
-    try {
-      const res = await fetch("/api/org/clientes/status", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventoId, cartaoId, status: novoStatus })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      carregarClientes();
-    } catch (e) {
-      alert("Erro: " + e.message);
-    }
-  };
-
-  const alterarStatusTodosCartoes = async (novoStatus) => {
-    const acao = novoStatus === 'ATIVO' ? 'REATIVAR' : 'ENCERRAR';
-    const promptMsg = novoStatus === 'ATIVO'
-      ? "ATENÇÃO: Isso irá REATIVAR TODOS OS CARTÕES deste evento, liberando novamente o acesso e consumo de todos os clientes.\n\nDigite 'REATIVAR' para confirmar:"
-      : "ATENÇÃO: Isso irá ENCERRAR TODOS OS CARTÕES deste evento, bloqueando o acesso de todos os clientes à carteira digital.\n\nDigite 'ENCERRAR' para confirmar:";
-
-    const p = prompt(promptMsg);
-    if (p !== acao) return;
-
-    try {
-      const res = await fetch("/api/org/clientes/status", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventoId, status: novoStatus })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      alert(data.message || `${novoStatus === 'ATIVO' ? 'Reativação' : 'Encerramento'} concluído com sucesso!`);
-      carregarClientes();
-    } catch (e) {
-      alert("Erro: " + e.message);
     }
   };
 
@@ -435,24 +240,24 @@ export default function ClientesPage({ isMasterView = false }) {
             <>
               <button 
                 onClick={() => alterarStatusTodosCartoes("ATIVO")} 
-                className="bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                 title="Reativar todos os cartões do evento"
               >
                 <span>🔓</span> Reativar Todos
               </button>
               <button 
                 onClick={() => alterarStatusTodosCartoes("ENCERRADO")} 
-                className="bg-gray-800 hover:bg-black text-white font-black text-sm px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+                className="bg-gray-800 hover:bg-black text-white font-black text-sm px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                 title="Encerrar todos os cartões do evento"
               >
                 <span>🔒</span> Encerrar Todos
               </button>
             </>
           )}
-          <button onClick={exportarClientesXLSX} className="bg-green-600 text-white font-black text-sm px-4 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-1.5 shadow-sm">
+          <button onClick={exportarClientesXLSX} className="bg-green-600 text-white font-black text-sm px-4 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
             <span>📊</span> Excel
           </button>
-          <button onClick={exportarClientesPDF} className="bg-red-600 text-white font-black text-sm px-4 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-1.5 shadow-sm">
+          <button onClick={exportarClientesPDF} className="bg-red-600 text-white font-black text-sm px-4 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
             <span>📄</span> PDF
           </button>
         </div>
@@ -582,7 +387,7 @@ export default function ClientesPage({ isMasterView = false }) {
                       <button 
                         onClick={() => handleEstornar(c.codigo, c.saldo)}
                         disabled={estornando === c.codigo}
-                        className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm disabled:opacity-50"
+                        className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                         title="Devolver e zerar saldo"
                       >
                         {estornando === c.codigo ? "..." : "Devolver"}
@@ -593,7 +398,7 @@ export default function ClientesPage({ isMasterView = false }) {
                     {c.status === "ENCERRADO" ? (
                       <button 
                         onClick={() => alterarStatusCartao(c.id, "ATIVO", c.cliente.nome)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                         title="Reativar acesso e consumo deste cartão"
                       >
                         <span>🔓</span> Reativar
@@ -601,7 +406,7 @@ export default function ClientesPage({ isMasterView = false }) {
                     ) : (
                       <button 
                         onClick={() => alterarStatusCartao(c.id, "ENCERRADO", c.cliente.nome)}
-                        className="bg-gray-700 hover:bg-black text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1"
+                        className="bg-gray-700 hover:bg-black text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
                         title="Encerrar/Bloquear acesso a este cartão"
                       >
                         <span>🔒</span> Encerrar
