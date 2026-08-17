@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
+    "@aws-sdk/client-sns": "^3.1112.0",
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^3.0.3",
