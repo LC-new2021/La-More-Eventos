@@ -6,7 +6,8 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 export async function PATCH(req) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || (session.user.role !== 'ORG' && session.user.role !== 'MASTER')) {
+    const role = session?.user?.role;
+    if (!session || (role !== 'ORG' && role !== 'ORGANIZADOR' && role !== 'MASTER')) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
@@ -16,8 +17,8 @@ export async function PATCH(req) {
       return NextResponse.json({ error: 'eventoId e status são obrigatórios' }, { status: 400 });
     }
 
-    // Segurança: se for ORG, verificar se ele tem acesso a esse evento
-    if (session.user.role === 'ORG') {
+    // Segurança: se for ORG/ORGANIZADOR, verificar se ele tem acesso a esse evento
+    if (role === 'ORG' || role === 'ORGANIZADOR') {
       if (session.user.eventoId !== eventoId) {
         return NextResponse.json({ error: 'Acesso negado a este evento' }, { status: 403 });
       }

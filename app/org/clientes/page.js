@@ -167,13 +167,18 @@ export default function ClientesPage({ isMasterView = false }) {
     }
   };
 
-  const encerrarCartao = async (cartaoId) => {
-    if (!confirm("Deseja realmente encerrar este cartão? O acesso à carteira digital será bloqueado para este cliente.")) return;
+  const alterarStatusCartao = async (cartaoId, novoStatus, nomeCliente = '') => {
+    const acao = novoStatus === 'ATIVO' ? 'REATIVAR' : 'ENCERRAR';
+    const msg = novoStatus === 'ATIVO'
+      ? `Deseja realmente REATIVAR o cartão de "${nomeCliente || 'este cliente'}"?\nO acesso ao Web App e consumo será liberado novamente.`
+      : `Deseja realmente ENCERRAR o cartão de "${nomeCliente || 'este cliente'}"?\nO acesso à carteira digital será bloqueado.`;
+
+    if (!confirm(msg)) return;
     try {
       const res = await fetch("/api/org/clientes/status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventoId, cartaoId, status: "ENCERRADO" })
+        body: JSON.stringify({ eventoId, cartaoId, status: novoStatus })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -183,18 +188,24 @@ export default function ClientesPage({ isMasterView = false }) {
     }
   };
 
-  const encerrarTodosCartoes = async () => {
-    const p = prompt("ATENÇÃO: Isso irá ENCERRAR TODOS OS CARTÕES deste evento, bloqueando o acesso de todos os clientes à carteira digital.\\nDigite 'ENCERRAR' para confirmar:");
-    if (p !== "ENCERRAR") return;
+  const alterarStatusTodosCartoes = async (novoStatus) => {
+    const acao = novoStatus === 'ATIVO' ? 'REATIVAR' : 'ENCERRAR';
+    const promptMsg = novoStatus === 'ATIVO'
+      ? "ATENÇÃO: Isso irá REATIVAR TODOS OS CARTÕES deste evento, liberando novamente o acesso e consumo de todos os clientes.\n\nDigite 'REATIVAR' para confirmar:"
+      : "ATENÇÃO: Isso irá ENCERRAR TODOS OS CARTÕES deste evento, bloqueando o acesso de todos os clientes à carteira digital.\n\nDigite 'ENCERRAR' para confirmar:";
+
+    const p = prompt(promptMsg);
+    if (p !== acao) return;
+
     try {
       const res = await fetch("/api/org/clientes/status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventoId, status: "ENCERRADO" })
+        body: JSON.stringify({ eventoId, status: novoStatus })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      alert(data.message);
+      alert(data.message || `${novoStatus === 'ATIVO' ? 'Reativação' : 'Encerramento'} concluído com sucesso!`);
       carregarClientes();
     } catch (e) {
       alert("Erro: " + e.message);
@@ -202,6 +213,8 @@ export default function ClientesPage({ isMasterView = false }) {
   };
 
   const totalSaldo = clientes.reduce((acc, c) => acc + (c.saldo || 0), 0);
+  const totalAtivos = clientes.filter(c => c.status !== 'ENCERRADO').length;
+  const totalEncerrados = clientes.filter(c => c.status === 'ENCERRADO').length;
 
   if (!eventoId) {
     return (
@@ -218,20 +231,33 @@ export default function ClientesPage({ isMasterView = false }) {
         <div>
           <h2 className="text-4xl font-black text-[#1D3461]">Clientes</h2>
           <p className="text-gray-500 text-lg font-semibold mt-1">
-            {clientes.length} clientes com cartão ativo neste evento
+            {clientes.length} cartões ({totalAtivos} ativos, {totalEncerrados} encerrados)
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {isMasterView && session?.user?.role === 'MASTER' && (
-            <button onClick={encerrarTodosCartoes} className="bg-gray-800 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-black transition-all flex items-center gap-2">
-              <span>🔒</span> Encerrar Todos
-            </button>
+          {(isMasterView || session?.user?.role === 'MASTER' || session?.user?.role === 'ORGANIZADOR' || session?.user?.role === 'ORG') && (
+            <>
+              <button 
+                onClick={() => alterarStatusTodosCartoes("ATIVO")} 
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+                title="Reativar todos os cartões do evento"
+              >
+                <span>🔓</span> Reativar Todos
+              </button>
+              <button 
+                onClick={() => alterarStatusTodosCartoes("ENCERRADO")} 
+                className="bg-gray-800 hover:bg-black text-white font-black text-sm px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+                title="Encerrar todos os cartões do evento"
+              >
+                <span>🔒</span> Encerrar Todos
+              </button>
+            </>
           )}
-          <button onClick={exportarClientesXLSX} className="bg-green-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2">
-            <span>📊</span> Planilha Excel
+          <button onClick={exportarClientesXLSX} className="bg-green-600 text-white font-black text-sm px-4 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-1.5 shadow-sm">
+            <span>📊</span> Excel
           </button>
-          <button onClick={exportarClientesPDF} className="bg-red-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-2">
-            <span>📄</span> Baixar PDF
+          <button onClick={exportarClientesPDF} className="bg-red-600 text-white font-black text-sm px-4 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-1.5 shadow-sm">
+            <span>📄</span> PDF
           </button>
         </div>
       </div>
@@ -272,7 +298,7 @@ export default function ClientesPage({ isMasterView = false }) {
           type="text"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          placeholder="🔍  Buscar por nome ou CPF..."
+          placeholder="🔍  Buscar por nome, CPF ou código..."
           className="w-full border-2 border-gray-200 rounded-2xl px-5 py-4 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
         />
       </div>
@@ -283,7 +309,7 @@ export default function ClientesPage({ isMasterView = false }) {
           <p className="col-span-8 md:col-span-4 text-xs font-black text-gray-400 uppercase tracking-widest">Cliente</p>
           <p className="hidden md:block md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">CPF</p>
           <p className="hidden md:block md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">Celular</p>
-          <p className="col-span-4 md:col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Saldo Atual / Ação</p>
+          <p className="col-span-4 md:col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Saldo / Ações</p>
         </div>
 
         <div className="divide-y divide-gray-50">
@@ -297,10 +323,10 @@ export default function ClientesPage({ isMasterView = false }) {
                 <div className="col-span-8 md:col-span-4">
                   <p className="font-black text-gray-900 text-lg">{c.cliente.nome}</p>
                   <div className="flex flex-wrap gap-1 md:gap-2 items-center text-xs font-bold text-gray-400 mt-0.5">
-                    <span className="uppercase">Cód: {c.codigo}</span>
+                    <span className="uppercase font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">Cód: {c.codigo}</span>
                     <span>•</span>
                     <span className="text-blue-500/80">Reg: {c.cadastradoPor}</span>
-                {/* CPF mobile */}
+                    {/* CPF mobile */}
                     {c.cliente.cpf && <span className="md:hidden">• CPF: {
                       (isMasterView && session?.user?.role === 'MASTER') ? c.cliente.cpf : maskCpf(c.cliente.cpf)
                     }</span>}
@@ -316,40 +342,57 @@ export default function ClientesPage({ isMasterView = false }) {
                     ? (c.cliente.celular || <span className="text-gray-300 italic">—</span>)
                     : <span>{maskPhone(c.cliente.celular)}</span>}
                 </p>
-                <div className="col-span-4 md:col-span-2 flex flex-col items-end gap-1">
+                <div className="col-span-4 md:col-span-2 flex flex-col items-end gap-1.5">
                   <p className={`font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
                     R$ {c.saldo.toFixed(2).replace(".", ",")}
                   </p>
                   
-                  {c.status === "ENCERRADO" ? (
-                    <span className="bg-gray-100 text-gray-500 font-bold text-[10px] px-3 py-1.5 rounded-lg border border-gray-200 uppercase">Encerrado</span>
-                  ) : (
-                    <div className="flex gap-1">
-                      {isMasterView && session?.user?.role === 'MASTER' && c.saldo > 0 && (
-                        <button 
-                          onClick={() => handleEstornar(c.codigo, c.saldo)}
-                          disabled={estornando === c.codigo}
-                          className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg transition-all shadow-sm disabled:opacity-50"
-                        >
-                          {estornando === c.codigo ? "..." : "Devolver"}
-                        </button>
-                      )}
-                      {isMasterView && session?.user?.role === 'MASTER' && (
-                        <button 
-                          onClick={() => encerrarCartao(c.id)}
-                          className="bg-gray-800 hover:bg-black text-white font-bold text-[10px] px-3 py-1.5 rounded-lg transition-all shadow-sm"
-                          title="Bloquear/Encerrar acesso ao Web App"
-                        >
-                          🔒
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    {/* Badge de status */}
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                      c.status === "ENCERRADO" 
+                        ? "bg-gray-100 text-gray-600 border border-gray-300" 
+                        : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                    }`}>
+                      {c.status === "ENCERRADO" ? "🔒 Encerrado" : "● Ativo"}
+                    </span>
+
+                    {/* Botão de Devolver (Master) */}
+                    {(isMasterView || session?.user?.role === 'MASTER') && c.saldo > 0 && (
+                      <button 
+                        onClick={() => handleEstornar(c.codigo, c.saldo)}
+                        disabled={estornando === c.codigo}
+                        className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm disabled:opacity-50"
+                        title="Devolver e zerar saldo"
+                      >
+                        {estornando === c.codigo ? "..." : "Devolver"}
+                      </button>
+                    )}
+
+                    {/* Botão de Ação: Reativar ou Encerrar Individual */}
+                    {c.status === "ENCERRADO" ? (
+                      <button 
+                        onClick={() => alterarStatusCartao(c.id, "ATIVO", c.cliente.nome)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1"
+                        title="Reativar acesso e consumo deste cartão"
+                      >
+                        <span>🔓</span> Reativar
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => alterarStatusCartao(c.id, "ENCERRADO", c.cliente.nome)}
+                        className="bg-gray-700 hover:bg-black text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1"
+                        title="Encerrar/Bloquear acesso a este cartão"
+                      >
+                        <span>🔒</span> Encerrar
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
-          )
-        }</div>
+          )}
+        </div>
       </div>
     </div>
   );
