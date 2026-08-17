@@ -71,6 +71,11 @@ export default function CartaoClientPage() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [modalQrExpandido, setModalQrExpandido] = useState(false);
 
+  // PWA 1-Click Install States
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [showIosGuide, setShowIosGuide] = useState(false);
+
   // Push notification states
   const [pushPermission, setPushPermission] = useState('default');
   const [isSubscribing, setIsSubscribing] = useState(false);
@@ -89,6 +94,23 @@ export default function CartaoClientPage() {
       const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || false;
       setIsIOS(ios);
       setIsStandalone(standalone);
+
+      // Listener para capturar o evento de instalação nativa 1-clique (Android / Chrome)
+      const handleBeforeInstall = (e) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
+        setShowInstallPrompt(true);
+      };
+      window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
+      // No iOS, se não estiver em standalone, exibe o assistente visual no primeiro acesso
+      if (ios && !standalone) {
+        const iosDismissed = sessionStorage.getItem('ios_install_guide_dismissed');
+        if (!iosDismissed) {
+          setShowIosGuide(true);
+        }
+      }
+
       if ('Notification' in window) {
         setPushPermission(Notification.permission);
       } else {
@@ -110,6 +132,10 @@ export default function CartaoClientPage() {
         // Salva o código no localStorage para recuperação em caso de falha
         localStorage.setItem('cartao_codigo', codigoUpper);
       }
+
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      };
     }
   }, [codigo]);
 
@@ -243,6 +269,20 @@ export default function CartaoClientPage() {
       gerarPixOnline();
     }
   }, [passoRecarga, tabAtiva, pixQrCodeUrl]);
+
+  const handleInstallPwa = async () => {
+    if (!deferredPrompt) return;
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setShowInstallPrompt(false);
+      }
+      setDeferredPrompt(null);
+    } catch (e) {
+      console.error('Erro ao acionar instalação PWA:', e);
+    }
+  };
 
   const carregarCartao = () => {
     fetch(`/api/cartao/${codigo}`)
@@ -1106,6 +1146,84 @@ export default function CartaoClientPage() {
               Concluído / Fechar
             </button>
           </div>
+        </div>
+      )}
+
+      {/* 📲 MODAL / BANNER DE INSTALAÇÃO 1-CLIQUE (ANDROID / GOOGLE CHROME) */}
+      {showInstallPrompt && (
+        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-50 bg-gradient-to-r from-[#1E3A8A] via-[#0D9488] to-[#0F172A] p-5 rounded-3xl shadow-2xl border-2 border-white/20 text-white animate-in slide-in-from-bottom duration-300">
+          <div className="flex items-start gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl shrink-0">
+              📲
+            </div>
+            <div className="flex-1">
+              <h4 className="font-black text-base leading-tight text-white">Salvar Cartão na Tela Inicial</h4>
+              <p className="text-xs text-teal-100/90 mt-1 leading-snug">
+                Adicione o cartão como app no seu celular para consumir e recarregar com 1 toque na festa.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button 
+              onClick={handleInstallPwa}
+              className="flex-1 bg-white hover:bg-teal-50 text-[#1D3461] font-black text-sm py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span>⚡</span> Instalar Agora (1 Toque)
+            </button>
+            <button 
+              onClick={() => setShowInstallPrompt(false)}
+              className="px-3.5 py-3 text-xs font-bold text-teal-200 hover:text-white transition-colors cursor-pointer"
+            >
+              Agora não
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🍎 ASSISTENTE VISUAL DE INSTALAÇÃO NO IPHONE (IOS / SAFARI) */}
+      {showIosGuide && (
+        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-50 bg-[#0F1C3F] border-2 border-[#0D9488] p-5 rounded-3xl shadow-2xl text-white animate-in slide-in-from-bottom duration-300">
+          <div className="flex justify-between items-start mb-2">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">📱</span>
+              <h4 className="font-black text-base text-white">Salvar Cartão no seu iPhone</h4>
+            </div>
+            <button 
+              onClick={() => {
+                setShowIosGuide(false);
+                sessionStorage.setItem('ios_install_guide_dismissed', 'true');
+              }}
+              className="text-gray-400 hover:text-white text-lg font-bold p-1 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-xs text-blue-200 mb-3 leading-snug">
+            Para ter seu saldo e QR Code sempre à mão com tela cheia durante a festa:
+          </p>
+          <div className="bg-white/5 rounded-2xl p-3.5 border border-white/10 space-y-2.5 text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-6 rounded-full bg-[#0D9488] text-white font-black flex items-center justify-center text-[11px] shrink-0">1</span>
+              <span>Toque no botão de <strong>Compartilhar</strong> <span className="inline-block px-1.5 py-0.5 bg-white/15 rounded font-mono font-bold text-teal-300 mx-1">[ ↑ ]</span> na barra do Safari</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-6 rounded-full bg-[#0D9488] text-white font-black flex items-center justify-center text-[11px] shrink-0">2</span>
+              <span>Role para baixo e selecione <strong>"Adicionar à Tela de Início"</strong></span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-6 rounded-full bg-[#0D9488] text-white font-black flex items-center justify-center text-[11px] shrink-0">3</span>
+              <span>Toque em <strong>"Adicionar"</strong> no canto superior direito</span>
+            </div>
+          </div>
+          <button 
+            onClick={() => {
+              setShowIosGuide(false);
+              sessionStorage.setItem('ios_install_guide_dismissed', 'true');
+            }}
+            className="w-full mt-3 bg-[#0D9488] hover:bg-[#0F766E] text-white font-black text-xs py-3 rounded-xl transition-all text-center cursor-pointer shadow-md"
+          >
+            Entendido, já vou salvar! 👍
+          </button>
         </div>
       )}
 

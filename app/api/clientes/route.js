@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { enviarSmsCartao } from '@/lib/sms';
 
 // GET — busca por nome ou CPF
 export async function GET(req) {
@@ -143,6 +144,16 @@ export async function POST(req) {
       },
       include: { cliente: true },
     });
+
+    // Disparo automático de SMS com link direto do cartão
+    if (cliente?.celular) {
+      enviarSmsCartao({
+        celular: cliente.celular,
+        nomeCliente: cliente.nome,
+        codigoCartao: codigo,
+        hostUrl: req.headers.get('origin')
+      }).catch(err => console.error('[API Clientes] Falha ao disparar SMS:', err));
+    }
 
     return NextResponse.json({ cartao, codigo }, { status: 201 });
   } catch (e) {

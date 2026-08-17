@@ -11,7 +11,7 @@ export async function GET(req, { params }) {
     name: `La More - Cartão ${codigo.toUpperCase()}`,
     short_name: "La More Eventos",
     start_url: `/cartao/${codigo.toUpperCase()}`,
-    scope: "/",
+    scope: `/cartao/${codigo.toUpperCase()}`,
     display: "standalone",
     background_color: "#0F1C3F",
     theme_color: "#0F1C3F",

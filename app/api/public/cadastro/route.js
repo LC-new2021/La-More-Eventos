@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import crypto from 'crypto';
+import { enviarSmsCartao } from '@/lib/sms';
 
 // Helper function to generate an 8-character alphanumeric string
 function generateCardCode() {
@@ -79,6 +80,15 @@ export async function POST(req) {
     });
 
     if (existingCard) {
+      // Dispara SMS de lembrete do cartão existente
+      if (cleanCelular) {
+        enviarSmsCartao({
+          celular: cleanCelular,
+          nomeCliente: cliente.nome,
+          codigoCartao: existingCard.codigo,
+          hostUrl: req.headers.get('origin')
+        }).catch(err => console.error('[Auto-Cadastro] Erro ao reenviar SMS:', err));
+      }
       return NextResponse.json({ success: true, codigo: existingCard.codigo });
     }
 
@@ -112,6 +122,16 @@ export async function POST(req) {
         eventoId: evento.id
       }
     });
+
+    // Disparo automático de SMS para o novo cartão criado
+    if (cleanCelular) {
+      enviarSmsCartao({
+        celular: cleanCelular,
+        nomeCliente: cliente.nome,
+        codigoCartao: novoCartao.codigo,
+        hostUrl: req.headers.get('origin')
+      }).catch(err => console.error('[Auto-Cadastro] Erro ao disparar SMS:', err));
+    }
 
     return NextResponse.json({ success: true, codigo: novoCartao.codigo });
 
