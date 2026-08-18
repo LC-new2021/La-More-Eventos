@@ -14,6 +14,7 @@ export async function GET(req) {
     const eventoId = searchParams.get('eventoId');
     const dataInicio = searchParams.get('dataInicio');
     const dataFim = searchParams.get('dataFim');
+    const search = searchParams.get('search');
 
     const where = {};
     if (eventoId) {
@@ -37,14 +38,19 @@ export async function GET(req) {
       include: {
         cartao: {
           include: {
-            cliente: { select: { nome: true } },
-            evento: { select: { nome: true } }
+            cliente: true,
+            evento: { select: { id: true, nome: true } }
           }
         },
-        operador: { select: { nome: true, role: true } }
+        produto: {
+          select: { id: true, nome: true, grupo: true, preco: true }
+        },
+        operador: {
+          select: { id: true, nome: true, role: true }
+        }
       },
       orderBy: { criadaEm: 'desc' },
-      take: (dataInicio || dataFim) ? 1000 : 50
+      take: 20000 // Garante que NENHUMA transação seja cortada no relatório
     });
 
     return NextResponse.json(movimentacoes);

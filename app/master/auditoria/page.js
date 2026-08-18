@@ -16,10 +16,20 @@ export default function MasterAuditoria() {
   const [eventoId, setEventoId] = useState('');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [busca, setBusca] = useState('');
 
   useEffect(() => {
     carregarEventos();
   }, []);
+
+  useEffect(() => {
+    if (eventos.length > 0 && !eventoId) {
+      const stored = localStorage.getItem("activeEventoId");
+      if (stored && eventos.find(e => e.id === stored)) {
+        setEventoId(stored);
+      }
+    }
+  }, [eventos]);
 
   useEffect(() => {
     carregarAuditoria();
@@ -29,7 +39,7 @@ export default function MasterAuditoria() {
     try {
       const res = await fetch("/api/eventos");
       const data = await res.json();
-      if (!data.error) {
+      if (!data.error && Array.isArray(data)) {
         setEventos(data);
       }
     } catch (e) {
@@ -49,7 +59,7 @@ export default function MasterAuditoria() {
       const data = await r.json();
       
       if (data.error) setError(data.error);
-      else setLogs(data);
+      else setLogs(Array.isArray(data) ? data : []);
     } catch (e) {
       setError('Erro ao buscar auditoria');
     } finally {
@@ -57,115 +67,199 @@ export default function MasterAuditoria() {
     }
   };
 
-  const exportarXLSX = async () => {
-    if (!logs || logs.length === 0) return;
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Auditoria");
+  const logsFiltrados = logs.filter(log => {
+    if (!busca.trim()) return true;
+    const q = busca.toLowerCase();
+    const clienteNome = log.cartao?.cliente?.nome?.toLowerCase() || '';
+    const clienteCpf = log.cartao?.cliente?.cpf?.toLowerCase() || '';
+    const clienteCelular = log.cartao?.cliente?.celular?.toLowerCase() || '';
+    const cartaoCodigo = log.cartao?.codigo?.toLowerCase() || '';
+    const operadorNome = log.operador?.nome?.toLowerCase() || log.operadorNome?.toLowerCase() || '';
+    const produtoNome = log.produto?.nome?.toLowerCase() || '';
+    const descricao = log.descricao?.toLowerCase() || '';
+    const tipo = log.tipo?.toLowerCase() || '';
 
-    worksheet.mergeCells('A1:F2');
+    return clienteNome.includes(q) ||
+           clienteCpf.includes(q) ||
+           clienteCelular.includes(q) ||
+           cartaoCodigo.includes(q) ||
+           operadorNome.includes(q) ||
+           produtoNome.includes(q) ||
+           descricao.includes(q) ||
+           tipo.includes(q);
+  });
+
+  const exportarXLSX = async () => {
+    if (!logsFiltrados || logsFiltrados.length === 0) return;
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "La More Eventos";
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet("Auditoria Completa", { properties: { tabColor: { argb: 'FF1D3461' } } });
+
+    worksheet.mergeCells('A1:L2');
     const titleCell = worksheet.getCell('A1');
-    titleCell.value = 'LA MORE EVENTOS - Relatório de Auditoria';
+    titleCell.value = 'LA MORE EVENTOS - Relatório de Auditoria e Movimentações';
     titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-    worksheet.getCell('A3').value = `Filtros: ${dataInicio || "Início"} a ${dataFim || "Fim"}`;
+    worksheet.getCell('A3').value = `Filtros: ${dataInicio || "Início"} a ${dataFim || "Fim"} | Total de Registros: ${logsFiltrados.length}`;
     worksheet.getCell('A3').font = { italic: true };
     
     const headerRow = worksheet.getRow(5);
-    headerRow.values = ["Data/Hora", "Evento", "Tipo", "Cliente / Cartão", "Operador", "Valor (R$)"];
-    headerRow.font = { bold: true };
+    headerRow.values = [
+      "Data", 
+      "Hora", 
+      "Evento", 
+      "Tipo", 
+      "Item / Ação / Descrição", 
+      "Categoria", 
+      "Cliente (Nome)", 
+      "CPF", 
+      "Código Cartão", 
+      "Operador / Caixa", 
+      "Valor (R$)", 
+      "Saldo Atual do Cartão (R$)"
+    ];
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
 
     worksheet.columns = [
-      { key: "data", width: 25 },
-      { key: "evento", width: 30 },
+      { key: "data", width: 14 },
+      { key: "hora", width: 10 },
+      { key: "evento", width: 25 },
       { key: "tipo", width: 15 },
-      { key: "cliente", width: 30 },
-      { key: "operador", width: 20 },
-      { key: "valor", width: 15 },
+      { key: "detalhes", width: 30 },
+      { key: "categoria", width: 18 },
+      { key: "cliente", width: 25 },
+      { key: "cpf", width: 18 },
+      { key: "cartao", width: 15 },
+      { key: "operador", width: 22 },
+      { key: "valor", width: 16 },
+      { key: "saldo", width: 18 },
     ];
     
-    logs.forEach((log) => {
-      worksheet.addRow({
-        data: new Date(log.criadaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+    logsFiltrados.forEach((log, idx) => {
+      const dataObj = new Date(log.criadaEm);
+      const dataFormatada = dataObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+      const horaFormatada = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+
+      const descricaoCompleta = log.produto?.nome || log.descricao || (log.tipo === 'RECARGA' ? 'Recarga de Saldo' : log.tipo);
+      const categoria = log.produto?.grupo || (log.tipo === 'RECARGA' ? 'Entrada' : log.tipo);
+
+      const row = worksheet.addRow({
+        data: dataFormatada,
+        hora: horaFormatada,
         evento: log.cartao?.evento?.nome || 'Sem Evento',
         tipo: log.tipo,
-        cliente: `${log.cartao?.cliente?.nome || '—'} (Cód: ${log.cartao?.codigo})`,
-        operador: log.operador?.nome || 'Sistema',
-        valor: log.valor
+        detalhes: descricaoCompleta,
+        categoria: categoria,
+        cliente: log.cartao?.cliente?.nome || '—',
+        cpf: log.cartao?.cliente?.cpf || '—',
+        cartao: log.cartao?.codigo || '—',
+        operador: log.operador?.nome || log.operadorNome || 'Sistema / Online',
+        valor: log.valor,
+        saldo: log.cartao?.saldo || 0
       });
+
+      if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      row.getCell(11).numFmt = '"R$ "#,##0.00';
+      row.getCell(12).numFmt = '"R$ "#,##0.00';
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    saveAs(blob, "LaMore_Auditoria.xlsx");
+    saveAs(blob, `LaMore_Auditoria_${eventoId || 'Geral'}.xlsx`);
   };
 
   const exportarPDF = () => {
-    if (!logs || logs.length === 0) return;
+    if (!logsFiltrados || logsFiltrados.length === 0) return;
     const doc = new jsPDF("landscape");
-    doc.setFontSize(22);
+    doc.setFontSize(20);
     doc.setTextColor(29, 52, 97);
-    doc.text("LA MORE EVENTOS", 14, 20);
+    doc.text("LA MORE EVENTOS", 14, 18);
     
-    doc.setFontSize(14);
-    doc.setTextColor(100);
-    doc.text("Relatório de Auditoria", 14, 28);
     doc.setFontSize(11);
-    doc.text(`Filtro: ${dataInicio || "Início"} até ${dataFim || "Fim"}`, 14, 34);
+    doc.setTextColor(100);
+    doc.text("Relatório de Auditoria e Movimentações", 14, 25);
+    doc.text(`Filtro: ${dataInicio || "Início"} até ${dataFim || "Fim"} | Total: ${logsFiltrados.length} registros`, 14, 31);
 
     autoTable(doc, {
-      startY: 40,
-      head: [["Data/Hora", "Evento", "Tipo", "Cliente / Cód", "Operador", "Valor (R$)"]],
-      body: logs.map(log => [
-        new Date(log.criadaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-        log.cartao?.evento?.nome || 'Sem Evento',
+      startY: 36,
+      head: [["Data/Hora", "Tipo", "Item / Ação", "Cliente", "Cartão", "Operador", "Valor (R$)"]],
+      body: logsFiltrados.map(log => [
+        new Date(log.criadaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }),
         log.tipo,
-        `${log.cartao?.cliente?.nome || '—'} (${log.cartao?.codigo})`,
-        log.operador?.nome || 'Sistema',
-        log.valor.toFixed(2).replace('.', ',')
+        log.produto?.nome || log.descricao || log.tipo,
+        log.cartao?.cliente?.nome || '—',
+        log.cartao?.codigo || '—',
+        log.operador?.nome || log.operadorNome || 'Sistema',
+        `R$ ${log.valor.toFixed(2).replace('.', ',')}`
       ]),
-      theme: 'grid',
-      headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255] }
+      theme: 'striped',
+      headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255], fontSize: 8 },
+      styles: { fontSize: 8 }
     });
 
-    doc.save("LaMore_Auditoria.pdf");
+    doc.save(`LaMore_Auditoria_${eventoId || 'Geral'}.pdf`);
   };
 
   return (
-    <div className="max-w-5xl mx-auto pb-12">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+    <div className="max-w-6xl mx-auto pb-12">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-4xl font-black text-[#1D3461] mb-2">Auditoria do Sistema</h2>
-          <p className="text-gray-500 text-lg font-semibold">Log em tempo real de todas as movimentações e ações de caixas e bars</p>
+          <h2 className="text-4xl font-black text-[#1D3461] mb-1">Auditoria do Sistema</h2>
+          <p className="text-gray-500 text-base font-semibold">Rastreabilidade completa de todas as recargas, consumos e estornos</p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <button onClick={exportarXLSX} className="bg-green-600 text-white font-black text-sm px-4 py-2 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2">
-            <span>📊</span> Excel
+          <button onClick={exportarXLSX} className="bg-green-600 hover:bg-green-700 text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-sm flex items-center gap-2 cursor-pointer">
+            <span>📊</span> Exportar Excel ({logsFiltrados.length})
           </button>
-          <button onClick={exportarPDF} className="bg-red-600 text-white font-black text-sm px-4 py-2 rounded-xl hover:bg-red-700 transition-all flex items-center gap-2">
-            <span>📄</span> PDF
+          <button onClick={exportarPDF} className="bg-red-600 hover:bg-red-700 text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-sm flex items-center gap-2 cursor-pointer">
+            <span>📄</span> Exportar PDF
           </button>
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-3xl border-2 border-gray-100 shadow-sm mb-8 flex flex-col sm:flex-row gap-4 items-end">
-        <div className="flex-1 w-full">
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Filtrar por Evento</label>
-          <select value={eventoId} onChange={(e) => setEventoId(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 font-semibold text-gray-900 outline-none focus:border-[#1D3461]">
-            <option value="">Todos os Eventos</option>
-            {eventos.map(ev => (
-              <option key={ev.id} value={ev.id}>{ev.nome}</option>
-            ))}
-          </select>
+      {/* Filtros */}
+      <div className="bg-white p-6 rounded-3xl border-2 border-gray-100 shadow-sm mb-6 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Filtrar por Evento</label>
+            <select 
+              value={eventoId} 
+              onChange={(e) => {
+                setEventoId(e.target.value);
+                localStorage.setItem("activeEventoId", e.target.value);
+              }} 
+              className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-3 font-bold text-[#1D3461] outline-none focus:border-[#1D3461]"
+            >
+              <option value="">Todos os Eventos</option>
+              {eventos.map(ev => (
+                <option key={ev.id} value={ev.id}>{ev.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Data Inicial</label>
+            <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-3 font-semibold text-gray-900 outline-none focus:border-[#1D3461]"/>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Data Final</label>
+            <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-3 font-semibold text-gray-900 outline-none focus:border-[#1D3461]"/>
+          </div>
         </div>
-        <div className="flex-1 w-full">
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Data Inicial</label>
-          <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 font-semibold text-gray-900 outline-none focus:border-[#1D3461]"/>
-        </div>
-        <div className="flex-1 w-full">
-          <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Data Final</label>
-          <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 font-semibold text-gray-900 outline-none focus:border-[#1D3461]"/>
+
+        {/* Busca Rápida em Tempo Real */}
+        <div>
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="🔍 Buscar por nome do cliente, CPF, código do cartão, produto, operador ou tipo..."
+            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-2xl px-5 py-3 font-semibold text-gray-900 outline-none"
+          />
         </div>
       </div>
 
@@ -177,55 +271,62 @@ export default function MasterAuditoria() {
 
       {loading ? (
         <div className="text-center py-12">
-          <p className="text-[#1D3461] text-xl font-bold">Carregando auditoria...</p>
+          <p className="text-[#1D3461] text-xl font-bold">Carregando todas as movimentações...</p>
         </div>
       ) : (
         <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
+          <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+            <span>Listando {logsFiltrados.length} de {logs.length} movimentações</span>
+          </div>
+          <div className="overflow-x-auto max-h-[700px] overflow-y-auto">
             <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold">
-                  <th className="p-6">Data/Hora</th>
-                  <th className="p-6">Evento</th>
-                  <th className="p-6">Tipo</th>
-                  <th className="p-6">Cliente / Cartão</th>
-                  <th className="p-6">Operador</th>
-                  <th className="p-6">Valor</th>
+              <thead className="sticky top-0 bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold z-10">
+                <tr>
+                  <th className="p-4 text-xs">Data & Hora</th>
+                  <th className="p-4 text-xs">Tipo</th>
+                  <th className="p-4 text-xs">Detalhes / Ação</th>
+                  <th className="p-4 text-xs">Cliente / Cartão</th>
+                  <th className="p-4 text-xs">Operador</th>
+                  <th className="p-4 text-xs text-right">Valor</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 font-semibold text-gray-700">
-                {logs.length === 0 ? (
+                {logsFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-400 font-bold">Nenhum registro encontrado.</td>
+                    <td colSpan={6} className="p-12 text-center text-gray-400 font-bold">Nenhum registro encontrado.</td>
                   </tr>
                 ) : (
-                  logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50/50">
-                      <td className="p-6 text-sm text-gray-500">
-                        {new Date(log.criadaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                  logsFiltrados.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="p-4 text-xs text-gray-500 whitespace-nowrap">
+                        {new Date(log.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}{' '}
+                        <span className="font-bold text-gray-900">{new Date(log.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}</span>
                       </td>
-                      <td className="p-6 text-sm text-gray-900 font-bold">
-                        {log.cartao?.evento?.nome || 'Sem Evento'}
-                      </td>
-                      <td className="p-6">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-                          log.tipo === 'RECARGA' ? 'bg-green-100 text-green-700' :
-                          log.tipo === 'DEBITO' ? 'bg-red-100 text-red-700' :
-                          'bg-yellow-100 text-yellow-700'
+                      <td className="p-4">
+                        <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${
+                          log.tipo === 'RECARGA' ? 'bg-green-100 text-green-800' :
+                          log.tipo === 'DEBITO' ? 'bg-blue-100 text-blue-800' :
+                          'bg-red-100 text-red-800'
                         }`}>
                           {log.tipo}
                         </span>
                       </td>
-                      <td className="p-6 text-sm">
-                        <p className="font-bold text-gray-950">{log.cartao?.cliente?.nome || '—'}</p>
-                        <p className="text-gray-400 font-bold text-xs uppercase">Cód: {log.cartao?.codigo}</p>
+                      <td className="p-4 text-sm">
+                        <p className="font-black text-gray-900">{log.produto?.nome || log.descricao || log.tipo}</p>
+                        {log.produto?.grupo && (
+                          <span className="text-xs text-gray-400 font-semibold uppercase">{log.produto.grupo}</span>
+                        )}
                       </td>
-                      <td className="p-6 text-sm">
-                        <p className="font-bold">{log.operador?.nome || 'Sistema'}</p>
-                        <p className="text-gray-400 text-xs font-black uppercase">{log.operador?.role?.replace('_', ' ')}</p>
+                      <td className="p-4 text-sm">
+                        <p className="font-black text-gray-950">{log.cartao?.cliente?.nome || '—'}</p>
+                        <p className="text-purple-700 font-mono font-bold text-xs">Cartão: {log.cartao?.codigo || '—'}</p>
                       </td>
-                      <td className={`p-6 font-black text-lg ${
-                        log.tipo === 'RECARGA' ? 'text-green-600' : 'text-red-600'
+                      <td className="p-4 text-sm">
+                        <p className="font-bold text-gray-800">{log.operador?.nome || log.operadorNome || 'Sistema'}</p>
+                        <p className="text-gray-400 text-xs font-bold uppercase">{log.operador?.role?.replace('_', ' ') || 'Online'}</p>
+                      </td>
+                      <td className={`p-4 font-black text-right text-base ${
+                        log.tipo === 'RECARGA' ? 'text-green-600' : log.tipo === 'DEBITO' ? 'text-gray-900' : 'text-red-600'
                       }`}>
                         {log.tipo === 'RECARGA' ? '+' : '-'} R$ {log.valor.toFixed(2).replace('.', ',')}
                       </td>
