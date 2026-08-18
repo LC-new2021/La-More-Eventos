@@ -13,7 +13,6 @@ const getTodayBR = () => {
 };
 
 const COLORS_GRUPO = ["#1D3461", "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6"];
-const COLORS_PAGTO = ["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6"];
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -106,30 +105,17 @@ export default function MasterRelatoriosPage() {
     );
   }
 
-  const { summary, vendasPorGrupo, vendasPorProduto, vendasPorHora, recebimentos, vendasMestre, cortesiasConcedidas = [], consumosCortesias = [] } = data || {
-    summary: { totalRecarregado: 0, totalDebito: 0, totalEstorno: 0, saldoEmAberto: 0, totalCartoes: 0, totalPedidos: 0, ticketMedio: 0, totalCortesiasValor: 0, totalCortesiasConsumido: 0, totalCortesiasCartoesQtd: 0 },
+  const { summary, vendasPorGrupo, vendasPorProduto, vendasPorHora, recebimentos, vendasMestre, cortesiasConsolidadas = [] } = data || {
+    summary: { totalRecarregado: 0, totalDebito: 0, totalEstorno: 0, saldoEmAberto: 0, totalCartoes: 0, totalPedidos: 0, ticketMedio: 0, totalCortesiasValor: 0, totalCortesiasConsumido: 0, totalCortesiasDevolvido: 0, totalCortesiasCartoesQtd: 0 },
     vendasPorGrupo: [],
     vendasPorProduto: [],
     vendasPorHora: [],
     recebimentos: [],
     vendasMestre: [],
-    cortesiasConcedidas: [],
-    consumosCortesias: []
+    cortesiasConsolidadas: []
   };
 
-  // Agrupar Cortesias por Pessoa / Cartão
-  const cortesiasPorPessoa = cortesiasConcedidas.map(c => {
-    const consumos = consumosCortesias.filter(item => item.cartaoCodigo === c.cartaoCodigo);
-    const totalGasto = consumos.reduce((acc, item) => acc + item.valor, 0);
-    return {
-      ...c,
-      consumos,
-      totalGasto,
-      saldoCalculado: Math.max(0, c.valor - totalGasto)
-    };
-  });
-
-  const cortesiasFiltradas = cortesiasPorPessoa.filter(p => {
+  const cortesiasFiltradas = cortesiasConsolidadas.filter(p => {
     if (!buscaCortesia.trim()) return true;
     const q = buscaCortesia.toLowerCase();
     return p.clienteNome?.toLowerCase().includes(q) ||
@@ -149,17 +135,18 @@ export default function MasterRelatoriosPage() {
     
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text("Relatório Exclusivo de Cortesias e Consumo por Pessoa", 14, 25);
+    doc.text("Relatório Consolidado de Cortesias por Pessoa", 14, 25);
     doc.text(`Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"}`, 14, 31);
 
     autoTable(doc, {
       startY: 36,
-      head: [["Total Concedido", "Pessoas Beneficiadas", "Total Consumido", "Saldo Não Utilizado"]],
+      head: [["Total Concedido", "Pessoas Beneficiadas", "Total Consumido", "Total Devolvido", "Saldo Restante"]],
       body: [[
         `R$ ${(summary.totalCortesiasValor || 0).toFixed(2).replace('.', ',')}`,
         `${summary.totalCortesiasCartoesQtd || 0} pessoas`,
         `R$ ${(summary.totalCortesiasConsumido || 0).toFixed(2).replace('.', ',')}`,
-        `R$ ${Math.max(0, (summary.totalCortesiasValor || 0) - (summary.totalCortesiasConsumido || 0)).toFixed(2).replace('.', ',')}`
+        `R$ ${(summary.totalCortesiasDevolvido || 0).toFixed(2).replace('.', ',')}`,
+        `R$ ${Math.max(0, (summary.totalCortesiasValor || 0) - (summary.totalCortesiasConsumido || 0) - (summary.totalCortesiasDevolvido || 0)).toFixed(2).replace('.', ',')}`
       ]],
       theme: 'grid',
       headStyles: { fillColor: [139, 92, 246], textColor: [255, 255, 255], fontStyle: 'bold' }
@@ -167,8 +154,8 @@ export default function MasterRelatoriosPage() {
 
     let currentY = doc.lastAutoTable.finalY + 10;
 
-    cortesiasPorPessoa.forEach((pessoa, idx) => {
-      if (currentY > 240) {
+    cortesiasConsolidadas.forEach((pessoa, idx) => {
+      if (currentY > 230) {
         doc.addPage();
         currentY = 20;
       }
@@ -181,7 +168,13 @@ export default function MasterRelatoriosPage() {
       doc.setFontSize(9);
       doc.setTextColor(80);
       doc.setFont("helvetica", "normal");
-      doc.text(`Crédito: R$ ${pessoa.valor.toFixed(2).replace('.', ',')} | Consumo: R$ ${pessoa.totalGasto.toFixed(2).replace('.', ',')} | Saldo Restante: R$ ${pessoa.cartaoSaldoAtual.toFixed(2).replace('.', ',')} | Concedido por: ${pessoa.operador}`, 14, currentY + 5);
+      
+      let infoText = `Cortesia: R$ ${pessoa.totalCortesiaConcedida.toFixed(2).replace('.', ',')} | Consumo: R$ ${pessoa.totalConsumido.toFixed(2).replace('.', ',')}`;
+      if (pessoa.totalDevolvido > 0) {
+        infoText += ` | Devolvido: R$ ${pessoa.totalDevolvido.toFixed(2).replace('.', ',')}`;
+      }
+      infoText += ` | Saldo Restante: R$ ${pessoa.saldoRestante.toFixed(2).replace('.', ',')}`;
+      doc.text(infoText, 14, currentY + 5);
 
       if (pessoa.consumos && pessoa.consumos.length > 0) {
         autoTable(doc, {
@@ -199,12 +192,34 @@ export default function MasterRelatoriosPage() {
           styles: { fontSize: 8 },
           margin: { left: 14, right: 14 }
         });
-        currentY = doc.lastAutoTable.finalY + 10;
+        currentY = doc.lastAutoTable.finalY + 8;
       } else {
         doc.setFontSize(8);
         doc.setTextColor(150);
         doc.text("• Nenhum produto consumido por esta pessoa até o momento.", 16, currentY + 11);
-        currentY += 18;
+        currentY += 16;
+      }
+
+      if (pessoa.devolucoes && pessoa.devolucoes.length > 0) {
+        if (currentY > 250) {
+          doc.addPage();
+          currentY = 20;
+        }
+        autoTable(doc, {
+          startY: currentY,
+          head: [["Data/Hora Devolução", "Tipo / Motivo", "Operador", "Valor Estornado (R$)"]],
+          body: pessoa.devolucoes.map(d => [
+            `${d.data} ${d.hora}`,
+            d.descricao || 'Devolução de Saldo',
+            d.operador,
+            `R$ ${d.valor.toFixed(2).replace('.', ',')}`
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [220, 38, 38], textColor: [255, 255, 255], fontSize: 8 },
+          styles: { fontSize: 8 },
+          margin: { left: 14, right: 14 }
+        });
+        currentY = doc.lastAutoTable.finalY + 10;
       }
     });
 
@@ -217,57 +232,65 @@ export default function MasterRelatoriosPage() {
     workbook.creator = "La More Eventos";
     workbook.created = new Date();
 
+    // Aba 1: Resumo Consolidado por Pessoa
     const wsPessoas = workbook.addWorksheet("Cortesias por Pessoa", { properties: { tabColor: { argb: 'FF8B5CF6' } } });
-    wsPessoas.mergeCells('A1:H2');
+    wsPessoas.mergeCells('A1:I2');
     const titleCell = wsPessoas.getCell('A1');
-    titleCell.value = 'LA MORE EVENTOS - Relatório de Cortesias por Pessoa';
+    titleCell.value = 'LA MORE EVENTOS - Relatório Consolidado de Cortesias por Pessoa';
     titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF8B5CF6' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-    wsPessoas.getRow(4).values = ["Data/Hora Crédito", "Cliente (Pessoa)", "Código Cartão", "CPF / Celular", "Concedido Por", "Valor Concedido (R$)", "Total Consumido (R$)", "Saldo Atual (R$)"];
+    wsPessoas.getRow(4).values = ["Cliente (Pessoa)", "Código Cartão", "CPF / Celular", "Operador Principal", "Qtd Recargas", "Total Concedido (R$)", "Total Consumido (R$)", "Total Devolvido (R$)", "Saldo Restante (R$)"];
     wsPessoas.getRow(4).font = { bold: true, color: { argb: 'FFFFFFFF' } };
     wsPessoas.getRow(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
 
-    cortesiasPorPessoa.forEach((p, idx) => {
+    cortesiasConsolidadas.forEach((p, idx) => {
       const row = wsPessoas.addRow([
-        `${p.data} ${p.hora}`,
         p.clienteNome,
         p.cartaoCodigo,
         p.clienteCpf || p.clienteCelular || '—',
-        p.operador,
-        p.valor,
-        p.totalGasto,
-        p.cartaoSaldoAtual
+        p.operadorPrincipal,
+        p.recargas.length,
+        p.totalCortesiaConcedida,
+        p.totalConsumido,
+        p.totalDevolvido,
+        p.saldoRestante
       ]);
       if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
       row.getCell(6).numFmt = '"R$ "#,##0.00';
       row.getCell(7).numFmt = '"R$ "#,##0.00';
       row.getCell(8).numFmt = '"R$ "#,##0.00';
+      row.getCell(9).numFmt = '"R$ "#,##0.00';
     });
 
     wsPessoas.columns = [
-      { width: 18 }, { width: 25 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 18 }
+      { width: 25 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 14 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }
     ];
 
-    const wsItens = workbook.addWorksheet("Itens Consumidos (Extrato)", { properties: { tabColor: { argb: 'FF059669' } } });
+    // Aba 2: Itens Consumidos
+    const wsItens = workbook.addWorksheet("Itens Consumidos", { properties: { tabColor: { argb: 'FF059669' } } });
     wsItens.getRow(1).values = ["Data", "Hora", "Cliente", "Código Cartão", "Produto Consumido", "Categoria", "Ponto / Atendente", "Valor Debitado (R$)"];
     wsItens.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
     wsItens.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
 
-    consumosCortesias.forEach((item, idx) => {
-      const row = wsItens.addRow([
-        item.data,
-        item.hora,
-        item.clienteNome,
-        item.cartaoCodigo,
-        item.produtoNome,
-        item.produtoGrupo,
-        item.operador,
-        item.valor
-      ]);
-      if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
-      row.getCell(8).numFmt = '"R$ "#,##0.00';
+    let totalItemIdx = 0;
+    cortesiasConsolidadas.forEach(p => {
+      p.consumos.forEach(item => {
+        const row = wsItens.addRow([
+          item.data,
+          item.hora,
+          p.clienteNome,
+          p.cartaoCodigo,
+          item.produtoNome,
+          item.produtoGrupo,
+          item.operador,
+          item.valor
+        ]);
+        if (totalItemIdx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+        row.getCell(8).numFmt = '"R$ "#,##0.00';
+        totalItemIdx++;
+      });
     });
 
     wsItens.columns = [
@@ -438,9 +461,11 @@ export default function MasterRelatoriosPage() {
             <div className="bg-amber-50 border-2 border-amber-100 rounded-3xl p-6">
               <span className="text-4xl block mb-2">⏳</span>
               <p className="text-3xl font-black text-amber-700">
-                R$ {Math.max(0, (summary.totalCortesiasValor || 0) - (summary.totalCortesiasConsumido || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R$ {Math.max(0, (summary.totalCortesiasValor || 0) - (summary.totalCortesiasConsumido || 0) - (summary.totalCortesiasDevolvido || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </p>
-              <p className="text-amber-600 font-bold text-sm mt-1">Saldo Restante não Utilizado</p>
+              <p className="text-amber-600 font-bold text-sm mt-1">
+                Saldo Restante {summary.totalCortesiasDevolvido > 0 && `(Devolvido: R$ ${summary.totalCortesiasDevolvido.toFixed(2).replace('.', ',')})`}
+              </p>
             </div>
           </div>
 
@@ -471,7 +496,7 @@ export default function MasterRelatoriosPage() {
             </div>
           </div>
 
-          {/* Lista de Cortesias Agrupadas por Pessoa */}
+          {/* Lista de Cortesias Consolidadas por Pessoa */}
           {cortesiasFiltradas.length === 0 ? (
             <div className="bg-white rounded-3xl border-2 border-gray-100 p-12 text-center">
               <p className="text-gray-400 font-bold text-lg">Nenhuma cortesia encontrada com os filtros selecionados.</p>
@@ -494,7 +519,7 @@ export default function MasterRelatoriosPage() {
                           </span>
                         </div>
                         <p className="text-blue-200 text-xs font-semibold mt-1">
-                          Concedido em {pessoa.data} às {pessoa.hora} por <b>{pessoa.operador}</b> {pessoa.clienteCpf && `• CPF: ${pessoa.clienteCpf}`}
+                          Operador Principal: <b>{pessoa.operadorPrincipal}</b> {pessoa.clienteCpf && `• CPF: ${pessoa.clienteCpf}`} {pessoa.clienteCelular && `• Tel: ${pessoa.clienteCelular}`}
                         </p>
                       </div>
                     </div>
@@ -502,56 +527,98 @@ export default function MasterRelatoriosPage() {
                     {/* Resumo Financeiro da Pessoa */}
                     <div className="flex flex-wrap items-center gap-3 bg-black/20 p-3 rounded-2xl border border-white/10">
                       <div className="text-center px-3">
-                        <p className="text-[10px] uppercase font-bold text-purple-200">Cortesia Total</p>
-                        <p className="text-lg font-black text-purple-300">R$ {pessoa.valor.toFixed(2).replace('.', ',')}</p>
+                        <p className="text-[10px] uppercase font-bold text-purple-200">Total Concedido</p>
+                        <p className="text-lg font-black text-purple-300">R$ {pessoa.totalCortesiaConcedida.toFixed(2).replace('.', ',')}</p>
                       </div>
                       <div className="w-px h-8 bg-white/20"></div>
                       <div className="text-center px-3">
                         <p className="text-[10px] uppercase font-bold text-emerald-200">Consumido</p>
-                        <p className="text-lg font-black text-emerald-400">R$ {pessoa.totalGasto.toFixed(2).replace('.', ',')}</p>
+                        <p className="text-lg font-black text-emerald-400">R$ {pessoa.totalConsumido.toFixed(2).replace('.', ',')}</p>
                       </div>
+                      {pessoa.totalDevolvido > 0 && (
+                        <>
+                          <div className="w-px h-8 bg-white/20"></div>
+                          <div className="text-center px-3">
+                            <p className="text-[10px] uppercase font-bold text-red-200">Devolvido</p>
+                            <p className="text-lg font-black text-red-400">R$ {pessoa.totalDevolvido.toFixed(2).replace('.', ',')}</p>
+                          </div>
+                        </>
+                      )}
                       <div className="w-px h-8 bg-white/20"></div>
                       <div className="text-center px-3">
                         <p className="text-[10px] uppercase font-bold text-amber-200">Saldo Restante</p>
-                        <p className="text-lg font-black text-amber-300">R$ {pessoa.cartaoSaldoAtual.toFixed(2).replace('.', ',')}</p>
+                        <p className="text-lg font-black text-amber-300">R$ {pessoa.saldoRestante.toFixed(2).replace('.', ',')}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Extrato de Itens Consumidos pela Pessoa */}
-                  <div className="p-6">
-                    <h4 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <span>🍔</span> Extrato de Consumo ({pessoa.consumos.length} {pessoa.consumos.length === 1 ? 'item' : 'itens'})
-                    </h4>
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <h4 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <span>🍔</span> Extrato de Consumo ({pessoa.consumos.length} {pessoa.consumos.length === 1 ? 'item' : 'itens'})
+                      </h4>
 
-                    {pessoa.consumos.length === 0 ? (
-                      <div className="p-6 bg-gray-50 rounded-2xl text-center border-2 border-dashed border-gray-200">
-                        <p className="text-gray-400 font-bold text-sm">Esta pessoa ainda não realizou consumos nos bares ou barracas com este cartão.</p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto rounded-2xl border border-gray-100">
-                        <table className="w-full text-left">
-                          <thead>
-                            <tr className="bg-gray-50 text-gray-400 text-xs uppercase font-black">
-                              <th className="p-3">Data / Hora</th>
-                              <th className="p-3">Produto Consumido</th>
-                              <th className="p-3">Categoria</th>
-                              <th className="p-3">Ponto / Atendente</th>
-                              <th className="p-3 text-right">Valor Debitado</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {pessoa.consumos.map((item) => (
-                              <tr key={item.id} className="hover:bg-gray-50/60 transition-colors">
-                                <td className="p-3 text-xs font-bold text-gray-500 whitespace-nowrap">{item.data} {item.hora}</td>
-                                <td className="p-3 text-sm font-black text-gray-900">{item.produtoNome}</td>
-                                <td className="p-3 text-xs font-semibold text-gray-500 uppercase">{item.produtoGrupo}</td>
-                                <td className="p-3 text-xs font-semibold text-gray-600">{item.operador}</td>
-                                <td className="p-3 text-sm font-black text-gray-900 text-right">R$ {item.valor.toFixed(2).replace('.', ',')}</td>
+                      {pessoa.consumos.length === 0 ? (
+                        <div className="p-6 bg-gray-50 rounded-2xl text-center border-2 border-dashed border-gray-200">
+                          <p className="text-gray-400 font-bold text-sm">Esta pessoa não realizou nenhum consumo nos bares ou barracas com este cartão.</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-2xl border border-gray-100">
+                          <table className="w-full text-left">
+                            <thead>
+                              <tr className="bg-gray-50 text-gray-400 text-xs uppercase font-black">
+                                <th className="p-3">Data / Hora</th>
+                                <th className="p-3">Produto Consumido</th>
+                                <th className="p-3">Categoria</th>
+                                <th className="p-3">Ponto / Atendente</th>
+                                <th className="p-3 text-right">Valor Debitado</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {pessoa.consumos.map((item) => (
+                                <tr key={item.id} className="hover:bg-gray-50/60 transition-colors">
+                                  <td className="p-3 text-xs font-bold text-gray-500 whitespace-nowrap">{item.data} {item.hora}</td>
+                                  <td className="p-3 text-sm font-black text-gray-900">{item.produtoNome}</td>
+                                  <td className="p-3 text-xs font-semibold text-gray-500 uppercase">{item.produtoGrupo}</td>
+                                  <td className="p-3 text-xs font-semibold text-gray-600">{item.operador}</td>
+                                  <td className="p-3 text-sm font-black text-gray-900 text-right">R$ {item.valor.toFixed(2).replace('.', ',')}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Devoluções / Estornos de Saldo */}
+                    {pessoa.devolucoes && pessoa.devolucoes.length > 0 && (
+                      <div className="pt-2">
+                        <h4 className="text-sm font-black text-red-600 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <span>🔄</span> Estornos / Devoluções de Saldo Realizadas ({pessoa.devolucoes.length})
+                        </h4>
+                        <div className="overflow-x-auto rounded-2xl border border-red-100 bg-red-50/30">
+                          <table className="w-full text-left">
+                            <thead>
+                              <tr className="bg-red-50 text-red-700 text-xs uppercase font-black">
+                                <th className="p-3">Data / Hora</th>
+                                <th className="p-3">Operação</th>
+                                <th className="p-3">Responsável</th>
+                                <th className="p-3 text-right">Valor Estornado</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-red-100">
+                              {pessoa.devolucoes.map((d) => (
+                                <tr key={d.id}>
+                                  <td className="p-3 text-xs font-bold text-gray-600">{d.data} {d.hora}</td>
+                                  <td className="p-3 text-sm font-bold text-red-700">{d.descricao || 'Devolução de Saldo'}</td>
+                                  <td className="p-3 text-xs font-semibold text-gray-600">{d.operador}</td>
+                                  <td className="p-3 text-sm font-black text-red-700 text-right">R$ {d.valor.toFixed(2).replace('.', ',')}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     )}
                   </div>

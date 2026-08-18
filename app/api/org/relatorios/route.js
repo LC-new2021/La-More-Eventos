@@ -153,24 +153,39 @@ export async function GET(req) {
       valor: m.valor
     }));
 
-    // Cortesias
-    const cartoesComCortesiaIds = new Set();
-    const cortesiasConcedidas = [];
+    // Consolidação de Cortesias por Pessoa / Cartão Único
+    const pessoasCortesiaMap = {};
 
+    // 1. Identificar todas as recargas de cortesia e agrupar pelo cartão
     movimentacoes.forEach(m => {
       if (m.tipo === 'RECARGA') {
         const descLower = (m.descricao || '').toLowerCase();
         if (descLower.includes('cortesia')) {
-          if (m.cartaoId) cartoesComCortesiaIds.add(m.cartaoId);
-          cortesiasConcedidas.push({
+          const key = m.cartaoId || m.cartao?.codigo || m.id;
+          if (!pessoasCortesiaMap[key]) {
+            pessoasCortesiaMap[key] = {
+              id: key,
+              cartaoId: m.cartaoId,
+              cartaoCodigo: m.cartao?.codigo || '—',
+              clienteId: m.cartao?.cliente?.id,
+              clienteNome: m.cartao?.cliente?.nome || 'Cliente Cortesia',
+              clienteCpf: m.cartao?.cliente?.cpf || '',
+              clienteCelular: m.cartao?.cliente?.celular || '',
+              cartaoSaldoAtual: m.cartao?.saldo || 0,
+              totalCortesiaConcedida: 0,
+              totalConsumido: 0,
+              totalDevolvido: 0,
+              recargas: [],
+              consumos: [],
+              devolucoes: []
+            };
+          }
+
+          pessoasCortesiaMap[key].totalCortesiaConcedida += m.valor;
+          pessoasCortesiaMap[key].recargas.push({
             id: m.id,
             data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
             hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
-            clienteNome: m.cartao?.cliente?.nome || 'Cliente Cortesia',
-            clienteCpf: m.cartao?.cliente?.cpf || '',
-            clienteCelular: m.cartao?.cliente?.celular || '',
-            cartaoCodigo: m.cartao?.codigo || '—',
-            cartaoSaldoAtual: m.cartao?.saldo || 0,
             valor: m.valor,
             operador: m.operador?.nome || m.operadorNome || 'Sistema / Caixa',
             descricao: m.descricao || 'Recarga Cortesia',
@@ -180,30 +195,53 @@ export async function GET(req) {
       }
     });
 
-    // Consumos realizados pelos cartões que receberam cortesia
-    const consumosCortesias = [];
+    // 2. Mapear consumos (débitos) e devoluções (estornos) apenas para estes cartões com cortesia
     movimentacoes.forEach(m => {
-      if (m.tipo === 'DEBITO' && m.cartaoId && cartoesComCortesiaIds.has(m.cartaoId)) {
-        consumosCortesias.push({
-          id: m.id,
-          data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-          hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
-          clienteNome: m.cartao?.cliente?.nome || '—',
-          clienteCpf: m.cartao?.cliente?.cpf || '',
-          clienteCelular: m.cartao?.cliente?.celular || '',
-          cartaoCodigo: m.cartao?.codigo || '—',
-          produtoNome: m.produto?.nome || 'Consumo Geral',
-          produtoGrupo: m.produto?.grupo || 'Outros',
-          valor: m.valor,
-          operador: m.operador?.nome || m.operadorNome || 'Bar / Barraca',
-          criadaEm: m.criadaEm
-        });
+      const key = m.cartaoId || m.cartao?.codigo;
+      if (key && pessoasCortesiaMap[key]) {
+        if (m.tipo === 'DEBITO') {
+          pessoasCortesiaMap[key].totalConsumido += m.valor;
+          pessoasCortesiaMap[key].consumos.push({
+            id: m.id,
+            data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+            hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
+            produtoNome: m.produto?.nome || 'Item Geral',
+            produtoGrupo: m.produto?.grupo || 'Outros',
+            valor: m.valor,
+            operador: m.operador?.nome || m.operadorNome || 'Bar / Atendente',
+            criadaEm: m.criadaEm
+          });
+        } else if (m.tipo === 'ESTORNO') {
+          pessoasCortesiaMap[key].totalDevolvido += m.valor;
+          pessoasCortesiaMap[key].devolucoes.push({
+            id: m.id,
+            data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+            hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
+            valor: m.valor,
+            operador: m.operador?.nome || m.operadorNome || 'Caixa / Devolução',
+            descricao: m.descricao || 'Devolução de Saldo',
+            criadaEm: m.criadaEm
+          });
+        }
       }
     });
 
-    const totalCortesiasValor = cortesiasConcedidas.reduce((acc, c) => acc + c.valor, 0);
-    const totalCortesiasConsumido = consumosCortesias.reduce((acc, c) => acc + c.valor, 0);
-    const totalCortesiasCartoesQtd = cartoesComCortesiaIds.size;
+    const cortesiasConsolidadas = Object.values(pessoasCortesiaMap).map(p => {
+      // Saldo restante calculado matematicamente: Concedido - Consumido - Devolvido
+      const saldoRestanteCalculado = Math.max(0, p.totalCortesiaConcedida - p.totalConsumido - p.totalDevolvido);
+      return {
+        ...p,
+        saldoRestante: saldoRestanteCalculado,
+        primeiraRecargaData: p.recargas[0]?.data || '',
+        primeiraRecargaHora: p.recargas[0]?.hora || '',
+        operadorPrincipal: p.recargas.map(r => r.operador).filter(Boolean)[0] || 'Sistema'
+      };
+    }).sort((a, b) => b.totalCortesiaConcedida - a.totalCortesiaConcedida);
+
+    const totalCortesiasValor = cortesiasConsolidadas.reduce((acc, c) => acc + c.totalCortesiaConcedida, 0);
+    const totalCortesiasConsumido = cortesiasConsolidadas.reduce((acc, c) => acc + c.totalConsumido, 0);
+    const totalCortesiasDevolvido = cortesiasConsolidadas.reduce((acc, c) => acc + c.totalDevolvido, 0);
+    const totalCortesiasCartoesQtd = cortesiasConsolidadas.length;
 
     return NextResponse.json({
       summary: {
@@ -216,6 +254,7 @@ export async function GET(req) {
         ticketMedio,
         totalCortesiasValor,
         totalCortesiasConsumido,
+        totalCortesiasDevolvido,
         totalCortesiasCartoesQtd
       },
       vendasPorGrupo,
@@ -223,8 +262,7 @@ export async function GET(req) {
       vendasPorHora,
       recebimentos,
       vendasMestre,
-      cortesiasConcedidas,
-      consumosCortesias
+      cortesiasConsolidadas
     });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
