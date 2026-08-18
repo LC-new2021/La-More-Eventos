@@ -153,6 +153,58 @@ export async function GET(req) {
       valor: m.valor
     }));
 
+    // Cortesias
+    const cartoesComCortesiaIds = new Set();
+    const cortesiasConcedidas = [];
+
+    movimentacoes.forEach(m => {
+      if (m.tipo === 'RECARGA') {
+        const descLower = (m.descricao || '').toLowerCase();
+        if (descLower.includes('cortesia')) {
+          if (m.cartaoId) cartoesComCortesiaIds.add(m.cartaoId);
+          cortesiasConcedidas.push({
+            id: m.id,
+            data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+            hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
+            clienteNome: m.cartao?.cliente?.nome || 'Cliente Cortesia',
+            clienteCpf: m.cartao?.cliente?.cpf || '',
+            clienteCelular: m.cartao?.cliente?.celular || '',
+            cartaoCodigo: m.cartao?.codigo || '—',
+            cartaoSaldoAtual: m.cartao?.saldo || 0,
+            valor: m.valor,
+            operador: m.operador?.nome || m.operadorNome || 'Sistema / Caixa',
+            descricao: m.descricao || 'Recarga Cortesia',
+            criadaEm: m.criadaEm
+          });
+        }
+      }
+    });
+
+    // Consumos realizados pelos cartões que receberam cortesia
+    const consumosCortesias = [];
+    movimentacoes.forEach(m => {
+      if (m.tipo === 'DEBITO' && m.cartaoId && cartoesComCortesiaIds.has(m.cartaoId)) {
+        consumosCortesias.push({
+          id: m.id,
+          data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+          hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
+          clienteNome: m.cartao?.cliente?.nome || '—',
+          clienteCpf: m.cartao?.cliente?.cpf || '',
+          clienteCelular: m.cartao?.cliente?.celular || '',
+          cartaoCodigo: m.cartao?.codigo || '—',
+          produtoNome: m.produto?.nome || 'Consumo Geral',
+          produtoGrupo: m.produto?.grupo || 'Outros',
+          valor: m.valor,
+          operador: m.operador?.nome || m.operadorNome || 'Bar / Barraca',
+          criadaEm: m.criadaEm
+        });
+      }
+    });
+
+    const totalCortesiasValor = cortesiasConcedidas.reduce((acc, c) => acc + c.valor, 0);
+    const totalCortesiasConsumido = consumosCortesias.reduce((acc, c) => acc + c.valor, 0);
+    const totalCortesiasCartoesQtd = cartoesComCortesiaIds.size;
+
     return NextResponse.json({
       summary: {
         totalRecarregado,
@@ -161,13 +213,18 @@ export async function GET(req) {
         saldoEmAberto,
         totalCartoes,
         totalPedidos,
-        ticketMedio
+        ticketMedio,
+        totalCortesiasValor,
+        totalCortesiasConsumido,
+        totalCortesiasCartoesQtd
       },
       vendasPorGrupo,
       vendasPorProduto,
       vendasPorHora,
       recebimentos,
-      vendasMestre
+      vendasMestre,
+      cortesiasConcedidas,
+      consumosCortesias
     });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

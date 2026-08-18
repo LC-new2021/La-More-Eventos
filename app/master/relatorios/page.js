@@ -105,13 +105,15 @@ export default function RelatoriosPage() {
     );
   }
 
-  const { summary, vendasPorGrupo, vendasPorProduto, vendasPorHora, recebimentos, vendasMestre } = data || {
-    summary: { totalRecarregado: 0, totalDebito: 0, totalEstorno: 0, saldoEmAberto: 0, totalCartoes: 0, totalPedidos: 0, ticketMedio: 0 },
+  const { summary, vendasPorGrupo, vendasPorProduto, vendasPorHora, recebimentos, vendasMestre, cortesiasConcedidas = [], consumosCortesias = [] } = data || {
+    summary: { totalRecarregado: 0, totalDebito: 0, totalEstorno: 0, saldoEmAberto: 0, totalCartoes: 0, totalPedidos: 0, ticketMedio: 0, totalCortesiasValor: 0, totalCortesiasConsumido: 0, totalCortesiasCartoesQtd: 0 },
     vendasPorGrupo: [],
     vendasPorProduto: [],
     vendasPorHora: [],
     recebimentos: [],
-    vendasMestre: []
+    vendasMestre: [],
+    cortesiasConcedidas: [],
+    consumosCortesias: []
   };
 
   async function exportarXLSX() {
@@ -156,6 +158,29 @@ export default function RelatoriosPage() {
     wsRecebimentos.getRow(1).values = ["Forma de Pagamento", "Qtd de Transações", "Faturamento (R$)"];
     wsRecebimentos.getRow(1).font = { bold: true };
     recebimentos.forEach((r) => wsRecebimentos.addRow([r.name, r.qtd, r.value]));
+
+    // Aba Cortesias no Excel
+    const wsCortesias = workbook.addWorksheet("Cortesias", { properties: { tabColor: { argb: 'FF8B5CF6' } } });
+    wsCortesias.getRow(1).values = ["Data", "Hora", "Cliente (Pessoa)", "Código Cartão", "CPF/Celular", "Concedido Por", "Valor Cortesia (R$)", "Saldo Atual (R$)"];
+    wsCortesias.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    wsCortesias.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF8B5CF6' } };
+    cortesiasConcedidas.forEach((c) => {
+      wsCortesias.addRow([c.data, c.hora, c.clienteNome, c.cartaoCodigo, c.clienteCpf || c.clienteCelular, c.operador, c.valor, c.cartaoSaldoAtual]);
+    });
+    wsCortesias.columns = [
+      { width: 15 }, { width: 10 }, { width: 25 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 18 }, { width: 15 }
+    ];
+
+    const wsConsumoCortesias = workbook.addWorksheet("Consumo de Cortesias", { properties: { tabColor: { argb: 'FF059669' } } });
+    wsConsumoCortesias.getRow(1).values = ["Data", "Hora", "Cliente", "Cartão", "Produto Consumido", "Categoria", "Ponto/Atendente", "Valor Debitado (R$)"];
+    wsConsumoCortesias.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    wsConsumoCortesias.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
+    consumosCortesias.forEach((item) => {
+      wsConsumoCortesias.addRow([item.data, item.hora, item.clienteNome, item.cartaoCodigo, item.produtoNome, item.produtoGrupo, item.operador, item.valor]);
+    });
+    wsConsumoCortesias.columns = [
+      { width: 15 }, { width: 10 }, { width: 25 }, { width: 15 }, { width: 25 }, { width: 15 }, { width: 20 }, { width: 18 }
+    ];
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
@@ -226,6 +251,33 @@ export default function RelatoriosPage() {
       headStyles: { fillColor: [245, 158, 11], textColor: [255, 255, 255] }
     });
 
+    if (cortesiasConcedidas.length > 0) {
+      doc.addPage();
+      doc.setFontSize(14);
+      doc.setTextColor(50);
+      doc.text("Relatório de Cortesias Concedidas", 14, 20);
+      autoTable(doc, {
+        startY: 25,
+        head: [["Data/Hora", "Cliente", "Cartão", "Concedido Por", "Valor (R$)"]],
+        body: cortesiasConcedidas.map(c => [`${c.data} ${c.hora}`, c.clienteNome, c.cartaoCodigo, c.operador, c.valor.toFixed(2)]),
+        theme: 'grid',
+        headStyles: { fillColor: [139, 92, 246], textColor: [255, 255, 255] }
+      });
+
+      if (consumosCortesias.length > 0) {
+        let cortesiaPosY = doc.lastAutoTable.finalY + 15;
+        doc.text("Extrato de Consumo das Cortesias", 14, cortesiaPosY);
+        autoTable(doc, {
+          startY: cortesiaPosY + 3,
+          head: [["Data/Hora", "Cliente", "Produto Consumido", "Ponto/Bar", "Valor (R$)"]],
+          body: consumosCortesias.slice(0, 50).map(item => [`${item.data} ${item.hora}`, item.clienteNome, item.produtoNome, item.operador, item.valor.toFixed(2)]),
+          theme: 'striped',
+          headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255] },
+          styles: { fontSize: 8 }
+        });
+      }
+    }
+
     doc.save(`LaMoreEventos_Relatorio.pdf`);
   }
 
@@ -287,6 +339,7 @@ export default function RelatoriosPage() {
           { id: "vendas", label: "🧾 Vendas Gerais (Tabela)" },
           { id: "produtos", label: "🍔 Produtos" },
           { id: "recebimentos", label: "💳 Recebimentos" },
+          { id: "cortesias", label: "🎁 Cortesias" },
         ].map((a) => (
           <button
             key={a.id}
@@ -557,6 +610,137 @@ export default function RelatoriosPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* ABA: CORTESIAS */}
+      {aba === "cortesias" && (
+        <div className="space-y-8">
+          {/* KPI Cards de Cortesia */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-purple-50 border-2 border-purple-100 rounded-3xl p-6">
+              <span className="text-4xl block mb-2">🎁</span>
+              <p className="text-3xl font-black text-purple-700">R$ {(summary.totalCortesiasValor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+              <p className="text-purple-600 font-bold text-sm mt-1">Total Concedido em Cortesia</p>
+            </div>
+            <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-6">
+              <span className="text-4xl block mb-2">👥</span>
+              <p className="text-3xl font-black text-blue-700">{summary.totalCortesiasCartoesQtd || 0}</p>
+              <p className="text-blue-600 font-bold text-sm mt-1">Pessoas / Cartões Beneficiados</p>
+            </div>
+            <div className="bg-emerald-50 border-2 border-emerald-100 rounded-3xl p-6">
+              <span className="text-4xl block mb-2">🍔</span>
+              <p className="text-3xl font-black text-emerald-700">R$ {(summary.totalCortesiasConsumido || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+              <p className="text-emerald-600 font-bold text-sm mt-1">Total Consumido em Produtos</p>
+            </div>
+            <div className="bg-amber-50 border-2 border-amber-100 rounded-3xl p-6">
+              <span className="text-4xl block mb-2">⏳</span>
+              <p className="text-3xl font-black text-amber-700">
+                R$ {Math.max(0, (summary.totalCortesiasValor || 0) - (summary.totalCortesiasConsumido || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-amber-600 font-bold text-sm mt-1">Saldo Restante não Utilizado</p>
+            </div>
+          </div>
+
+          {/* Tabela 1: Pessoas e Cartões com Cortesia Concedida */}
+          <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-black flex items-center gap-2"><span>👤</span> Pessoas e Cartões com Cortesia</h3>
+                <p className="text-blue-200 text-sm font-semibold mt-0.5">Lista de todas as cortesias creditadas nos cartões de cada pessoa</p>
+              </div>
+              <span className="bg-white/20 text-white font-bold px-3.5 py-1.5 rounded-xl text-sm">
+                {cortesiasConcedidas.length} concessões
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-gray-50 border-b-2 border-gray-100">
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Data & Hora</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Cliente / Pessoa</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Código do Cartão</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Documento / Contato</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Concedido Por</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Valor Cortesia</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Saldo Atual</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {cortesiasConcedidas.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-12 text-center text-gray-400 font-bold text-base">
+                        Nenhuma recarga de cortesia foi registrada para este evento/período.
+                      </td>
+                    </tr>
+                  ) : (
+                    cortesiasConcedidas.map((c) => (
+                      <tr key={c.id} className="hover:bg-purple-50/40 transition-colors">
+                        <td className="p-4 font-bold text-gray-600 text-sm whitespace-nowrap">{c.data} {c.hora}</td>
+                        <td className="p-4 font-black text-gray-900 text-base">{c.clienteNome}</td>
+                        <td className="p-4 font-mono font-bold text-purple-700 text-sm bg-purple-50/50 rounded-lg inline-block my-2 px-2 py-1">{c.cartaoCodigo}</td>
+                        <td className="p-4 text-xs font-semibold text-gray-500">{c.clienteCpf || c.clienteCelular || '—'}</td>
+                        <td className="p-4 text-sm font-semibold text-gray-600">{c.operador}</td>
+                        <td className="p-4 font-black text-purple-700 text-right text-base">R$ {c.valor.toFixed(2).replace('.', ',')}</td>
+                        <td className="p-4 font-bold text-gray-700 text-right text-sm">R$ {c.cartaoSaldoAtual.toFixed(2).replace('.', ',')}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Tabela 2: Detalhamento de Consumo das Cortesias */}
+          <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-black flex items-center gap-2"><span>🍔</span> Detalhamento de Consumo das Cortesias</h3>
+                <p className="text-blue-200 text-sm font-semibold mt-0.5">O que cada pessoa/cartão consumiu nos bares e pontos de venda</p>
+              </div>
+              <span className="bg-white/20 text-white font-bold px-3.5 py-1.5 rounded-xl text-sm">
+                {consumosCortesias.length} itens consumidos
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-gray-50 border-b-2 border-gray-100">
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Data & Hora</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Cliente</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Cartão</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Produto Consumido</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Categoria / Grupo</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Ponto / Atendente</th>
+                    <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Valor Consumido</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {consumosCortesias.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-12 text-center text-gray-400 font-bold text-base">
+                        Nenhum consumo registrado por cartões de cortesia neste evento/período.
+                      </td>
+                    </tr>
+                  ) : (
+                    consumosCortesias.map((item) => (
+                      <tr key={item.id} className="hover:bg-emerald-50/40 transition-colors">
+                        <td className="p-4 font-bold text-gray-600 text-sm whitespace-nowrap">{item.data} {item.hora}</td>
+                        <td className="p-4 font-black text-gray-900 text-base">{item.clienteNome}</td>
+                        <td className="p-4 font-mono font-bold text-purple-700 text-sm bg-purple-50/50 rounded-lg inline-block my-2 px-2 py-1">{item.cartaoCodigo}</td>
+                        <td className="p-4 font-bold text-emerald-800 text-base">{item.produtoNome}</td>
+                        <td className="p-4 text-xs font-semibold text-gray-500 uppercase">{item.produtoGrupo}</td>
+                        <td className="p-4 text-sm font-semibold text-gray-600">{item.operador}</td>
+                        <td className="p-4 font-black text-gray-900 text-right text-base">R$ {item.valor.toFixed(2).replace('.', ',')}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
