@@ -13,7 +13,7 @@ const getTodayBR = () => {
 };
 
 const COLORS_GRUPO = ["#1D3461", "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6"];
-const COLORS_PAGTO = ["#10B981", "#3B82F6", "#F59E0B"];
+const COLORS_PAGTO = ["#10B981", "#3B82F6", "#F59E0B", "#8B5CF6"];
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -33,14 +33,15 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-export default function RelatoriosPage() {
+export default function OrgRelatoriosPage() {
   const { data: session } = useSession();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [aba, setAba] = useState("bi"); // bi | vendas | produtos | recebimentos
+  const [aba, setAba] = useState("bi"); // bi | vendas | produtos | recebimentos | cortesias
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+  const [buscaCortesia, setBuscaCortesia] = useState("");
 
   const [eventoId, setEventoId] = useState(null);
 
@@ -77,7 +78,6 @@ export default function RelatoriosPage() {
       let url = `/api/org/relatorios?eventoId=${eventoId}`;
       if (dataInicio) url += `&dataInicio=${dataInicio}`;
       if (dataFim) url += `&dataFim=${dataFim}`;
-      
       const res = await fetch(url);
       const result = await res.json();
       if (result.error) setError(result.error);
@@ -92,7 +92,7 @@ export default function RelatoriosPage() {
   if (!eventoId) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500 font-bold text-xl">Este usuário organizador não está vinculado a um evento.</p>
+        <p className="text-red-500 font-bold text-xl">Este usuário não está vinculado a um evento ativo.</p>
       </div>
     );
   }
@@ -106,7 +106,7 @@ export default function RelatoriosPage() {
   }
 
   const { summary, vendasPorGrupo, vendasPorProduto, vendasPorHora, recebimentos, vendasMestre, cortesiasConcedidas = [], consumosCortesias = [] } = data || {
-    summary: { totalRecarregado: 0, totalDebito: 0, saldoEmAberto: 0, totalCartoes: 0, totalPedidos: 0, ticketMedio: 0, totalCortesiasValor: 0, totalCortesiasConsumido: 0, totalCortesiasCartoesQtd: 0 },
+    summary: { totalRecarregado: 0, totalDebito: 0, totalEstorno: 0, saldoEmAberto: 0, totalCartoes: 0, totalPedidos: 0, ticketMedio: 0, totalCortesiasValor: 0, totalCortesiasConsumido: 0, totalCortesiasCartoesQtd: 0 },
     vendasPorGrupo: [],
     vendasPorProduto: [],
     vendasPorHora: [],
@@ -116,169 +116,231 @@ export default function RelatoriosPage() {
     consumosCortesias: []
   };
 
-  async function exportarXLSX() {
+  // Agrupar Cortesias por Pessoa / Cartão
+  const cortesiasPorPessoa = cortesiasConcedidas.map(c => {
+    const consumos = consumosCortesias.filter(item => item.cartaoCodigo === c.cartaoCodigo);
+    const totalGasto = consumos.reduce((acc, item) => acc + item.valor, 0);
+    return {
+      ...c,
+      consumos,
+      totalGasto,
+      saldoCalculado: Math.max(0, c.valor - totalGasto)
+    };
+  });
+
+  const cortesiasFiltradas = cortesiasPorPessoa.filter(p => {
+    if (!buscaCortesia.trim()) return true;
+    const q = buscaCortesia.toLowerCase();
+    return p.clienteNome?.toLowerCase().includes(q) ||
+           p.cartaoCodigo?.toLowerCase().includes(q) ||
+           p.clienteCpf?.includes(q) ||
+           p.clienteCelular?.includes(q);
+  });
+
+  // EXPORTAÇÕES EXCLUSIVAS POR TEMA
+
+  // 1. Exportação EXCLUSIVA de Cortesias por Pessoa (PDF)
+  function exportarCortesiasPDF() {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.setTextColor(29, 52, 97);
+    doc.text("LA MORE EVENTOS", 14, 18);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text("Relatório Exclusivo de Cortesias e Consumo por Pessoa", 14, 25);
+    doc.text(`Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"}`, 14, 31);
+
+    autoTable(doc, {
+      startY: 36,
+      head: [["Total Concedido", "Pessoas Beneficiadas", "Total Consumido", "Saldo Não Utilizado"]],
+      body: [[
+        `R$ ${(summary.totalCortesiasValor || 0).toFixed(2).replace('.', ',')}`,
+        `${summary.totalCortesiasCartoesQtd || 0} pessoas`,
+        `R$ ${(summary.totalCortesiasConsumido || 0).toFixed(2).replace('.', ',')}`,
+        `R$ ${Math.max(0, (summary.totalCortesiasValor || 0) - (summary.totalCortesiasConsumido || 0)).toFixed(2).replace('.', ',')}`
+      ]],
+      theme: 'grid',
+      headStyles: { fillColor: [139, 92, 246], textColor: [255, 255, 255], fontStyle: 'bold' }
+    });
+
+    let currentY = doc.lastAutoTable.finalY + 10;
+
+    cortesiasPorPessoa.forEach((pessoa, idx) => {
+      if (currentY > 240) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setFontSize(11);
+      doc.setTextColor(29, 52, 97);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${idx + 1}. ${pessoa.clienteNome} — Cartão: ${pessoa.cartaoCodigo}`, 14, currentY);
+      
+      doc.setFontSize(9);
+      doc.setTextColor(80);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Crédito: R$ ${pessoa.valor.toFixed(2).replace('.', ',')} | Consumo: R$ ${pessoa.totalGasto.toFixed(2).replace('.', ',')} | Saldo Restante: R$ ${pessoa.cartaoSaldoAtual.toFixed(2).replace('.', ',')} | Concedido por: ${pessoa.operador}`, 14, currentY + 5);
+
+      if (pessoa.consumos && pessoa.consumos.length > 0) {
+        autoTable(doc, {
+          startY: currentY + 8,
+          head: [["Data/Hora", "Produto Consumido", "Categoria", "Ponto / Atendente", "Valor (R$)"]],
+          body: pessoa.consumos.map(c => [
+            `${c.data} ${c.hora}`,
+            c.produtoNome,
+            c.produtoGrupo,
+            c.operador,
+            `R$ ${c.valor.toFixed(2).replace('.', ',')}`
+          ]),
+          theme: 'striped',
+          headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255], fontSize: 8 },
+          styles: { fontSize: 8 },
+          margin: { left: 14, right: 14 }
+        });
+        currentY = doc.lastAutoTable.finalY + 10;
+      } else {
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text("• Nenhum produto consumido por esta pessoa até o momento.", 16, currentY + 11);
+        currentY += 18;
+      }
+    });
+
+    doc.save("LaMore_Relatorio_Cortesias_Por_Pessoa.pdf");
+  }
+
+  // 2. Exportação EXCLUSIVA de Cortesias por Pessoa (Excel)
+  async function exportarCortesiasXLSX() {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "La More Eventos";
     workbook.created = new Date();
 
-    const wsGeral = workbook.addWorksheet("Vendas Gerais", { properties: { tabColor: { argb: 'FF1D3461' } } });
-    wsGeral.mergeCells('A1:G2');
-    const titleCell = wsGeral.getCell('A1');
-    titleCell.value = 'LA MORE EVENTOS - Relatório de Transações';
-    titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
+    const wsPessoas = workbook.addWorksheet("Cortesias por Pessoa", { properties: { tabColor: { argb: 'FF8B5CF6' } } });
+    wsPessoas.mergeCells('A1:H2');
+    const titleCell = wsPessoas.getCell('A1');
+    titleCell.value = 'LA MORE EVENTOS - Relatório de Cortesias por Pessoa';
+    titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF8B5CF6' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-    wsGeral.getCell('A3').value = `Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"}`;
-    wsGeral.getCell('A3').font = { italic: true };
+    wsPessoas.getRow(4).values = ["Data/Hora Crédito", "Cliente (Pessoa)", "Código Cartão", "CPF / Celular", "Concedido Por", "Valor Concedido (R$)", "Total Consumido (R$)", "Saldo Atual (R$)"];
+    wsPessoas.getRow(4).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    wsPessoas.getRow(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
 
-    const headerRow = wsGeral.getRow(5);
-    headerRow.values = ["ID", "Data", "Hora", "Cliente", "Item/Ação", "Categoria", "Tipo", "Valor (R$)"];
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
-    headerRow.alignment = { horizontal: 'center' };
-
-    vendasMestre.forEach((v, index) => {
-      const row = wsGeral.addRow([v.id, v.data, v.hora, v.cliente, v.produto, v.categoria, v.pagto, v.valor]);
-      if (index % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+    cortesiasPorPessoa.forEach((p, idx) => {
+      const row = wsPessoas.addRow([
+        `${p.data} ${p.hora}`,
+        p.clienteNome,
+        p.cartaoCodigo,
+        p.clienteCpf || p.clienteCelular || '—',
+        p.operador,
+        p.valor,
+        p.totalGasto,
+        p.cartaoSaldoAtual
+      ]);
+      if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      row.getCell(6).numFmt = '"R$ "#,##0.00';
+      row.getCell(7).numFmt = '"R$ "#,##0.00';
       row.getCell(8).numFmt = '"R$ "#,##0.00';
     });
 
-    wsGeral.columns = [
-      { width: 15 }, { width: 15 }, { width: 10 }, { width: 25 }, 
-      { width: 30 }, { width: 20 }, { width: 20 }, { width: 15 }
+    wsPessoas.columns = [
+      { width: 18 }, { width: 25 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 18 }
     ];
 
-    const wsProdutos = workbook.addWorksheet("Produtos", { properties: { tabColor: { argb: 'FF10B981' } } });
-    wsProdutos.getRow(1).values = ["Produto", "Quantidade", "Faturamento (R$)"];
-    wsProdutos.getRow(1).font = { bold: true };
-    vendasPorProduto.forEach((p) => wsProdutos.addRow([p.name, p.qtd, p.value]));
+    const wsItens = workbook.addWorksheet("Itens Consumidos (Extrato)", { properties: { tabColor: { argb: 'FF059669' } } });
+    wsItens.getRow(1).values = ["Data", "Hora", "Cliente", "Código Cartão", "Produto Consumido", "Categoria", "Ponto / Atendente", "Valor Debitado (R$)"];
+    wsItens.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    wsItens.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
 
-    const wsRecebimentos = workbook.addWorksheet("Recebimentos", { properties: { tabColor: { argb: 'FFF59E0B' } } });
-    wsRecebimentos.getRow(1).values = ["Forma de Pagamento", "Qtd de Transações", "Faturamento (R$)"];
-    wsRecebimentos.getRow(1).font = { bold: true };
-    recebimentos.forEach((r) => wsRecebimentos.addRow([r.name, r.qtd, r.value]));
-
-    // Aba Cortesias no Excel
-    const wsCortesias = workbook.addWorksheet("Cortesias", { properties: { tabColor: { argb: 'FF8B5CF6' } } });
-    wsCortesias.getRow(1).values = ["Data", "Hora", "Cliente (Pessoa)", "Código Cartão", "CPF/Celular", "Concedido Por", "Valor Cortesia (R$)", "Saldo Atual (R$)"];
-    wsCortesias.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    wsCortesias.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF8B5CF6' } };
-    cortesiasConcedidas.forEach((c) => {
-      wsCortesias.addRow([c.data, c.hora, c.clienteNome, c.cartaoCodigo, c.clienteCpf || c.clienteCelular, c.operador, c.valor, c.cartaoSaldoAtual]);
+    consumosCortesias.forEach((item, idx) => {
+      const row = wsItens.addRow([
+        item.data,
+        item.hora,
+        item.clienteNome,
+        item.cartaoCodigo,
+        item.produtoNome,
+        item.produtoGrupo,
+        item.operador,
+        item.valor
+      ]);
+      if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      row.getCell(8).numFmt = '"R$ "#,##0.00';
     });
-    wsCortesias.columns = [
-      { width: 15 }, { width: 10 }, { width: 25 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 18 }, { width: 15 }
-    ];
 
-    const wsConsumoCortesias = workbook.addWorksheet("Consumo de Cortesias", { properties: { tabColor: { argb: 'FF059669' } } });
-    wsConsumoCortesias.getRow(1).values = ["Data", "Hora", "Cliente", "Cartão", "Produto Consumido", "Categoria", "Ponto/Atendente", "Valor Debitado (R$)"];
-    wsConsumoCortesias.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    wsConsumoCortesias.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
-    consumosCortesias.forEach((item) => {
-      wsConsumoCortesias.addRow([item.data, item.hora, item.clienteNome, item.cartaoCodigo, item.produtoNome, item.produtoGrupo, item.operador, item.valor]);
-    });
-    wsConsumoCortesias.columns = [
-      { width: 15 }, { width: 10 }, { width: 25 }, { width: 15 }, { width: 25 }, { width: 15 }, { width: 20 }, { width: 18 }
+    wsItens.columns = [
+      { width: 14 }, { width: 10 }, { width: 25 }, { width: 15 }, { width: 25 }, { width: 15 }, { width: 20 }, { width: 18 }
     ];
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    saveAs(blob, "LaMore_Relatorio_Geral.xlsx");
+    saveAs(blob, "LaMore_Relatorio_Cortesias_Por_Pessoa.xlsx");
   }
 
-  function exportarPDF() {
+  // 3. Exportação de Vendas Gerais
+  async function exportarVendasXLSX() {
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet("Vendas Gerais");
+    ws.getRow(1).values = ["ID", "Data", "Hora", "Cliente", "Item/Ação", "Categoria", "Tipo", "Valor (R$)"];
+    ws.getRow(1).font = { bold: true };
+    vendasMestre.forEach(v => ws.addRow([v.id, v.data, v.hora, v.cliente, v.produto, v.categoria, v.pagto, v.valor]));
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), "LaMore_Vendas_Gerais.xlsx");
+  }
+
+  function exportarVendasPDF() {
     const doc = new jsPDF();
-    doc.setFontSize(22);
-    doc.setTextColor(29, 52, 97);
-    doc.text("LA MORE EVENTOS", 14, 20);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text(`Relatório Geral Consolidado do Evento`, 14, 28);
-    doc.text(`Filtro: ${dataInicio || "Início"} até ${dataFim || "Fim"}`, 14, 34);
-
-    doc.setFontSize(14);
-    doc.setTextColor(50);
-    doc.text("Resumo de Balanço Geral", 14, 45);
-
+    doc.text("Relatório de Vendas Gerais", 14, 15);
     autoTable(doc, {
-      startY: 48,
-      head: [["Balanço", "Faturamento (R$)"]],
+      startY: 20,
+      head: [["Data", "Hora", "Cliente", "Produto/Ação", "Valor (R$)"]],
+      body: vendasMestre.map(v => [v.data, v.hora, v.cliente, v.produto, v.valor.toFixed(2)]),
+      theme: 'striped'
+    });
+    doc.save("LaMore_Vendas_Gerais.pdf");
+  }
+
+  // 4. Exportação Geral BI
+  async function exportarGeralXLSX() {
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet("BI Geral");
+    ws.addRow(["Balanço", "Valor (R$)"]);
+    ws.addRow(["Total Recarregado", summary.totalRecarregado]);
+    ws.addRow(["Total Débito", summary.totalDebito]);
+    ws.addRow(["Total Estorno", summary.totalEstorno]);
+    ws.addRow(["Saldo em Aberto", summary.saldoEmAberto]);
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), "LaMore_Balanço_Geral.xlsx");
+  }
+
+  function exportarGeralPDF() {
+    const doc = new jsPDF();
+    doc.text("Relatório Geral de Balanço (BI)", 14, 15);
+    autoTable(doc, {
+      startY: 20,
+      head: [["Balanço", "Valor (R$)"]],
       body: [
         ["Total de Receitas (Recargas)", summary.totalRecarregado.toFixed(2)],
         ["Total de Débitos (Bar/Food)", summary.totalDebito.toFixed(2)],
+        ["Total de Devoluções (Estornos)", summary.totalEstorno.toFixed(2)],
         ["Saldo em Aberto (Cartões)", summary.saldoEmAberto.toFixed(2)]
-      ],
-      theme: 'grid',
-      headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255] },
+      ]
     });
-
-    let nextY = doc.lastAutoTable.finalY + 15;
-    doc.text("Extrato de Transações Recentes", 14, nextY);
-
-    autoTable(doc, {
-      startY: nextY + 3,
-      head: [["Data", "Hora", "Cliente", "Produto/Ação", "Valor (R$)"]],
-      body: vendasMestre.slice(0, 50).map(v => [v.data, v.hora, v.cliente, v.produto, v.valor.toFixed(2)]),
-      theme: 'striped',
-      headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255] },
-      styles: { fontSize: 8 }
-    });
-
-    doc.addPage();
-    doc.setFontSize(14);
-    doc.setTextColor(50);
-    doc.text("Relatório de Produtos", 14, 20);
-    autoTable(doc, {
-      startY: 25,
-      head: [["Produto", "Qtd", "Faturamento (R$)"]],
-      body: vendasPorProduto.map(p => [p.name, p.qtd, p.value.toFixed(2)]),
-      theme: 'grid',
-      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255] }
-    });
-
-    let posY = doc.lastAutoTable.finalY + 15;
-    doc.setFontSize(14);
-    doc.setTextColor(50);
-    doc.text("Origem das Recargas (Recebimentos)", 14, posY);
-    autoTable(doc, {
-      startY: posY + 3,
-      head: [["Forma de Pagamento", "Qtd", "Faturamento (R$)"]],
-      body: recebimentos.map(r => [r.name, r.qtd, r.value.toFixed(2)]),
-      theme: 'grid',
-      headStyles: { fillColor: [245, 158, 11], textColor: [255, 255, 255] }
-    });
-
-    if (cortesiasConcedidas.length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.setTextColor(50);
-      doc.text("Relatório de Cortesias Concedidas", 14, 20);
-      autoTable(doc, {
-        startY: 25,
-        head: [["Data/Hora", "Cliente", "Cartão", "Concedido Por", "Valor (R$)"]],
-        body: cortesiasConcedidas.map(c => [`${c.data} ${c.hora}`, c.clienteNome, c.cartaoCodigo, c.operador, c.valor.toFixed(2)]),
-        theme: 'grid',
-        headStyles: { fillColor: [139, 92, 246], textColor: [255, 255, 255] }
-      });
-
-      if (consumosCortesias.length > 0) {
-        let cortesiaPosY = doc.lastAutoTable.finalY + 15;
-        doc.text("Extrato de Consumo das Cortesias", 14, cortesiaPosY);
-        autoTable(doc, {
-          startY: cortesiaPosY + 3,
-          head: [["Data/Hora", "Cliente", "Produto Consumido", "Ponto/Bar", "Valor (R$)"]],
-          body: consumosCortesias.slice(0, 50).map(item => [`${item.data} ${item.hora}`, item.clienteNome, item.produtoNome, item.operador, item.valor.toFixed(2)]),
-          theme: 'striped',
-          headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255] },
-          styles: { fontSize: 8 }
-        });
-      }
-    }
-
-    doc.save(`LaMoreEventos_Relatorio.pdf`);
+    doc.save("LaMore_Balanço_Geral.pdf");
   }
+
+  const handleExportarPDF = () => {
+    if (aba === "cortesias") return exportarCortesiasPDF();
+    if (aba === "vendas") return exportarVendasPDF();
+    return exportarGeralPDF();
+  };
+
+  const handleExportarXLSX = () => {
+    if (aba === "cortesias") return exportarCortesiasXLSX();
+    if (aba === "vendas") return exportarVendasXLSX();
+    return exportarGeralXLSX();
+  };
 
   return (
     <div className="max-w-6xl mx-auto pb-10">
@@ -302,12 +364,12 @@ export default function RelatoriosPage() {
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-2 w-full">
-            <button onClick={exportarXLSX} className="flex-1 justify-center bg-green-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2">
-              <span>📊</span> Planilha Excel
+          <div className="flex gap-2 w-full">
+            <button onClick={handleExportarXLSX} className="flex-1 justify-center bg-green-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm cursor-pointer">
+              <span>📊</span> {aba === 'cortesias' ? 'Excel (Cortesias)' : aba === 'vendas' ? 'Excel (Vendas)' : 'Excel (.xlsx)'}
             </button>
-            <button onClick={exportarPDF} className="flex-1 justify-center bg-red-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-2">
-              <span>📄</span> Baixar PDF
+            <button onClick={handleExportarPDF} className="flex-1 justify-center bg-red-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-2 shadow-sm cursor-pointer">
+              <span>📄</span> {aba === 'cortesias' ? 'PDF (Cortesias)' : aba === 'vendas' ? 'PDF (Vendas)' : 'PDF (.pdf)'}
             </button>
           </div>
         </div>
@@ -320,12 +382,12 @@ export default function RelatoriosPage() {
           { id: "vendas", label: "🧾 Vendas Gerais (Tabela)" },
           { id: "produtos", label: "🍔 Produtos" },
           { id: "recebimentos", label: "💳 Recebimentos" },
-          { id: "cortesias", label: "🎁 Cortesias" },
+          { id: "cortesias", label: "🎁 Cortesias por Pessoa" },
         ].map((a) => (
           <button
             key={a.id}
             onClick={() => setAba(a.id)}
-            className={`px-6 py-4 rounded-2xl font-black text-lg whitespace-nowrap transition-all ${
+            className={`px-6 py-4 rounded-2xl font-black text-lg whitespace-nowrap transition-all cursor-pointer ${
               aba === a.id ? "bg-[#1D3461] text-white shadow-lg" : "bg-white text-gray-500 border-2 border-gray-100 hover:border-gray-300"
             }`}
           >
@@ -334,263 +396,9 @@ export default function RelatoriosPage() {
         ))}
       </div>
 
-      {/* ABA: VISÃO GERAL (BI) */}
-      {aba === "bi" && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-green-50 border-2 border-green-100 rounded-3xl p-6">
-              <span className="text-4xl block mb-2">💰</span>
-              <p className="text-4xl font-black text-green-700">R$ {summary.totalRecarregado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
-              <p className="text-green-600 font-bold text-lg mt-1">Total Recebido (Recargas)</p>
-            </div>
-            <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-6">
-              <span className="text-4xl block mb-2">🧾</span>
-              <p className="text-4xl font-black text-blue-700">R$ {summary.totalDebito.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
-              <p className="text-blue-600 font-bold text-lg mt-1">Total Consumido (Bares)</p>
-            </div>
-            <div className="bg-yellow-50 border-2 border-yellow-100 rounded-3xl p-6">
-              <span className="text-4xl block mb-2">⏳</span>
-              <p className="text-4xl font-black text-yellow-700">R$ {summary.saldoEmAberto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
-              <p className="text-yellow-600 font-bold text-lg mt-1">Saldo em Aberto (Cartões)</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-purple-50 border-2 border-purple-100 rounded-3xl p-5 flex items-center justify-between">
-              <div>
-                <p className="text-purple-600 font-bold text-sm uppercase tracking-widest">Cartões Emitidos</p>
-                <p className="text-3xl font-black text-purple-700 mt-1">{summary.totalCartoes}</p>
-              </div>
-              <span className="text-5xl opacity-50">💳</span>
-            </div>
-            <div className="bg-gray-50 border-2 border-gray-200 rounded-3xl p-5 flex items-center justify-between">
-              <div>
-                <p className="text-gray-500 font-bold text-sm uppercase tracking-widest">Ticket Médio</p>
-                <p className="text-3xl font-black text-gray-800 mt-1">R$ {summary.ticketMedio.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              </div>
-              <span className="text-5xl opacity-50">📊</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm h-[400px]">
-              <h3 className="text-2xl font-black text-[#1D3461] mb-6 flex items-center gap-3">
-                <span>📈</span> Volume de Vendas por Hora
-              </h3>
-              {vendasPorHora.length === 0 ? (
-                <p className="text-center text-gray-400 font-bold py-12">Nenhuma venda realizada.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="80%">
-                  <BarChart data={vendasPorHora} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
-                    <XAxis dataKey="hora" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontWeight: 'bold' }} />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#9CA3AF', fontSize: 12 }}
-                      tickFormatter={(val) => val >= 1000 ? `R$ ${(val/1000).toFixed(1).replace('.',',')}k` : `R$ ${val}`} 
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                    <Bar dataKey="valor" fill="#1D3461" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
-            <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm h-[400px]">
-              <h3 className="text-2xl font-black text-[#1D3461] mb-6 flex items-center gap-3">
-                <span>💳</span> Formas de Recebimento
-              </h3>
-              {recebimentos.length === 0 ? (
-                <p className="text-center text-gray-400 font-bold py-12">Sem recargas registradas.</p>
-              ) : (
-                <ResponsiveContainer width="100%" height="80%">
-                  <PieChart>
-                    <Pie 
-                      data={recebimentos.map(r => ({...r, percent: summary.totalRecarregado > 0 ? ((r.value/summary.totalRecarregado)*100).toFixed(1) : 0}))} 
-                      cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value"
-                    >
-                      {recebimentos.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS_PAGTO[index % COLORS_PAGTO.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontWeight: 'bold', color: '#374151' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ABA: VENDAS GERAIS */}
-      {aba === "vendas" && (
-        <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
-            <h3 className="text-2xl font-black">Extrato Detalhado de Vendas</h3>
-            <p className="font-semibold text-blue-200">Exibindo {vendasMestre.length} transações</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50 border-b-2 border-gray-100">
-                  <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Hora</th>
-                  <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Produto/Ação</th>
-                  <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Categoria</th>
-                  <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Cliente</th>
-                  <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Operador</th>
-                  <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Forma Pagto</th>
-                  <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider text-right">Valor</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {vendasMestre.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-400 font-bold">Nenhum registro encontrado.</td>
-                  </tr>
-                ) : (
-                  vendasMestre.map((v) => (
-                    <tr key={v.id} className="hover:bg-blue-50/50 transition-colors">
-                      <td className="p-4 font-bold text-gray-900">{v.data} {v.hora}</td>
-                      <td className="p-4 font-black text-[#1D3461]">{v.produto}</td>
-                      <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          v.categoria === "Recarga" ? "bg-green-100 text-green-700" :
-                          v.categoria === "Bebidas" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"
-                        }`}>
-                          {v.categoria}
-                        </span>
-                      </td>
-                      <td className="p-4 font-semibold text-gray-600">{v.cliente}</td>
-                      <td className="p-4 font-semibold text-gray-600">{v.operador}</td>
-                      <td className="p-4 font-semibold text-gray-600">{v.pagto}</td>
-                      <td className="p-4 font-black text-gray-900 text-right">R$ {v.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ABA: RECEBIMENTOS */}
-      {aba === "recebimentos" && (
-        <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm">
-          <h3 className="text-2xl font-black text-[#1D3461] mb-6">Origem das Recargas</h3>
-          {recebimentos.length === 0 ? (
-            <p className="text-center text-gray-400 font-bold py-12">Sem dados de recarga disponíveis.</p>
-          ) : (
-            <div className="space-y-6">
-              {recebimentos.map((r, index) => (
-                <div key={r.name}>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="font-black text-gray-900 text-xl">{r.name}</p>
-                    <div className="text-right">
-                      <p className="font-black text-[#1D3461] text-2xl">
-                        R$ {r.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        <span className="text-sm text-gray-500 ml-2 font-bold">({summary.totalRecarregado > 0 ? ((r.value / summary.totalRecarregado) * 100).toFixed(1) : 0}%)</span>
-                      </p>
-                      <p className="text-gray-400 text-sm font-semibold">{r.qtd} transações</p>
-                    </div>
-                  </div>
-                  <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${summary.totalRecarregado > 0 ? (r.value / summary.totalRecarregado) * 100 : 0}%`, backgroundColor: COLORS_PAGTO[index] }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ABA: PRODUTOS */}
-      {aba === "produtos" && (
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm">
-              <h3 className="text-2xl font-black text-[#1D3461] mb-6">Desempenho por Categoria</h3>
-              {vendasPorGrupo.length === 0 ? (
-                <p className="text-center text-gray-400 font-bold py-12">Nenhuma venda realizada por categoria.</p>
-              ) : (
-                <div className="space-y-6">
-                  {vendasPorGrupo.map((g, index) => (
-                    <div key={g.name}>
-                      <div className="flex justify-between items-center mb-2">
-                        <p className="font-black text-gray-900 text-xl">{g.name}</p>
-                        <div className="text-right">
-                          <p className="font-black text-[#1D3461] text-2xl">
-                            R$ {g.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                            <span className="text-sm text-gray-500 ml-2 font-bold">({summary.totalDebito > 0 ? ((g.value / summary.totalDebito) * 100).toFixed(1) : 0}%)</span>
-                          </p>
-                          <p className="text-gray-400 text-sm font-semibold">{g.qtd} pedidos</p>
-                        </div>
-                      </div>
-                      <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${summary.totalDebito > 0 ? (g.value / summary.totalDebito) * 100 : 0}%`, backgroundColor: COLORS_GRUPO[index % COLORS_GRUPO.length] }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm h-[400px]">
-               <h3 className="text-2xl font-black text-[#1D3461] mb-6">Participação de Vendas</h3>
-               {vendasPorGrupo.length === 0 ? (
-                 <p className="text-center text-gray-400 font-bold py-12">Sem dados de participação.</p>
-               ) : (
-                  <ResponsiveContainer width="100%" height="80%">
-                    <PieChart>
-                      <Pie 
-                        data={vendasPorGrupo.map(v => ({...v, percent: summary.totalDebito > 0 ? ((v.value/summary.totalDebito)*100).toFixed(1) : 0}))} 
-                        cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value"
-                      >
-                        {vendasPorGrupo.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS_GRUPO[index % COLORS_GRUPO.length]} />))}
-                      </Pie>
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontWeight: 'bold', color: '#374151' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-               )}
-            </div>
-          </div>
-          
-          {vendasPorProduto.length > 0 && (
-            <div className="mt-6 bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
-              <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
-                <h3 className="text-2xl font-black">Ranking de Produtos (Tabela)</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-gray-50 border-b-2 border-gray-100">
-                      <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider">Produto</th>
-                      <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider text-center">Quantidade Vendida</th>
-                      <th className="p-4 font-bold text-gray-400 uppercase text-sm tracking-wider text-right">Faturamento Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {vendasPorProduto.map((p, idx) => (
-                      <tr key={p.name} className="hover:bg-blue-50/50 transition-colors">
-                        <td className="p-4 font-bold text-gray-900">{idx + 1}. {p.name}</td>
-                        <td className="p-4 font-black text-[#1D3461] text-center">{p.qtd}</td>
-                        <td className="p-4 font-black text-gray-900 text-right">
-                          R$ {p.value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          <span className="text-sm text-gray-500 ml-2 font-bold">({summary.totalDebito > 0 ? ((p.value / summary.totalDebito) * 100).toFixed(1) : 0}%)</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ABA: CORTESIAS */}
+      {/* ABA: CORTESIAS POR PESSOA */}
       {aba === "cortesias" && (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* KPI Cards de Cortesia */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-purple-50 border-2 border-purple-100 rounded-3xl p-6">
@@ -601,7 +409,7 @@ export default function RelatoriosPage() {
             <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-6">
               <span className="text-4xl block mb-2">👥</span>
               <p className="text-3xl font-black text-blue-700">{summary.totalCortesiasCartoesQtd || 0}</p>
-              <p className="text-blue-600 font-bold text-sm mt-1">Pessoas / Cartões Beneficiados</p>
+              <p className="text-blue-600 font-bold text-sm mt-1">Pessoas Beneficiadas</p>
             </div>
             <div className="bg-emerald-50 border-2 border-emerald-100 rounded-3xl p-6">
               <span className="text-4xl block mb-2">🍔</span>
@@ -617,104 +425,308 @@ export default function RelatoriosPage() {
             </div>
           </div>
 
-          {/* Tabela 1: Pessoas e Cartões com Cortesia Concedida */}
-          <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
-              <div>
-                <h3 className="text-2xl font-black flex items-center gap-2"><span>👤</span> Pessoas e Cartões com Cortesia</h3>
-                <p className="text-blue-200 text-sm font-semibold mt-0.5">Lista de todas as cortesias creditadas nos cartões de cada pessoa</p>
-              </div>
-              <span className="bg-white/20 text-white font-bold px-3.5 py-1.5 rounded-xl text-sm">
-                {cortesiasConcedidas.length} concessões
-              </span>
+          {/* Barra de Busca Exclusiva de Cortesias e Ações de Exportação */}
+          <div className="bg-white p-5 rounded-3xl border-2 border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="w-full md:w-auto flex-1">
+              <input
+                type="text"
+                value={buscaCortesia}
+                onChange={(e) => setBuscaCortesia(e.target.value)}
+                placeholder="🔍 Filtrar cortesia por nome da pessoa, código do cartão ou CPF..."
+                className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-2xl px-5 py-3 font-semibold text-gray-900 outline-none"
+              />
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-gray-50 border-b-2 border-gray-100">
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Data & Hora</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Cliente / Pessoa</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Código do Cartão</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Documento / Contato</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Concedido Por</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Valor Cortesia</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Saldo Atual</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {cortesiasConcedidas.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-12 text-center text-gray-400 font-bold text-base">
-                        Nenhuma recarga de cortesia foi registrada para este evento/período.
-                      </td>
-                    </tr>
-                  ) : (
-                    cortesiasConcedidas.map((c) => (
-                      <tr key={c.id} className="hover:bg-purple-50/40 transition-colors">
-                        <td className="p-4 font-bold text-gray-600 text-sm whitespace-nowrap">{c.data} {c.hora}</td>
-                        <td className="p-4 font-black text-gray-900 text-base">{c.clienteNome}</td>
-                        <td className="p-4 font-mono font-bold text-purple-700 text-sm bg-purple-50/50 rounded-lg inline-block my-2 px-2 py-1">{c.cartaoCodigo}</td>
-                        <td className="p-4 text-xs font-semibold text-gray-500">{c.clienteCpf || c.clienteCelular || '—'}</td>
-                        <td className="p-4 text-sm font-semibold text-gray-600">{c.operador}</td>
-                        <td className="p-4 font-black text-purple-700 text-right text-base">R$ {c.valor.toFixed(2).replace('.', ',')}</td>
-                        <td className="p-4 font-bold text-gray-700 text-right text-sm">R$ {c.cartaoSaldoAtual.toFixed(2).replace('.', ',')}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div className="flex gap-2 w-full md:w-auto">
+              <button 
+                onClick={exportarCortesiasXLSX}
+                className="flex-1 md:flex-none bg-green-700 hover:bg-green-800 text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-sm flex items-center gap-2 justify-center cursor-pointer"
+              >
+                <span>📊</span> Baixar Planilha (.xlsx)
+              </button>
+              <button 
+                onClick={exportarCortesiasPDF}
+                className="flex-1 md:flex-none bg-red-700 hover:bg-red-800 text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-sm flex items-center gap-2 justify-center cursor-pointer"
+              >
+                <span>📄</span> Baixar PDF (.pdf)
+              </button>
             </div>
           </div>
 
-          {/* Tabela 2: Detalhamento de Consumo das Cortesias */}
-          <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
-              <div>
-                <h3 className="text-2xl font-black flex items-center gap-2"><span>🍔</span> Detalhamento de Consumo das Cortesias</h3>
-                <p className="text-blue-200 text-sm font-semibold mt-0.5">O que cada pessoa/cartão consumiu nos bares e pontos de venda</p>
-              </div>
-              <span className="bg-white/20 text-white font-bold px-3.5 py-1.5 rounded-xl text-sm">
-                {consumosCortesias.length} itens consumidos
-              </span>
+          {/* Lista de Cortesias Agrupadas por Pessoa */}
+          {cortesiasFiltradas.length === 0 ? (
+            <div className="bg-white rounded-3xl border-2 border-gray-100 p-12 text-center">
+              <p className="text-gray-400 font-bold text-lg">Nenhuma cortesia encontrada com os filtros selecionados.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {cortesiasFiltradas.map((pessoa, idx) => (
+                <div key={pessoa.id || idx} className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
+                  {/* Cabeçalho da Pessoa */}
+                  <div className="p-6 bg-gradient-to-r from-purple-900 to-[#1D3461] text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl font-black shrink-0">
+                        👤
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-2xl font-black">{pessoa.clienteNome}</h3>
+                          <span className="bg-purple-400/20 text-purple-200 border border-purple-400/30 text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg">
+                            Cartão: {pessoa.cartaoCodigo}
+                          </span>
+                        </div>
+                        <p className="text-blue-200 text-xs font-semibold mt-1">
+                          Concedido em {pessoa.data} às {pessoa.hora} por <b>{pessoa.operador}</b> {pessoa.clienteCpf && `• CPF: ${pessoa.clienteCpf}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Resumo Financeiro da Pessoa */}
+                    <div className="flex flex-wrap items-center gap-3 bg-black/20 p-3 rounded-2xl border border-white/10">
+                      <div className="text-center px-3">
+                        <p className="text-[10px] uppercase font-bold text-purple-200">Cortesia Total</p>
+                        <p className="text-lg font-black text-purple-300">R$ {pessoa.valor.toFixed(2).replace('.', ',')}</p>
+                      </div>
+                      <div className="w-px h-8 bg-white/20"></div>
+                      <div className="text-center px-3">
+                        <p className="text-[10px] uppercase font-bold text-emerald-200">Consumido</p>
+                        <p className="text-lg font-black text-emerald-400">R$ {pessoa.totalGasto.toFixed(2).replace('.', ',')}</p>
+                      </div>
+                      <div className="w-px h-8 bg-white/20"></div>
+                      <div className="text-center px-3">
+                        <p className="text-[10px] uppercase font-bold text-amber-200">Saldo Restante</p>
+                        <p className="text-lg font-black text-amber-300">R$ {pessoa.cartaoSaldoAtual.toFixed(2).replace('.', ',')}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Extrato de Itens Consumidos pela Pessoa */}
+                  <div className="p-6">
+                    <h4 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <span>🍔</span> Extrato de Consumo ({pessoa.consumos.length} {pessoa.consumos.length === 1 ? 'item' : 'itens'})
+                    </h4>
+
+                    {pessoa.consumos.length === 0 ? (
+                      <div className="p-6 bg-gray-50 rounded-2xl text-center border-2 border-dashed border-gray-200">
+                        <p className="text-gray-400 font-bold text-sm">Esta pessoa ainda não realizou consumos nos bares ou barracas com este cartão.</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto rounded-2xl border border-gray-100">
+                        <table className="w-full text-left">
+                          <thead>
+                            <tr className="bg-gray-50 text-gray-400 text-xs uppercase font-black">
+                              <th className="p-3">Data / Hora</th>
+                              <th className="p-3">Produto Consumido</th>
+                              <th className="p-3">Categoria</th>
+                              <th className="p-3">Ponto / Atendente</th>
+                              <th className="p-3 text-right">Valor Debitado</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {pessoa.consumos.map((item) => (
+                              <tr key={item.id} className="hover:bg-gray-50/60 transition-colors">
+                                <td className="p-3 text-xs font-bold text-gray-500 whitespace-nowrap">{item.data} {item.hora}</td>
+                                <td className="p-3 text-sm font-black text-gray-900">{item.produtoNome}</td>
+                                <td className="p-3 text-xs font-semibold text-gray-500 uppercase">{item.produtoGrupo}</td>
+                                <td className="p-3 text-xs font-semibold text-gray-600">{item.operador}</td>
+                                <td className="p-3 text-sm font-black text-gray-900 text-right">R$ {item.valor.toFixed(2).replace('.', ',')}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ABA: VISÃO GERAL (BI) */}
+      {aba === "bi" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-green-50 border-2 border-green-100 rounded-3xl p-6">
+              <span className="text-4xl block mb-2">💰</span>
+              <p className="text-4xl font-black text-green-700">R$ {summary.totalRecarregado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+              <p className="text-green-600 font-bold text-lg mt-1">Total Recebido (Recargas)</p>
+            </div>
+            <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-6">
+              <span className="text-4xl block mb-2">🍔</span>
+              <p className="text-4xl font-black text-blue-700">R$ {summary.totalDebito.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+              <p className="text-blue-600 font-bold text-lg mt-1">Total Consumido (Produtos)</p>
+            </div>
+            <div className="bg-yellow-50 border-2 border-yellow-100 rounded-3xl p-6">
+              <span className="text-4xl block mb-2">⏳</span>
+              <p className="text-4xl font-black text-yellow-700">R$ {summary.saldoEmAberto.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+              <p className="text-yellow-600 font-bold text-lg mt-1">Saldo em Aberto (Cartões)</p>
+            </div>
+            <div className="bg-purple-50 border-2 border-purple-100 rounded-3xl p-6">
+              <span className="text-4xl block mb-2">💳</span>
+              <p className="text-4xl font-black text-purple-700">{summary.totalCartoes}</p>
+              <p className="text-purple-600 font-bold text-lg mt-1">Total de Cartões Emitidos</p>
+            </div>
+          </div>
+
+          {/* Gráficos */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm h-[400px]">
+              <h3 className="text-2xl font-black text-[#1D3461] mb-6">Faturamento por Categoria (R$)</h3>
+              {vendasPorGrupo.length === 0 ? (
+                <p className="text-center text-gray-400 font-bold py-12">Nenhuma venda registrada por categoria.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="80%">
+                  <BarChart data={vendasPorGrupo}>
+                    <XAxis dataKey="name" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                    <Bar dataKey="value" radius={[12, 12, 0, 0]}>
+                      {vendasPorGrupo.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS_GRUPO[index % COLORS_GRUPO.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-gray-50 border-b-2 border-gray-100">
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Data & Hora</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Cliente</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Cartão</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Produto Consumido</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Categoria / Grupo</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs">Ponto / Atendente</th>
-                    <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Valor Consumido</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {consumosCortesias.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="p-12 text-center text-gray-400 font-bold text-base">
-                        Nenhum consumo registrado por cartões de cortesia neste evento/período.
+            <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm h-[400px]">
+              <h3 className="text-2xl font-black text-[#1D3461] mb-6">Fluxo de Consumo por Hora</h3>
+              {vendasPorHora.length === 0 ? (
+                <p className="text-center text-gray-400 font-bold py-12">Nenhum dado horário disponível.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="80%">
+                  <BarChart data={vendasPorHora}>
+                    <XAxis dataKey="hora" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" />
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                    <Bar dataKey="valor" fill="#3B82F6" radius={[12, 12, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ABA: VENDAS GERAIS */}
+      {aba === "vendas" && (
+        <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
+            <h3 className="text-2xl font-black">Extrato Detalhado de Vendas</h3>
+            <span className="bg-white/20 text-white font-bold px-3 py-1 rounded-xl text-sm">{vendasMestre.length} registros</span>
+          </div>
+          <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 bg-gray-50 border-b-2 border-gray-100 z-10">
+                <tr>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Data & Hora</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Cliente</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Item / Ação</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Categoria</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Operador</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Tipo</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Valor</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {vendasMestre.length === 0 ? (
+                  <tr><td colSpan={7} className="p-8 text-center text-gray-400 font-bold">Nenhuma transação encontrada.</td></tr>
+                ) : (
+                  vendasMestre.map(v => (
+                    <tr key={v.id} className="hover:bg-blue-50/50 transition-colors">
+                      <td className="p-4 font-bold text-gray-600 text-sm whitespace-nowrap">{v.data} {v.hora}</td>
+                      <td className="p-4 font-black text-gray-900">{v.cliente}</td>
+                      <td className="p-4 font-bold text-blue-900">{v.produto}</td>
+                      <td className="p-4 text-xs font-semibold text-gray-500 uppercase">{v.categoria}</td>
+                      <td className="p-4 text-sm font-semibold text-gray-600">{v.operador}</td>
+                      <td className="p-4">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-md ${v.pagto === 'Entrada' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {v.pagto}
+                        </span>
+                      </td>
+                      <td className={`p-4 font-black text-right ${v.pagto === 'Entrada' ? 'text-green-600' : 'text-gray-900'}`}>
+                        R$ {v.valor.toFixed(2).replace('.', ',')}
                       </td>
                     </tr>
-                  ) : (
-                    consumosCortesias.map((item) => (
-                      <tr key={item.id} className="hover:bg-emerald-50/40 transition-colors">
-                        <td className="p-4 font-bold text-gray-600 text-sm whitespace-nowrap">{item.data} {item.hora}</td>
-                        <td className="p-4 font-black text-gray-900 text-base">{item.clienteNome}</td>
-                        <td className="p-4 font-mono font-bold text-purple-700 text-sm bg-purple-50/50 rounded-lg inline-block my-2 px-2 py-1">{item.cartaoCodigo}</td>
-                        <td className="p-4 font-bold text-emerald-800 text-base">{item.produtoNome}</td>
-                        <td className="p-4 text-xs font-semibold text-gray-500 uppercase">{item.produtoGrupo}</td>
-                        <td className="p-4 text-sm font-semibold text-gray-600">{item.operador}</td>
-                        <td className="p-4 font-black text-gray-900 text-right text-base">R$ {item.valor.toFixed(2).replace('.', ',')}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ABA: PRODUTOS */}
+      {aba === "produtos" && (
+        <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
+            <h3 className="text-2xl font-black">Ranking de Vendas por Produto</h3>
+            <span className="bg-white/20 text-white font-bold px-3 py-1 rounded-xl text-sm">{vendasPorProduto.length} itens</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50 border-b-2 border-gray-100">
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Produto</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Quantidade Vendida</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Faturamento Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {vendasPorProduto.map((p, idx) => (
+                  <tr key={p.name} className="hover:bg-blue-50/50 transition-colors">
+                    <td className="p-4 font-black text-gray-900">{idx + 1}. {p.name}</td>
+                    <td className="p-4 font-black text-[#1D3461] text-center">{p.qtd}</td>
+                    <td className="p-4 font-black text-gray-900 text-right">
+                      R$ {p.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      <span className="text-xs text-gray-400 ml-2 font-bold">
+                        ({summary.totalDebito > 0 ? ((p.value / summary.totalDebito) * 100).toFixed(1) : 0}%)
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ABA: RECEBIMENTOS */}
+      {aba === "recebimentos" && (
+        <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
+            <h3 className="text-2xl font-black">Origem das Recargas (Formas de Pagamento)</h3>
+            <span className="bg-white/20 text-white font-bold px-3 py-1 rounded-xl text-sm">{recebimentos.length} formas</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50 border-b-2 border-gray-100">
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Forma de Pagamento</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Transações</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Faturamento Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {recebimentos.map((r) => (
+                  <tr key={r.name} className="hover:bg-blue-50/50 transition-colors">
+                    <td className="p-4 font-black text-gray-900 flex items-center gap-2">
+                      <span>{r.name === 'Pix' ? '⚡' : r.name === 'Cortesia' ? '🎁' : r.name === 'Dinheiro' ? '💵' : '💳'}</span>
+                      {r.name}
+                    </td>
+                    <td className="p-4 font-black text-[#1D3461] text-center">{r.qtd}</td>
+                    <td className="p-4 font-black text-gray-900 text-right">
+                      R$ {r.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      <span className="text-xs text-gray-400 ml-2 font-bold">
+                        ({summary.totalRecarregado > 0 ? ((r.value / summary.totalRecarregado) * 100).toFixed(1) : 0}%)
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
