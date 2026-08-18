@@ -169,7 +169,11 @@ export default function MasterRelatoriosPage() {
       doc.setTextColor(80);
       doc.setFont("helvetica", "normal");
       
-      let infoText = `Cortesia: R$ ${pessoa.totalCortesiaConcedida.toFixed(2).replace('.', ',')} | Consumo: R$ ${pessoa.totalConsumido.toFixed(2).replace('.', ',')}`;
+      let infoText = `Cortesia Concedida: R$ ${pessoa.totalCortesiaConcedida.toFixed(2).replace('.', ',')}`;
+      if (pessoa.totalRecargasPagas > 0) {
+        infoText += ` | Recarga Própria: R$ ${pessoa.totalRecargasPagas.toFixed(2).replace('.', ',')} (Total: R$ ${pessoa.totalCreditosCartao.toFixed(2).replace('.', ',')})`;
+      }
+      infoText += ` | Consumo: R$ ${pessoa.totalConsumido.toFixed(2).replace('.', ',')}`;
       if (pessoa.totalDevolvido > 0) {
         infoText += ` | Devolvido: R$ ${pessoa.totalDevolvido.toFixed(2).replace('.', ',')}`;
       }
@@ -234,14 +238,25 @@ export default function MasterRelatoriosPage() {
 
     // Aba 1: Resumo Consolidado por Pessoa
     const wsPessoas = workbook.addWorksheet("Cortesias por Pessoa", { properties: { tabColor: { argb: 'FF8B5CF6' } } });
-    wsPessoas.mergeCells('A1:I2');
+    wsPessoas.mergeCells('A1:J2');
     const titleCell = wsPessoas.getCell('A1');
     titleCell.value = 'LA MORE EVENTOS - Relatório Consolidado de Cortesias por Pessoa';
     titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF8B5CF6' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-    wsPessoas.getRow(4).values = ["Cliente (Pessoa)", "Código Cartão", "CPF / Celular", "Operador Principal", "Qtd Recargas", "Total Concedido (R$)", "Total Consumido (R$)", "Total Devolvido (R$)", "Saldo Restante (R$)"];
+    wsPessoas.getRow(4).values = [
+      "Cliente (Pessoa)", 
+      "Código Cartão", 
+      "CPF / Celular", 
+      "Operador Principal", 
+      "Cortesia Concedida (R$)", 
+      "Recargas Próprias (R$)",
+      "Total Créditos no Cartão (R$)", 
+      "Total Consumido (R$)", 
+      "Total Devolvido (R$)", 
+      "Saldo Restante (R$)"
+    ];
     wsPessoas.getRow(4).font = { bold: true, color: { argb: 'FFFFFFFF' } };
     wsPessoas.getRow(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
 
@@ -251,21 +266,24 @@ export default function MasterRelatoriosPage() {
         p.cartaoCodigo,
         p.clienteCpf || p.clienteCelular || '—',
         p.operadorPrincipal,
-        p.recargas.length,
         p.totalCortesiaConcedida,
+        p.totalRecargasPagas,
+        p.totalCreditosCartao,
         p.totalConsumido,
         p.totalDevolvido,
         p.saldoRestante
       ]);
       if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      row.getCell(5).numFmt = '"R$ "#,##0.00';
       row.getCell(6).numFmt = '"R$ "#,##0.00';
       row.getCell(7).numFmt = '"R$ "#,##0.00';
       row.getCell(8).numFmt = '"R$ "#,##0.00';
       row.getCell(9).numFmt = '"R$ "#,##0.00';
+      row.getCell(10).numFmt = '"R$ "#,##0.00';
     });
 
     wsPessoas.columns = [
-      { width: 25 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 14 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }
+      { width: 25 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 22 }, { width: 22 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 20 }
     ];
 
     // Aba 2: Itens Consumidos
@@ -527,9 +545,18 @@ export default function MasterRelatoriosPage() {
                     {/* Resumo Financeiro da Pessoa */}
                     <div className="flex flex-wrap items-center gap-3 bg-black/20 p-3 rounded-2xl border border-white/10">
                       <div className="text-center px-3">
-                        <p className="text-[10px] uppercase font-bold text-purple-200">Total Concedido</p>
+                        <p className="text-[10px] uppercase font-bold text-purple-200">Cortesia</p>
                         <p className="text-lg font-black text-purple-300">R$ {pessoa.totalCortesiaConcedida.toFixed(2).replace('.', ',')}</p>
                       </div>
+                      {pessoa.totalRecargasPagas > 0 && (
+                        <>
+                          <div className="w-px h-8 bg-white/20"></div>
+                          <div className="text-center px-3">
+                            <p className="text-[10px] uppercase font-bold text-blue-200">+ Recarga Paga</p>
+                            <p className="text-lg font-black text-blue-300">R$ {pessoa.totalRecargasPagas.toFixed(2).replace('.', ',')}</p>
+                          </div>
+                        </>
+                      )}
                       <div className="w-px h-8 bg-white/20"></div>
                       <div className="text-center px-3">
                         <p className="text-[10px] uppercase font-bold text-emerald-200">Consumido</p>
@@ -554,6 +581,42 @@ export default function MasterRelatoriosPage() {
 
                   {/* Extrato de Itens Consumidos pela Pessoa */}
                   <div className="p-6 space-y-4">
+                    {/* Histórico de Recargas do Cartão */}
+                    {pessoa.recargas && pessoa.recargas.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-black text-purple-800 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <span>💳</span> Recargas Efetuadas no Cartão ({pessoa.recargas.length})
+                        </h4>
+                        <div className="overflow-x-auto rounded-2xl border border-purple-100 bg-purple-50/20">
+                          <table className="w-full text-left">
+                            <thead>
+                              <tr className="bg-purple-50/60 text-purple-900 text-xs uppercase font-black">
+                                <th className="p-3">Data / Hora</th>
+                                <th className="p-3">Tipo de Recarga</th>
+                                <th className="p-3">Operador / Caixa</th>
+                                <th className="p-3 text-right">Valor Creditado</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-purple-100">
+                              {pessoa.recargas.map((r) => (
+                                <tr key={r.id}>
+                                  <td className="p-3 text-xs font-bold text-gray-600">{r.data} {r.hora}</td>
+                                  <td className="p-3 text-sm font-bold text-purple-900">
+                                    <span className={`px-2 py-0.5 rounded-md text-xs font-black ${r.tipoRecarga === 'Cortesia' ? 'bg-purple-200 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                                      {r.tipoRecarga}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-xs font-semibold text-gray-600">{r.operador}</td>
+                                  <td className="p-3 text-sm font-black text-purple-900 text-right">R$ {r.valor.toFixed(2).replace('.', ',')}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Consumo de Produtos */}
                     <div>
                       <h4 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                         <span>🍔</span> Extrato de Consumo ({pessoa.consumos.length} {pessoa.consumos.length === 1 ? 'item' : 'itens'})

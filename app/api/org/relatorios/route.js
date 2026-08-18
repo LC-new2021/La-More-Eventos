@@ -155,13 +155,15 @@ export async function GET(req) {
 
     // Consolidação de Cortesias por Pessoa / Cartão Único
     const pessoasCortesiaMap = {};
+    const cartoesComCortesiaIds = new Set();
 
-    // 1. Identificar todas as recargas de cortesia e agrupar pelo cartão
+    // 1. Primeiro passo: identificar quais cartões receberam cortesia
     movimentacoes.forEach(m => {
       if (m.tipo === 'RECARGA') {
         const descLower = (m.descricao || '').toLowerCase();
         if (descLower.includes('cortesia')) {
           const key = m.cartaoId || m.cartao?.codigo || m.id;
+          cartoesComCortesiaIds.add(key);
           if (!pessoasCortesiaMap[key]) {
             pessoasCortesiaMap[key] = {
               id: key,
@@ -173,6 +175,7 @@ export async function GET(req) {
               clienteCelular: m.cartao?.cliente?.celular || '',
               cartaoSaldoAtual: m.cartao?.saldo || 0,
               totalCortesiaConcedida: 0,
+              totalRecargasPagas: 0,
               totalConsumido: 0,
               totalDevolvido: 0,
               recargas: [],
@@ -180,26 +183,33 @@ export async function GET(req) {
               devolucoes: []
             };
           }
+        }
+      }
+    });
 
-          pessoasCortesiaMap[key].totalCortesiaConcedida += m.valor;
+    // 2. Mapear todas as movimentações (recargas cortesia, recargas pagas, consumos e devoluções) para estes cartões
+    movimentacoes.forEach(m => {
+      const key = m.cartaoId || m.cartao?.codigo;
+      if (key && pessoasCortesiaMap[key]) {
+        if (m.tipo === 'RECARGA') {
+          const descLower = (m.descricao || '').toLowerCase();
+          const isCortesia = descLower.includes('cortesia');
+          if (isCortesia) {
+            pessoasCortesiaMap[key].totalCortesiaConcedida += m.valor;
+          } else {
+            pessoasCortesiaMap[key].totalRecargasPagas += m.valor;
+          }
           pessoasCortesiaMap[key].recargas.push({
             id: m.id,
             data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
             hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
             valor: m.valor,
+            tipoRecarga: isCortesia ? 'Cortesia' : 'Recarga Própria / Paga',
             operador: m.operador?.nome || m.operadorNome || 'Sistema / Caixa',
-            descricao: m.descricao || 'Recarga Cortesia',
+            descricao: m.descricao || (isCortesia ? 'Recarga Cortesia' : 'Recarga'),
             criadaEm: m.criadaEm
           });
-        }
-      }
-    });
-
-    // 2. Mapear consumos (débitos) e devoluções (estornos) apenas para estes cartões com cortesia
-    movimentacoes.forEach(m => {
-      const key = m.cartaoId || m.cartao?.codigo;
-      if (key && pessoasCortesiaMap[key]) {
-        if (m.tipo === 'DEBITO') {
+        } else if (m.tipo === 'DEBITO') {
           pessoasCortesiaMap[key].totalConsumido += m.valor;
           pessoasCortesiaMap[key].consumos.push({
             id: m.id,
@@ -227,10 +237,11 @@ export async function GET(req) {
     });
 
     const cortesiasConsolidadas = Object.values(pessoasCortesiaMap).map(p => {
-      // Saldo restante calculado matematicamente: Concedido - Consumido - Devolvido
-      const saldoRestanteCalculado = Math.max(0, p.totalCortesiaConcedida - p.totalConsumido - p.totalDevolvido);
+      const totalCreditosCartao = p.totalCortesiaConcedida + p.totalRecargasPagas;
+      const saldoRestanteCalculado = Math.max(0, totalCreditosCartao - p.totalConsumido - p.totalDevolvido);
       return {
         ...p,
+        totalCreditosCartao,
         saldoRestante: saldoRestanteCalculado,
         primeiraRecargaData: p.recargas[0]?.data || '',
         primeiraRecargaHora: p.recargas[0]?.hora || '',
