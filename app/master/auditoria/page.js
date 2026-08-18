@@ -117,8 +117,10 @@ export default function MasterAuditoria() {
       "Categoria", 
       "Cliente (Nome)", 
       "CPF", 
+      "Celular / Telefone",
       "Código Cartão", 
       "Operador / Caixa", 
+      "Cargo Operador",
       "Valor (R$)", 
       "Saldo Atual do Cartão (R$)"
     ];
@@ -134,8 +136,10 @@ export default function MasterAuditoria() {
       { key: "categoria", width: 18 },
       { key: "cliente", width: 25 },
       { key: "cpf", width: 18 },
+      { key: "celular", width: 18 },
       { key: "cartao", width: 15 },
       { key: "operador", width: 22 },
+      { key: "cargo", width: 18 },
       { key: "valor", width: 16 },
       { key: "saldo", width: 18 },
     ];
@@ -157,15 +161,17 @@ export default function MasterAuditoria() {
         categoria: categoria,
         cliente: log.cartao?.cliente?.nome || '—',
         cpf: log.cartao?.cliente?.cpf || '—',
+        celular: log.cartao?.cliente?.celular || '—',
         cartao: log.cartao?.codigo || '—',
         operador: log.operador?.nome || log.operadorNome || 'Sistema / Online',
+        cargo: log.operador?.role?.replace('_', ' ') || 'Online',
         valor: log.valor,
         saldo: log.cartao?.saldo || 0
       });
 
       if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
-      row.getCell(11).numFmt = '"R$ "#,##0.00';
-      row.getCell(12).numFmt = '"R$ "#,##0.00';
+      row.getCell(13).numFmt = '"R$ "#,##0.00';
+      row.getCell(14).numFmt = '"R$ "#,##0.00';
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -320,6 +326,13 @@ export default function MasterAuditoria() {
                       <td className="p-4 text-sm">
                         <p className="font-black text-gray-950">{log.cartao?.cliente?.nome || '—'}</p>
                         <p className="text-purple-700 font-mono font-bold text-xs">Cartão: {log.cartao?.codigo || '—'}</p>
+                        {(log.cartao?.cliente?.cpf || log.cartao?.cliente?.celular) && (
+                          <p className="text-gray-500 font-semibold text-[11px] mt-0.5">
+                            {log.cartao?.cliente?.cpf && `CPF: ${log.cartao.cliente.cpf}`}
+                            {log.cartao?.cliente?.cpf && log.cartao?.cliente?.celular && ' • '}
+                            {log.cartao?.cliente?.celular && `Tel: ${log.cartao.cliente.celular}`}
+                          </p>
+                        )}
                       </td>
                       <td className="p-4 text-sm">
                         <p className="font-bold text-gray-800">{log.operador?.nome || log.operadorNome || 'Sistema'}</p>
