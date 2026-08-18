@@ -108,12 +108,18 @@ export default function OrgDashboard() {
       {/* Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {carregando ? (
-          Array(4).fill(0).map((_,i) => <div key={i} className="bg-gray-100 rounded-3xl p-5 h-28 animate-pulse" />)
+          Array(4).fill(0).map((_,i) => <div key={i} className="bg-gray-100 rounded-3xl p-5 h-32 animate-pulse" />)
         ) : metricas.map((m) => (
-          <div key={m.label} className={`${m.cor} border-2 rounded-3xl p-5`}>
-            <span className="text-4xl block mb-2">{m.emoji}</span>
-            <p className="text-3xl font-black">{m.valor}</p>
-            <p className="text-base font-semibold opacity-80 mt-1">{m.label}</p>
+          <div key={m.label} className={`${m.cor} border-2 rounded-3xl p-5 flex flex-col justify-between min-h-[135px] shadow-sm hover:shadow-md transition-all`}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs uppercase font-bold tracking-wider opacity-80">{m.label}</span>
+              <span className="w-9 h-9 rounded-xl bg-black/5 flex items-center justify-center text-xl shrink-0">
+                {m.emoji}
+              </span>
+            </div>
+            <div className="mt-auto">
+              <p className="text-2xl xl:text-[26px] font-black tracking-tight leading-none break-all">{m.valor}</p>
+            </div>
           </div>
         ))}
       </div>

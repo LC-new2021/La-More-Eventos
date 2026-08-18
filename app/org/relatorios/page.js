@@ -340,53 +340,171 @@ export default function OrgRelatoriosPage() {
   // 3. Exportação de Vendas Gerais
   async function exportarVendasXLSX() {
     const workbook = new ExcelJS.Workbook();
-    const ws = workbook.addWorksheet("Vendas Gerais");
-    ws.getRow(1).values = ["ID", "Data", "Hora", "Cliente", "Item/Ação", "Categoria", "Tipo", "Valor (R$)"];
-    ws.getRow(1).font = { bold: true };
-    vendasMestre.forEach(v => ws.addRow([v.id, v.data, v.hora, v.cliente, v.produto, v.categoria, v.pagto, v.valor]));
+    workbook.creator = "La More Eventos";
+    workbook.created = new Date();
+
+    const ws = workbook.addWorksheet("Vendas Gerais", { properties: { tabColor: { argb: 'FF1D3461' } } });
+
+    ws.mergeCells('A1:H2');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'LA MORE EVENTOS - Extrato Completo de Vendas Gerais';
+    titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    ws.getCell('A3').value = `Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"} | Total de Movimentações: ${vendasMestre.length}`;
+    ws.getCell('A3').font = { italic: true, size: 10, color: { argb: 'FF4B5563' } };
+
+    const headerRow = ws.getRow(5);
+    headerRow.values = ["Data", "Hora", "Cliente", "Item / Ação / Produto", "Categoria", "Operador / Caixa", "Tipo", "Valor (R$)"];
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
+
+    ws.columns = [
+      { key: "data", width: 14 },
+      { key: "hora", width: 10 },
+      { key: "cliente", width: 26 },
+      { key: "produto", width: 30 },
+      { key: "categoria", width: 18 },
+      { key: "operador", width: 22 },
+      { key: "tipo", width: 18 },
+      { key: "valor", width: 16 }
+    ];
+
+    vendasMestre.forEach((v, idx) => {
+      const row = ws.addRow({
+        data: v.data,
+        hora: v.hora,
+        cliente: v.cliente,
+        produto: v.produto,
+        categoria: v.categoria,
+        operador: v.operador,
+        tipo: v.pagto,
+        valor: v.valor
+      });
+
+      if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      row.getCell(8).numFmt = '"R$ "#,##0.00';
+    });
+
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), "LaMore_Vendas_Gerais.xlsx");
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, "LaMore_Extrato_Vendas_Gerais.xlsx");
   }
 
   function exportarVendasPDF() {
-    const doc = new jsPDF();
-    doc.text("Relatório de Vendas Gerais", 14, 15);
+    const doc = new jsPDF("landscape");
+    doc.setFontSize(20);
+    doc.setTextColor(29, 52, 97);
+    doc.text("LA MORE EVENTOS", 14, 18);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text("Extrato Completo de Vendas Gerais", 14, 25);
+    doc.text(`Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"} | Total: ${vendasMestre.length} transações`, 14, 31);
+
     autoTable(doc, {
-      startY: 20,
-      head: [["Data", "Hora", "Cliente", "Produto/Ação", "Valor (R$)"]],
-      body: vendasMestre.map(v => [v.data, v.hora, v.cliente, v.produto, v.valor.toFixed(2)]),
-      theme: 'striped'
+      startY: 36,
+      head: [["Data", "Hora", "Cliente", "Item / Ação", "Categoria", "Operador", "Tipo", "Valor (R$)"]],
+      body: vendasMestre.map(v => [
+        v.data,
+        v.hora,
+        v.cliente,
+        v.produto,
+        v.categoria,
+        v.operador,
+        v.pagto,
+        `R$ ${v.valor.toFixed(2).replace('.', ',')}`
+      ]),
+      theme: 'striped',
+      headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255], fontSize: 8 },
+      styles: { fontSize: 8 }
     });
-    doc.save("LaMore_Vendas_Gerais.pdf");
+
+    doc.save("LaMore_Extrato_Vendas_Gerais.pdf");
   }
 
   // 4. Exportação Geral BI
   async function exportarGeralXLSX() {
     const workbook = new ExcelJS.Workbook();
-    const ws = workbook.addWorksheet("BI Geral");
-    ws.addRow(["Balanço", "Valor (R$)"]);
-    ws.addRow(["Total Recarregado", summary.totalRecarregado]);
-    ws.addRow(["Total Débito", summary.totalDebito]);
-    ws.addRow(["Total Estorno", summary.totalEstorno]);
-    ws.addRow(["Saldo em Aberto", summary.saldoEmAberto]);
+    workbook.creator = "La More Eventos";
+    workbook.created = new Date();
+
+    const ws = workbook.addWorksheet("Balanço Geral BI", { properties: { tabColor: { argb: 'FF10B981' } } });
+
+    ws.mergeCells('A1:D2');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'LA MORE EVENTOS - Relatório Geral de Balanço (BI)';
+    titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    ws.getCell('A3').value = `Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"}`;
+    ws.getCell('A3').font = { italic: true, size: 10, color: { argb: 'FF4B5563' } };
+
+    const headerRow = ws.getRow(5);
+    headerRow.values = ["Indicador Financeiro", "Valor (R$)", "Observação"];
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
+
+    ws.columns = [
+      { key: "indicador", width: 35 },
+      { key: "valor", width: 22 },
+      { key: "obs", width: 40 }
+    ];
+
+    const kpis = [
+      { indicador: "Total de Receitas (Recargas)", valor: summary.totalRecarregado, obs: "Total bruto injetado nos cartões de consumo" },
+      { indicador: "Total de Débitos (Consumo Bar / Food)", valor: summary.totalDebito, obs: "Total consumido pelos clientes nas barracas" },
+      { indicador: "Total de Devoluções (Estornos)", valor: summary.totalEstorno, obs: "Total devolvido em dinheiro/pix no caixa" },
+      { indicador: "Saldo em Aberto (Cartões)", valor: summary.saldoEmAberto, obs: "Crédito restante nos cartões emitidos" },
+      { indicador: "Total de Cartões Emitidos", valor: summary.totalCartoes, obs: "Quantidade de cartões físicos e digitais" },
+      { indicador: "Ticket Médio por Consumo", valor: summary.ticketMedio, obs: "Média de valor gasto por transação" }
+    ];
+
+    kpis.forEach((k, idx) => {
+      const row = ws.addRow({
+        indicador: k.indicador,
+        valor: k.valor,
+        obs: k.obs
+      });
+      if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      if (k.indicador !== "Total de Cartões Emitidos") {
+        row.getCell(2).numFmt = '"R$ "#,##0.00';
+      }
+    });
+
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), "LaMore_Balanço_Geral.xlsx");
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, "LaMore_Balanco_Geral_BI.xlsx");
   }
 
   function exportarGeralPDF() {
     const doc = new jsPDF();
-    doc.text("Relatório Geral de Balanço (BI)", 14, 15);
+    doc.setFontSize(20);
+    doc.setTextColor(29, 52, 97);
+    doc.text("LA MORE EVENTOS", 14, 18);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text("Relatório Geral de Balanço (BI)", 14, 25);
+    doc.text(`Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"}`, 14, 31);
+
     autoTable(doc, {
-      startY: 20,
-      head: [["Balanço", "Valor (R$)"]],
+      startY: 36,
+      head: [["Indicador Financeiro", "Valor", "Descrição"]],
       body: [
-        ["Total de Receitas (Recargas)", summary.totalRecarregado.toFixed(2)],
-        ["Total de Débitos (Bar/Food)", summary.totalDebito.toFixed(2)],
-        ["Total de Devoluções (Estornos)", summary.totalEstorno.toFixed(2)],
-        ["Saldo em Aberto (Cartões)", summary.saldoEmAberto.toFixed(2)]
-      ]
+        ["Total de Receitas (Recargas)", `R$ ${summary.totalRecarregado.toFixed(2).replace('.', ',')}`, "Total injetado nos cartões"],
+        ["Total de Débitos (Consumo Bar/Food)", `R$ ${summary.totalDebito.toFixed(2).replace('.', ',')}`, "Total consumido nas barracas"],
+        ["Total de Devoluções (Estornos)", `R$ ${summary.totalEstorno.toFixed(2).replace('.', ',')}`, "Total devolvido no caixa"],
+        ["Saldo em Aberto (Cartões)", `R$ ${summary.saldoEmAberto.toFixed(2).replace('.', ',')}`, "Crédito remanescente"],
+        ["Total de Cartões Emitidos", `${summary.totalCartoes} cartões`, "Físicos e Digitais"]
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255] }
     });
-    doc.save("LaMore_Balanço_Geral.pdf");
+
+    doc.save("LaMore_Balanco_Geral_BI.pdf");
   }
 
   const handleExportarPDF = () => {
