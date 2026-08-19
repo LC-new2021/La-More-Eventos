@@ -929,23 +929,37 @@ export default function MasterRelatoriosPage() {
       {aba === "produtos" && (
         <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
           <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
-            <h3 className="text-2xl font-black">Ranking de Vendas por Produto</h3>
+            <div>
+              <h3 className="text-2xl font-black">Ranking de Vendas por Produto</h3>
+              <p className="text-blue-200 text-sm font-semibold mt-0.5">Contagem exata de unidades físicas e transações</p>
+            </div>
             <span className="bg-white/20 text-white font-bold px-3 py-1 rounded-xl text-sm">{vendasPorProduto.length} itens</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-gray-50 border-b-2 border-gray-100">
-                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Produto</th>
-                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Quantidade Vendida</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Produto / Item</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Preço Unit.</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Transações (Bipadas)</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Unidades Físicas (Qtd Real)</th>
                   <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Faturamento Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {vendasPorProduto.map((p, idx) => (
                   <tr key={p.name} className="hover:bg-blue-50/50 transition-colors">
-                    <td className="p-4 font-black text-gray-900">{idx + 1}. {p.name}</td>
-                    <td className="p-4 font-black text-[#1D3461] text-center">{p.qtd}</td>
+                    <td className="p-4 font-black text-gray-900">
+                      {idx + 1}. {p.name}
+                      {p.grupo && <span className="ml-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-500">{p.grupo}</span>}
+                    </td>
+                    <td className="p-4 font-bold text-gray-600 text-center">
+                      R$ {(p.precoUnitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-4 font-bold text-gray-500 text-center">{p.pedidos || p.qtd}</td>
+                    <td className="p-4 font-black text-[#1D3461] text-center text-lg bg-blue-50/30">
+                      {p.qtd} <span className="text-xs font-semibold text-gray-500">un</span>
+                    </td>
                     <td className="p-4 font-black text-gray-900 text-right">
                       R$ {p.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       <span className="text-xs text-gray-400 ml-2 font-bold">

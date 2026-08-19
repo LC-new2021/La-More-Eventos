@@ -107,18 +107,32 @@ export async function GET(req) {
     movimentacoes.forEach(m => {
       if (m.tipo === 'DEBITO' && m.produto) {
         const prodName = m.produto.nome || 'Desconhecido';
+        const precoUnit = parseFloat(m.produto.preco) || parseFloat(m.valor) || 1;
+        const valorDebito = parseFloat(m.valor) || 0;
+        const unidadesCalculadas = precoUnit > 0 ? (valorDebito / precoUnit) : 1;
+
         if (!vendasPorProdutoMap[prodName]) {
-          vendasPorProdutoMap[prodName] = { value: 0, qtd: 0 };
+          vendasPorProdutoMap[prodName] = {
+            value: 0,
+            qtd: 0, // Unidades físicas reais vendidas
+            pedidos: 0, // Vezes que foi bipado/transações
+            precoUnitario: precoUnit,
+            grupo: m.produto.grupo || 'Geral'
+          };
         }
-        vendasPorProdutoMap[prodName].value += m.valor;
-        vendasPorProdutoMap[prodName].qtd += 1;
+        vendasPorProdutoMap[prodName].value += valorDebito;
+        vendasPorProdutoMap[prodName].qtd += unidadesCalculadas;
+        vendasPorProdutoMap[prodName].pedidos += 1;
       }
     });
 
     const vendasPorProduto = Object.keys(vendasPorProdutoMap).map(k => ({
       name: k,
+      grupo: vendasPorProdutoMap[k].grupo,
+      precoUnitario: vendasPorProdutoMap[k].precoUnitario,
       value: vendasPorProdutoMap[k].value,
-      qtd: vendasPorProdutoMap[k].qtd
+      qtd: Math.round(vendasPorProdutoMap[k].qtd * 100) / 100, // Unidades reais
+      pedidos: vendasPorProdutoMap[k].pedidos // Transações/bipadas
     })).sort((a,b) => b.value - a.value);
 
     const recebimentos = Object.keys(recebimentosMap).map(k => ({
