@@ -383,7 +383,7 @@ export default function MasterRelatoriosPage() {
     
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text("Extrato Completo de Vendas Gerais", 14, 25);
+    doc.text("Extrato Completo de Vendas Gerais (Tabela)", 14, 25);
     doc.text(`Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"} | Total: ${vendasMestre.length} transações`, 14, 31);
 
     autoTable(doc, {
@@ -407,7 +407,166 @@ export default function MasterRelatoriosPage() {
     doc.save("LaMore_Extrato_Vendas_Gerais.pdf");
   }
 
-  // 4. Exportação Geral BI
+  // 4. Exportação de Produtos (Excel & PDF)
+  async function exportarProdutosXLSX() {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "La More Eventos";
+    workbook.created = new Date();
+
+    const ws = workbook.addWorksheet("Relatório de Produtos", { properties: { tabColor: { argb: 'FFF59E0B' } } });
+
+    ws.mergeCells('A1:F2');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'LA MORE EVENTOS - Relatório Detalhado de Vendas por Produto';
+    titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    ws.getCell('A3').value = `Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"} | Total de Produtos: ${vendasPorProduto.length}`;
+    ws.getCell('A3').font = { italic: true, size: 10, color: { argb: 'FF4B5563' } };
+
+    const headerRow = ws.getRow(5);
+    headerRow.values = ["Posição", "Produto / Item", "Categoria", "Preço Unitário (R$)", "Transações (Bipadas)", "Unidades Físicas (Qtd Real)", "Faturamento Total (R$)"];
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF59E0B' } };
+
+    ws.columns = [
+      { key: "pos", width: 10 },
+      { key: "nome", width: 32 },
+      { key: "grupo", width: 20 },
+      { key: "preco", width: 22 },
+      { key: "bipadas", width: 22 },
+      { key: "qtd", width: 26 },
+      { key: "valor", width: 22 }
+    ];
+
+    vendasPorProduto.forEach((p, idx) => {
+      const row = ws.addRow({
+        pos: `${idx + 1}º`,
+        nome: p.name,
+        grupo: p.grupo || 'Geral',
+        preco: p.precoUnitario || 0,
+        bipadas: p.pedidos || p.qtd,
+        qtd: p.qtd,
+        valor: p.value
+      });
+
+      if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      row.getCell(4).numFmt = '"R$ "#,##0.00';
+      row.getCell(7).numFmt = '"R$ "#,##0.00';
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, "LaMore_Relatorio_Produtos.xlsx");
+  }
+
+  function exportarProdutosPDF() {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.setTextColor(29, 52, 97);
+    doc.text("LA MORE EVENTOS", 14, 18);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text("Relatório Detalhado de Vendas por Produto", 14, 25);
+    doc.text(`Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"} | Total: ${vendasPorProduto.length} itens`, 14, 31);
+
+    autoTable(doc, {
+      startY: 36,
+      head: [["#", "Produto / Item", "Categoria", "Preço Unit.", "Transações", "Qtd Real Vendida", "Total Faturado"]],
+      body: vendasPorProduto.map((p, idx) => [
+        idx + 1,
+        p.name,
+        p.grupo || 'Geral',
+        `R$ ${(p.precoUnitario || 0).toFixed(2).replace('.', ',')}`,
+        p.pedidos || p.qtd,
+        `${p.qtd} un`,
+        `R$ ${p.value.toFixed(2).replace('.', ',')}`
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [245, 158, 11], textColor: [255, 255, 255], fontStyle: 'bold' }
+    });
+
+    doc.save("LaMore_Relatorio_Produtos.pdf");
+  }
+
+  // 5. Exportação de Recebimentos (Excel & PDF)
+  async function exportarRecebimentosXLSX() {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "La More Eventos";
+    workbook.created = new Date();
+
+    const ws = workbook.addWorksheet("Recebimentos", { properties: { tabColor: { argb: 'FF3B82F6' } } });
+
+    ws.mergeCells('A1:D2');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'LA MORE EVENTOS - Relatório de Recebimentos por Forma de Pagamento';
+    titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    ws.getCell('A3').value = `Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"}`;
+    ws.getCell('A3').font = { italic: true, size: 10, color: { argb: 'FF4B5563' } };
+
+    const headerRow = ws.getRow(5);
+    headerRow.values = ["Forma de Pagamento", "Qtd Transações", "Faturamento Total (R$)", "% do Total"];
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
+
+    ws.columns = [
+      { key: "forma", width: 28 },
+      { key: "qtd", width: 18 },
+      { key: "valor", width: 24 },
+      { key: "perc", width: 16 }
+    ];
+
+    recebimentos.forEach((r, idx) => {
+      const perc = summary.totalRecarregado > 0 ? (r.value / summary.totalRecarregado) * 100 : 0;
+      const row = ws.addRow({
+        forma: r.name,
+        qtd: r.qtd,
+        valor: r.value,
+        perc: `${perc.toFixed(1)}%`
+      });
+
+      if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      row.getCell(3).numFmt = '"R$ "#,##0.00';
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, "LaMore_Relatorio_Recebimentos.xlsx");
+  }
+
+  function exportarRecebimentosPDF() {
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.setTextColor(29, 52, 97);
+    doc.text("LA MORE EVENTOS", 14, 18);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text("Relatório de Recebimentos por Forma de Pagamento", 14, 25);
+    doc.text(`Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"}`, 14, 31);
+
+    autoTable(doc, {
+      startY: 36,
+      head: [["Forma de Pagamento", "Qtd Transações", "Faturamento Total", "% do Total"]],
+      body: recebimentos.map(r => [
+        r.name,
+        r.qtd,
+        `R$ ${r.value.toFixed(2).replace('.', ',')}`,
+        `${summary.totalRecarregado > 0 ? ((r.value / summary.totalRecarregado) * 100).toFixed(1) : 0}%`
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' }
+    });
+
+    doc.save("LaMore_Relatorio_Recebimentos.pdf");
+  }
+
+  // 6. Exportação Geral BI
   async function exportarGeralXLSX() {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "La More Eventos";
@@ -493,22 +652,39 @@ export default function MasterRelatoriosPage() {
   const handleExportarPDF = () => {
     if (aba === "cortesias") return exportarCortesiasPDF();
     if (aba === "vendas") return exportarVendasPDF();
+    if (aba === "produtos") return exportarProdutosPDF();
+    if (aba === "recebimentos") return exportarRecebimentosPDF();
     return exportarGeralPDF();
   };
 
   const handleExportarXLSX = () => {
     if (aba === "cortesias") return exportarCortesiasXLSX();
     if (aba === "vendas") return exportarVendasXLSX();
+    if (aba === "produtos") return exportarProdutosXLSX();
+    if (aba === "recebimentos") return exportarRecebimentosXLSX();
     return exportarGeralXLSX();
   };
+
+  const getNomeAbaAtual = () => {
+    switch (aba) {
+      case "bi": return { titulo: "Visão Geral de BI", desc: "Painel de indicadores gerenciais e balanço financeiro" };
+      case "vendas": return { titulo: "Vendas Gerais de Tabela", desc: "Extrato cronológico detalhado de todas as transações" };
+      case "produtos": return { titulo: "Relatório de Produtos", desc: "Ranking detalhado de vendas com unidades físicas e faturamento" };
+      case "recebimentos": return { titulo: "Relatório de Recebimentos", desc: "Distribuição das recargas por forma de pagamento" };
+      case "cortesias": return { titulo: "Cortesias por Pessoa", desc: "Consolidação de cortesias, recargas e consumo individual" };
+      default: return { titulo: "Relatórios e BI", desc: "Dados consolidados do evento" };
+    }
+  };
+
+  const infoAba = getNomeAbaAtual();
 
   return (
     <div className="max-w-6xl mx-auto pb-10">
       {/* Header e Filtros */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 bg-white p-6 rounded-3xl border-2 border-gray-100 shadow-sm">
         <div>
-          <h2 className="text-4xl font-black text-[#1D3461]">Relatórios e BI</h2>
-          <p className="text-gray-500 text-lg font-semibold mt-1">Dados consolidados do evento</p>
+          <h2 className="text-4xl font-black text-[#1D3461]">{infoAba.titulo}</h2>
+          <p className="text-gray-500 text-lg font-semibold mt-1">{infoAba.desc}</p>
         </div>
         
         <div className="flex flex-wrap items-end gap-4">
@@ -544,10 +720,22 @@ export default function MasterRelatoriosPage() {
           
           <div className="flex gap-2">
             <button onClick={handleExportarXLSX} className="bg-green-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm cursor-pointer">
-              <span>📊</span> {aba === 'cortesias' ? 'Excel (Cortesias)' : aba === 'vendas' ? 'Excel (Vendas)' : 'Excel (.xlsx)'}
+              <span>📊</span> {
+                aba === 'cortesias' ? 'Excel (Cortesias)' :
+                aba === 'vendas' ? 'Excel (Vendas Gerais)' :
+                aba === 'produtos' ? 'Excel (Produtos)' :
+                aba === 'recebimentos' ? 'Excel (Recebimentos)' :
+                'Excel (BI Geral)'
+              }
             </button>
             <button onClick={handleExportarPDF} className="bg-red-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-2 shadow-sm cursor-pointer">
-              <span>📄</span> {aba === 'cortesias' ? 'PDF (Cortesias)' : aba === 'vendas' ? 'PDF (Vendas)' : 'PDF (.pdf)'}
+              <span>📄</span> {
+                aba === 'cortesias' ? 'PDF (Cortesias)' :
+                aba === 'vendas' ? 'PDF (Vendas Gerais)' :
+                aba === 'produtos' ? 'PDF (Produtos)' :
+                aba === 'recebimentos' ? 'PDF (Recebimentos)' :
+                'PDF (BI Geral)'
+              }
             </button>
           </div>
         </div>
@@ -556,8 +744,8 @@ export default function MasterRelatoriosPage() {
       {/* Navegação de Abas */}
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
         {[
-          { id: "bi", label: "📈 Visão Geral (BI)" },
-          { id: "vendas", label: "🧾 Vendas Gerais (Tabela)" },
+          { id: "bi", label: "📈 Visão Geral de BI" },
+          { id: "vendas", label: "🧾 Vendas Gerais de Tabela" },
           { id: "produtos", label: "🍔 Produtos" },
           { id: "recebimentos", label: "💳 Recebimentos" },
           { id: "cortesias", label: "🎁 Cortesias por Pessoa" },
