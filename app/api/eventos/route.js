@@ -53,7 +53,8 @@ export async function POST(req) {
         mercadoPagoPublicKey: body.mercadoPagoPublicKey || null,
         mercadoPagoAccessToken: body.mercadoPagoAccessToken || null,
         permiteDevolucao: body.permiteDevolucao || false,
-        permitirEdicaoGateway: body.permitirEdicaoGateway || false
+        permitirEdicaoGateway: body.permitirEdicaoGateway || false,
+        bilheteriaEventoId: body.bilheteriaEventoId || null,
       },
     });
     return NextResponse.json(evento, { status: 201 });

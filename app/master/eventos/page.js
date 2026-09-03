@@ -12,10 +12,13 @@ export default function MasterEventos() {
   const [data, setData] = useState('');
   const [local, setLocal] = useState('');
   const [taxa, setTaxa] = useState('5.0');
-
   const [permiteDevolucao, setPermiteDevolucao] = useState(false);
   const [permitirEdicaoGateway, setPermitirEdicaoGateway] = useState(false);
+  const [mpPublicKey, setMpPublicKey] = useState('');
+  const [mpAccessToken, setMpAccessToken] = useState('');
+  const [bilheteriaEventoId, setBilheteriaEventoId] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [sincronizandoId, setSincronizandoId] = useState(null);
   
   // Modal states
   const [mostrarModal, setMostrarModal] = useState(false);
@@ -24,14 +27,33 @@ export default function MasterEventos() {
   // QR Code Modal State
   const [mostrarQrModal, setMostrarQrModal] = useState(false);
   const [eventoQr, setEventoQr] = useState(null);
-  
   // Notification states
   const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
     carregarEventos();
     
-
+    // Ler parâmetros da URL para exibir toasts/banners após o login OAuth do Mercado Pago
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const success = params.get('success');
+      const err = params.get('error');
+      if (success === 'mercadopago_connected') {
+        setSuccessMsg('Conta Mercado Pago do Produtor vinculada com sucesso! 🔌🎉');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (err) {
+        if (err === 'mercadopago_auth_failed') {
+          setError('A autorização com o Mercado Pago foi cancelada ou recusada.');
+        } else if (err === 'token_exchange_failed') {
+          setError('Não foi possível converter o código de autorização em tokens do Mercado Pago.');
+        } else if (err === 'callback_error') {
+          setError('Ocorreu um erro inesperado ao processar a resposta do Mercado Pago.');
+        } else {
+          setError('Falha ao vincular a conta Mercado Pago.');
+        }
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
   }, []);
 
   const carregarEventos = async () => {
@@ -53,9 +75,11 @@ export default function MasterEventos() {
     setData('');
     setLocal('');
     setTaxa('5.0');
-
     setPermiteDevolucao(false);
     setPermitirEdicaoGateway(false);
+    setMpPublicKey('');
+    setMpAccessToken('');
+    setBilheteriaEventoId('');
     setMostrarModal(true);
   };
 
@@ -65,10 +89,36 @@ export default function MasterEventos() {
     setData(evt.data ? new Date(evt.data).toISOString().split('T')[0] : '');
     setLocal(evt.local || '');
     setTaxa(evt.taxaMasterPercent?.toString() || '5.0');
-
     setPermiteDevolucao(evt.permiteDevolucao || false);
     setPermitirEdicaoGateway(evt.permitirEdicaoGateway || false);
+    setMpPublicKey(evt.mercadoPagoPublicKey || '');
+    setMpAccessToken(evt.mercadoPagoAccessToken || '');
+    setBilheteriaEventoId(evt.bilheteriaEventoId || '');
     setMostrarModal(true);
+  };
+
+  const sincronizarBilheteria = async (id) => {
+    setSincronizandoId(id);
+    setError('');
+    setSuccessMsg('');
+    try {
+      const res = await fetch('/api/integracao/bilheteria/sincronizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventoId: id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMsg(`✔ Sincronização concluída: ${data.novosImportados} novo(s) cartão(ões) importado(s) da bilheteria! (${data.jaSincronizados} já estavam sincronizados). Total importado: R$ ${(data.valorTotalImportado || 0).toFixed(2).replace('.', ',')}`);
+        carregarEventos();
+      } else {
+        setError(data.error || 'Erro ao sincronizar com a bilheteria.');
+      }
+    } catch (e) {
+      setError('Falha de conexão com a bilheteria.');
+    } finally {
+      setSincronizandoId(null);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -88,9 +138,11 @@ export default function MasterEventos() {
           data,
           local,
           taxaMasterPercent: parseFloat(taxa),
-
           permiteDevolucao,
-          permitirEdicaoGateway
+          permitirEdicaoGateway,
+          mercadoPagoPublicKey: mpPublicKey,
+          mercadoPagoAccessToken: mpAccessToken,
+          bilheteriaEventoId: bilheteriaEventoId || null,
         })
       });
       const result = await res.json();
@@ -291,13 +343,59 @@ export default function MasterEventos() {
                   </div>
                 </div>
 
-
+                <div className={`mt-3 p-3.5 rounded-2xl border-2 flex items-center justify-between text-xs font-black mb-4 ${
+                  evt.mercadoPagoUserId 
+                    ? 'bg-green-50 border-green-100 text-green-700' 
+                    : 'bg-gray-50 border-gray-100 text-gray-500'
+                }`}>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span>🔌 MP Split:</span>
+                    <span className="truncate">{evt.mercadoPagoUserId ? `Conectado (ID: ${evt.mercadoPagoUserId})` : 'Não Configurado'}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const clientId = process.env.NEXT_PUBLIC_MERCADOPAGO_CLIENT_ID || '1234567890';
+                      const redirectUri = encodeURIComponent(process.env.NEXT_PUBLIC_MERCADOPAGO_REDIRECT_URI || 'http://localhost:3000/api/auth/mercadopago/callback');
+                      const url = `https://auth.mercadopago.com.br/authorization?client_id=${clientId}&response_type=code&platform_id=mp&state=${evt.id}&redirect_uri=${redirectUri}`;
+                      window.location.href = url;
+                    }}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all shadow-sm shrink-0 ${
+                      evt.mercadoPagoUserId 
+                        ? 'bg-green-600 hover:bg-green-700 text-white' 
+                        : 'bg-[#1D3461] hover:bg-[#112244] text-white'
+                    }`}
+                  >
+                    {evt.mercadoPagoUserId ? 'Reconectar' : 'Vincular'}
+                  </button>
+                </div>
               </div>
 
               <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
                 <div className="flex justify-between items-center text-gray-400 text-sm font-semibold">
                   <span>📅 {new Date(evt.data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
+                  {evt.bilheteriaEventoId && (
+                    <span className="text-[11px] bg-purple-50 text-purple-700 px-2.5 py-0.5 rounded-full font-bold">
+                      🎟️ Bilheteria Conectada
+                    </span>
+                  )}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => sincronizarBilheteria(evt.id)}
+                  disabled={sincronizandoId === evt.id}
+                  className="w-full bg-[#ff5500] hover:bg-[#e04b00] text-white font-black text-xs py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {sincronizandoId === evt.id ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                      Sincronizando com a Bilheteria...
+                    </>
+                  ) : (
+                    <>
+                      🔄 Sincronizar Vendas Bilheteria
+                    </>
+                  )}
+                </button>
                 <div className="flex gap-2">
                   <button
                     onClick={() => abrirEditar(evt)}
@@ -398,8 +496,6 @@ export default function MasterEventos() {
                 />
               </div>
 
-
-
               <div className="bg-gray-50 p-4 rounded-2xl border-2 border-gray-100 space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -426,6 +522,41 @@ export default function MasterEventos() {
                     <p className="text-xs text-gray-500 font-semibold">Se desativado, apenas o Master poderá configurar as chaves do Asaas/Mercado Pago.</p>
                   </div>
                 </label>
+              </div>
+
+              <div>
+                <label className="block text-gray-500 font-bold mb-1 text-sm">Mercado Pago Public Key</label>
+                <input
+                  type="text"
+                  value={mpPublicKey}
+                  onChange={(e) => setMpPublicKey(e.target.value)}
+                  className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
+                  placeholder="Ex: APP_USR-..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-500 font-bold mb-1 text-sm">Mercado Pago Access Token</label>
+                <input
+                  type="password"
+                  value={mpAccessToken}
+                  onChange={(e) => setMpAccessToken(e.target.value)}
+                  className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
+                  placeholder="Ex: APP_USR-..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-500 font-bold mb-1 text-sm">
+                  ID do Evento na Bilheteria <span className="text-xs text-gray-400 font-normal">(Opcional para sincronização com bilheteria)</span>
+                </label>
+                <input
+                  type="text"
+                  value={bilheteriaEventoId}
+                  onChange={(e) => setBilheteriaEventoId(e.target.value)}
+                  className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
+                  placeholder="Ex: evt_... ou slug do evento"
+                />
               </div>
 
               {!eventoParaEditar && (

@@ -54,6 +54,36 @@ export default function OrgDashboard() {
   const fmt = (v) => `R$ ${(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fmtHora = (d) => new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
+  const [sincronizando, setSincronizando] = useState(false);
+  const [msgSincronizacao, setMsgSincronizacao] = useState(null);
+
+  async function sincronizarBilheteria() {
+    if (!eventoId) return;
+    setSincronizando(true);
+    setMsgSincronizacao(null);
+    try {
+      const res = await fetch('/api/integracao/bilheteria/sincronizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventoId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMsgSincronizacao({
+          tipo: 'sucesso',
+          texto: `✔ ${data.novosImportados} novo(s) cartão(ões) importado(s). ${data.jaSincronizados} já estavam sincronizados.`
+        });
+        carregarDashboard();
+      } else {
+        setMsgSincronizacao({ tipo: 'erro', texto: data.error || 'Erro ao sincronizar.' });
+      }
+    } catch (e) {
+      setMsgSincronizacao({ tipo: 'erro', texto: 'Falha de conexão com a bilheteria.' });
+    } finally {
+      setSincronizando(false);
+    }
+  }
+
   const metricas = dados ? [
     { label: "Total Recarregado", valor: fmt(dados.totalRecarregado), emoji: "💰", cor: "bg-green-50 text-green-700 border-green-100" },
     { label: "Cartões Ativos", valor: dados.cartoesAtivos, emoji: "💳", cor: "bg-blue-50 text-blue-700 border-blue-100" },
@@ -70,7 +100,24 @@ export default function OrgDashboard() {
             {carregando ? "Carregando..." : <span className="text-green-600 font-black">● AO VIVO</span>}
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <button
+            type="button"
+            onClick={sincronizarBilheteria}
+            disabled={sincronizando}
+            className="w-full sm:w-auto bg-[#ff5500] hover:bg-[#e04b00] text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {sincronizando ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                🔄 Sincronizar Vendas Bilheteria
+              </>
+            )}
+          </button>
           <button 
             onClick={() => setMostrarQrModal(true)}
             className="w-full sm:w-auto justify-center bg-[#1D3461]/10 text-[#1D3461] hover:bg-[#1D3461] hover:text-white font-black text-base px-6 py-3 rounded-2xl transition-all flex items-center gap-2"
@@ -82,6 +129,15 @@ export default function OrgDashboard() {
           </Link>
         </div>
       </div>
+
+      {msgSincronizacao && (
+        <div className={`mb-6 p-4 rounded-2xl text-sm font-bold animate-in fade-in duration-200 flex items-center justify-between ${
+          msgSincronizacao.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+        }`}>
+          <span>{msgSincronizacao.texto}</span>
+          <button type="button" onClick={() => setMsgSincronizacao(null)} className="text-xs font-black underline cursor-pointer ml-3">Fechar</button>
+        </div>
+      )}
 
       {dados && (
         <div className={`mb-6 p-4 rounded-2xl border-2 flex items-center justify-between font-black text-sm ${

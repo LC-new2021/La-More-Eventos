@@ -62,13 +62,15 @@ export async function PATCH(req, { params }) {
     if (body.metodosPagamentoJson !== undefined) {
       updateData.metodosPagamentoJson = body.metodosPagamentoJson;
     }
+    if (body.bilheteriaEventoId !== undefined) {
+      updateData.bilheteriaEventoId = body.bilheteriaEventoId || null;
+    }
     
     // Configurações do Gateway
     if (body.gatewayActive !== undefined) updateData.gatewayActive = body.gatewayActive;
     if (body.asaasToken !== undefined) updateData.asaasToken = body.asaasToken;
     if (body.asaasUrl !== undefined) updateData.asaasUrl = body.asaasUrl;
     if (body.pagbankToken !== undefined) updateData.pagbankToken = body.pagbankToken;
-    if (body.pagbankKey !== undefined) updateData.pagbankKey = body.pagbankKey;
     if (body.stoneToken !== undefined) updateData.stoneToken = body.stoneToken;
     if (body.mercadoPagoPublicKey !== undefined) updateData.mercadoPagoPublicKey = body.mercadoPagoPublicKey;
     if (body.mercadoPagoAccessToken !== undefined) updateData.mercadoPagoAccessToken = body.mercadoPagoAccessToken;
