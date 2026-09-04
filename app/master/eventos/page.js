@@ -306,6 +306,20 @@ export default function MasterEventos() {
                   <div>
                     <h3 className="font-black text-2xl text-gray-900">{evt.nome}</h3>
                     <p className="text-gray-500 font-semibold">{evt.local || 'Local não informado'}</p>
+                    <div className="mt-2 inline-flex items-center gap-2 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-lg text-xs font-mono text-gray-600">
+                      <span>ID: <strong className="text-gray-900">{evt.id}</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(evt.id);
+                          alert(`ID copiado: ${evt.id}`);
+                        }}
+                        className="text-[#ff5500] hover:underline font-sans text-[11px] font-black cursor-pointer ml-1"
+                        title="Copiar ID para usar na Bilheteria"
+                      >
+                        Copiar ID
+                      </button>
+                    </div>
                   </div>
                   <span className={`px-4 py-1.5 rounded-full text-sm font-black ${
                     evt.status === 'ATIVO' ? 'bg-green-100 text-green-700' :

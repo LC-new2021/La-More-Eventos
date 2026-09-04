@@ -96,9 +96,27 @@ export default function OrgDashboard() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
         <div>
           <h2 className="text-4xl font-black text-[#1D3461]">Dashboard</h2>
-          <p className="text-gray-500 text-lg font-semibold mt-1">
-            {carregando ? "Carregando..." : <span className="text-green-600 font-black">● AO VIVO</span>}
-          </p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-gray-500 text-sm font-semibold">
+              {carregando ? "Carregando..." : <span className="text-green-600 font-black">● AO VIVO</span>}
+            </p>
+            {eventoId && (
+              <span className="text-xs bg-gray-100 border border-gray-200 text-gray-700 font-mono px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 shadow-sm">
+                ID: <strong>{eventoId}</strong>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(eventoId);
+                    alert(`ID do evento copiado: ${eventoId}`);
+                  }}
+                  className="text-[#ff5500] hover:underline font-sans text-[11px] font-black cursor-pointer ml-1"
+                  title="Copiar ID para usar na Bilheteria"
+                >
+                  Copiar
+                </button>
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <button
