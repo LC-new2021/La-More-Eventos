@@ -28,8 +28,26 @@ export default function OrgDashboard() {
             });
         }
       } else {
-        setEventoId(session.user.eventoId);
+        if (session.user.eventoId) {
+          setEventoId(session.user.eventoId);
+        } else {
+          fetch("/api/eventos")
+            .then((res) => res.json())
+            .then((data) => {
+              if (data && data.length > 0) {
+                setEventoId(data[0].id);
+              }
+            });
+        }
       }
+    } else {
+      fetch("/api/eventos")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.length > 0) {
+            setEventoId(data[0].id);
+          }
+        });
     }
   }, [session]);
 
@@ -154,6 +172,38 @@ export default function OrgDashboard() {
         }`}>
           <span>{msgSincronizacao.texto}</span>
           <button type="button" onClick={() => setMsgSincronizacao(null)} className="text-xs font-black underline cursor-pointer ml-3">Fechar</button>
+        </div>
+      {/* CARD DE IDENTIFICAÇÃO E INTEGRAÇÃO DO EVENTO */}
+      {eventoId && (
+        <div className="mb-6 p-4.5 rounded-3xl bg-white border-2 border-orange-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-orange-100 text-[#ff5500] flex items-center justify-center text-xl font-black shrink-0 border border-orange-200">
+              🎟️
+            </div>
+            <div>
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wide block">
+                Identificador deste Evento para a Bilheteria
+              </span>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <span className="font-mono font-black text-base text-gray-900 bg-gray-100 px-3 py-1 rounded-xl border border-gray-300 select-all">
+                  {eventoId}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(eventoId);
+                    alert(`ID do evento copiado com sucesso:\n\n${eventoId}\n\nAgora cole no campo "ID do Evento na LaMore Eventos" na Bilheteria!`);
+                  }}
+                  className="bg-[#ff5500] hover:bg-[#e04b00] text-white text-xs font-black px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>📋</span> Copiar ID
+                </button>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 max-w-xs font-medium">
+            Utilize este código no <strong>Item 9 (Bar &amp; Cartão Digital)</strong> ao cadastrar o evento na LaMore Bilheteria para vincular as recargas antecipadas.
+          </p>
         </div>
       )}
 
