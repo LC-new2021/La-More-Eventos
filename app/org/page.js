@@ -173,6 +173,7 @@ export default function OrgDashboard() {
           <span>{msgSincronizacao.texto}</span>
           <button type="button" onClick={() => setMsgSincronizacao(null)} className="text-xs font-black underline cursor-pointer ml-3">Fechar</button>
         </div>
+      )}
       {/* CARD DE IDENTIFICAÇÃO E INTEGRAÇÃO DO EVENTO */}
       {eventoId && (
         <div className="mb-6 p-4.5 rounded-3xl bg-white border-2 border-orange-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
