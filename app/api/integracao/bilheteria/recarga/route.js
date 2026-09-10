@@ -41,15 +41,27 @@ export async function POST(req) {
         }
       });
     }
-    if (!evento) {
-      evento = await prisma.evento.findFirst({
-        where: { status: { in: ['ATIVO', 'CONFIGURANDO'] } },
-        orderBy: { criadoEm: 'desc' },
-      });
+    // Se não encontrou por ID nem por nome, cria o evento automaticamente no LaMore Eventos com o nome exato!
+    if (!evento && (eventoNome || bilheteriaEventoId)) {
+      try {
+        evento = await prisma.evento.create({
+          data: {
+            nome: eventoNome || 'Evento Bilheteria',
+            bilheteriaEventoId: bilheteriaEventoId || null,
+            status: 'ATIVO',
+            modoOperacao: 'GERENCIAL',
+          },
+        });
+        console.log(`[INTEGRAÇÃO LAMORE EVENTOS] Evento '${evento.nome}' criado com sucesso para a festa da Bilheteria.`);
+      } catch (errCreateEv) {
+        console.warn('[INTEGRAÇÃO LAMORE EVENTOS] Falha ao auto-criar evento:', errCreateEv.message);
+      }
     }
 
     if (!evento) {
-      return NextResponse.json({ error: 'Nenhum evento ativo localizado no LaMore Eventos' }, { status: 404 });
+      return NextResponse.json({
+        error: `O evento '${eventoNome || bilheteriaEventoId}' não foi localizado no LaMore Eventos. Por favor, crie o evento no painel do LaMore Eventos ou informe o ID do evento.`
+      }, { status: 404 });
     }
 
     // Se o evento não tinha o bilheteriaEventoId salvo, vincula agora
@@ -182,3 +194,32 @@ export async function POST(req) {
     return NextResponse.json({ error: error.message || 'Erro interno' }, { status: 500 });
   }
 }
+
+export async function DELETE(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const secret = searchParams.get('secret');
+    const codigoCartao = searchParams.get('codigoCartao');
+    const expectedSecret = process.env.LAMORE_INTEGRATION_SECRET || 'lamore_sec_360_integracao_bilheteria_eventos_2026';
+    if (secret !== expectedSecret) {
+      return NextResponse.json({ error: 'Token de integração inválido' }, { status: 401 });
+    }
+    if (!codigoCartao) {
+      return NextResponse.json({ error: 'Código do cartão é obrigatório' }, { status: 400 });
+    }
+    const codigoFormatado = codigoCartao.toUpperCase().trim();
+    const cartao = await prisma.cartao.findFirst({
+      where: { codigo: codigoFormatado },
+    });
+    if (cartao) {
+      await prisma.movimentacao.deleteMany({ where: { cartaoId: cartao.id } });
+      await prisma.cartao.delete({ where: { id: cartao.id } });
+      return NextResponse.json({ success: true, mensagem: `Cartão ${codigoFormatado} e movimentações excluídos com sucesso.` });
+    }
+    return NextResponse.json({ success: true, mensagem: `Cartão ${codigoFormatado} não localizado ou já excluído.` });
+  } catch (error) {
+    console.error('Erro ao excluir cartão no LaMore Eventos:', error);
+    return NextResponse.json({ error: error.message || 'Erro interno ao excluir' }, { status: 500 });
+  }
+}
+
