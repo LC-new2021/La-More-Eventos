@@ -28,16 +28,16 @@ export async function POST(req) {
 
     // 1. Localiza o Evento correspondente no LaMore Eventos
     let evento = null;
-    if (eventoIdLaMoreEventos) {
-      evento = await prisma.evento.findUnique({ where: { id: eventoIdLaMoreEventos } });
-    }
-    if (!evento && bilheteriaEventoId) {
+    if (bilheteriaEventoId) {
       evento = await prisma.evento.findFirst({ where: { bilheteriaEventoId } });
+    }
+    if (!evento && eventoIdLaMoreEventos) {
+      evento = await prisma.evento.findUnique({ where: { id: eventoIdLaMoreEventos } });
     }
     if (!evento && eventoNome) {
       evento = await prisma.evento.findFirst({
         where: {
-          nome: { contains: eventoNome }
+          nome: { contains: eventoNome, mode: 'insensitive' }
         }
       });
     }
