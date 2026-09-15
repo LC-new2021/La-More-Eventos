@@ -68,6 +68,10 @@ export async function PATCH(req, { params }) {
     
     // Configurações do Gateway
     if (body.gatewayActive !== undefined) updateData.gatewayActive = body.gatewayActive;
+    if (body.chavePix !== undefined) updateData.chavePix = body.chavePix || null;
+    if (body.tipoChavePix !== undefined) updateData.tipoChavePix = body.tipoChavePix || 'CPF';
+    if (body.titularPix !== undefined) updateData.titularPix = body.titularPix || null;
+    if (body.cidadePix !== undefined) updateData.cidadePix = body.cidadePix || 'BRASILIA';
     if (body.asaasToken !== undefined) updateData.asaasToken = body.asaasToken;
     if (body.asaasUrl !== undefined) updateData.asaasUrl = body.asaasUrl;
     if (body.pagbankToken !== undefined) updateData.pagbankToken = body.pagbankToken;

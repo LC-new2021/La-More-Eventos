@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { gerarPixCompleto } from "@/lib/pix";
 
 export async function POST(req) {
   try {
@@ -11,27 +12,23 @@ export async function POST(req) {
 
     const value = parseFloat(valor);
     const host = req.headers.get("host") || "";
+
     let asaasApiKey = process.env.ASAAS_API_KEY;
     let asaasUrl = process.env.ASAAS_API_URL;
-
-
     let pagbankToken = process.env.PAGBANK_TOKEN;
     let isPagbankActive = false;
     let mpToken = null;
     let isMpActive = false;
 
+    let evento = null;
     if (eventoId) {
-      const evento = await prisma.evento.findUnique({
+      evento = await prisma.evento.findUnique({
         where: { id: eventoId }
       });
       if (evento) {
         if (evento.gatewayActive === "ASAAS" && evento.asaasToken) {
           asaasApiKey = evento.asaasToken;
-          if (evento.asaasUrl) {
-            asaasUrl = evento.asaasUrl;
-          } else {
-            asaasUrl = ""; // Force auto-detection
-          }
+          asaasUrl = evento.asaasUrl || "";
         } else if (evento.gatewayActive === "PAGBANK" && evento.pagbankToken) {
           pagbankToken = evento.pagbankToken;
           isPagbankActive = true;
@@ -42,33 +39,42 @@ export async function POST(req) {
       }
     }
 
-    if (!asaasUrl) {
-      if (asaasApiKey) {
-        const cleanKey = asaasApiKey.trim();
-        if (cleanKey.startsWith("$aact_sandbox_") || cleanKey.startsWith("$aae.")) {
-          asaasUrl = "https://sandbox.asaas.com/api";
-        } else if (cleanKey.startsWith("$aact_prod_")) {
-          asaasUrl = "https://api.asaas.com";
-        } else {
-          // Formato antigo ou indefinido
-          if (cleanKey.startsWith("$")) {
-            asaasUrl = "https://sandbox.asaas.com/api";
-          } else {
-            if (host.includes("localhost") || host.includes("127.0.0.1") || host.includes("3000") || host.includes("3001")) {
-              asaasUrl = "https://sandbox.asaas.com/api";
-            } else {
-              asaasUrl = "https://api.asaas.com";
-            }
-          }
-        }
-      } else {
-        asaasUrl = "https://api.asaas.com";
-      }
-    }
-
     const txid = cartaoCodigo
       ? "RECARGA_PIX_" + cartaoCodigo.toUpperCase()
       : "TXID" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
+
+    // 1. Roteamento para PIX DIRETO (Chave própria do produtor / pessoa física ou jurídica)
+    const chavePix = evento?.chavePix || process.env.PIX_CHAVE_PADRAO;
+    const isPixDiretoAtivo = evento?.gatewayActive === "PIX_DIRETO" || (chavePix && !isPagbankActive && !isMpActive && (!evento?.gatewayActive || evento?.gatewayActive === "PIX_DIRETO"));
+
+    if (isPixDiretoAtivo && chavePix) {
+      try {
+        const titular = evento?.titularPix || evento?.nome || "LA MORE EVENTOS";
+        const cidade = evento?.cidadePix || "BRASILIA";
+        const pixResultado = await gerarPixCompleto({
+          chave: chavePix,
+          valor: value,
+          nomeRecebedor: titular,
+          cidade: cidade,
+          txid: "***",
+          descricao: `Recarga Cartao ${cartaoCodigo || ""}`.trim()
+        });
+
+        return NextResponse.json({
+          txid,
+          pixPayload: pixResultado.copiaCola,
+          qrCodeUrl: `data:image/png;base64,${pixResultado.qrCodeBase64}`,
+          valor: value,
+          isTest: false,
+          isPixDireto: true,
+          titularRecebedor: titular,
+          chavePix: chavePix
+        });
+      } catch (errPix) {
+        console.error("Erro ao gerar Pix Direto:", errPix.message);
+        return NextResponse.json({ error: `Erro na chave Pix: ${errPix.message}` }, { status: 500 });
+      }
+    }
 
     // Roteamento para PagBank
     if (isPagbankActive && pagbankToken) {

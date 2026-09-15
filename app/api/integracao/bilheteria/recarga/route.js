@@ -105,32 +105,28 @@ export async function POST(req) {
       }
     }
 
-    // 3. Localiza ou cria o Cartão
-    let cartao = await prisma.cartao.findUnique({
-      where: { codigo: cartaoCode },
+    // 3. Localiza ou cria o Cartão especificamente para este Cliente e este Evento
+    let cartao = await prisma.cartao.findFirst({
+      where: { clienteId: cliente.id, eventoId: evento.id },
       include: { cliente: true, evento: true },
     });
 
     if (!cartao) {
-      const cartaoClienteEvento = await prisma.cartao.findFirst({
-        where: { clienteId: cliente.id, eventoId: evento.id },
+      const codigoEmUso = await prisma.cartao.findUnique({ where: { codigo: cartaoCode } });
+      const codigoFinal = codigoEmUso 
+        ? `CART-${Date.now().toString(36).slice(-4).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`
+        : cartaoCode;
+
+      cartao = await prisma.cartao.create({
+        data: {
+          codigo: codigoFinal,
+          saldo: 0,
+          status: 'ATIVO',
+          clienteId: cliente.id,
+          eventoId: evento.id,
+        },
         include: { cliente: true, evento: true },
       });
-
-      if (cartaoClienteEvento) {
-        cartao = cartaoClienteEvento;
-      } else {
-        cartao = await prisma.cartao.create({
-          data: {
-            codigo: cartaoCode,
-            saldo: 0,
-            status: 'ATIVO',
-            clienteId: cliente.id,
-            eventoId: evento.id,
-          },
-          include: { cliente: true, evento: true },
-        });
-      }
     }
 
     // 4. Se houver recarga e ainda não foi registrada

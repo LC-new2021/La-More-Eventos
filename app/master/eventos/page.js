@@ -14,6 +14,11 @@ export default function MasterEventos() {
   const [taxa, setTaxa] = useState('5.0');
   const [permiteDevolucao, setPermiteDevolucao] = useState(false);
   const [permitirEdicaoGateway, setPermitirEdicaoGateway] = useState(false);
+  const [gatewayActive, setGatewayActive] = useState('PIX_DIRETO');
+  const [chavePix, setChavePix] = useState('');
+  const [tipoChavePix, setTipoChavePix] = useState('CPF');
+  const [titularPix, setTitularPix] = useState('');
+  const [cidadePix, setCidadePix] = useState('BRASILIA');
   const [mpPublicKey, setMpPublicKey] = useState('');
   const [mpAccessToken, setMpAccessToken] = useState('');
   const [bilheteriaEventoId, setBilheteriaEventoId] = useState('');
@@ -77,6 +82,11 @@ export default function MasterEventos() {
     setTaxa('5.0');
     setPermiteDevolucao(false);
     setPermitirEdicaoGateway(false);
+    setGatewayActive('PIX_DIRETO');
+    setChavePix('');
+    setTipoChavePix('CPF');
+    setTitularPix('');
+    setCidadePix('BRASILIA');
     setMpPublicKey('');
     setMpAccessToken('');
     setBilheteriaEventoId('');
@@ -91,6 +101,11 @@ export default function MasterEventos() {
     setTaxa(evt.taxaMasterPercent?.toString() || '5.0');
     setPermiteDevolucao(evt.permiteDevolucao || false);
     setPermitirEdicaoGateway(evt.permitirEdicaoGateway || false);
+    setGatewayActive(evt.gatewayActive || (evt.chavePix ? 'PIX_DIRETO' : 'PIX_DIRETO'));
+    setChavePix(evt.chavePix || '');
+    setTipoChavePix(evt.tipoChavePix || 'CPF');
+    setTitularPix(evt.titularPix || '');
+    setCidadePix(evt.cidadePix || 'BRASILIA');
     setMpPublicKey(evt.mercadoPagoPublicKey || '');
     setMpAccessToken(evt.mercadoPagoAccessToken || '');
     setBilheteriaEventoId(evt.bilheteriaEventoId || '');
@@ -140,6 +155,11 @@ export default function MasterEventos() {
           taxaMasterPercent: parseFloat(taxa),
           permiteDevolucao,
           permitirEdicaoGateway,
+          gatewayActive,
+          chavePix,
+          tipoChavePix,
+          titularPix,
+          cidadePix,
           mercadoPagoPublicKey: mpPublicKey,
           mercadoPagoAccessToken: mpAccessToken,
           bilheteriaEventoId: bilheteriaEventoId || null,
@@ -153,6 +173,11 @@ export default function MasterEventos() {
         setData('');
         setLocal('');
         setTaxa('5.0');
+        setGatewayActive('PIX_DIRETO');
+        setChavePix('');
+        setTipoChavePix('CPF');
+        setTitularPix('');
+        setCidadePix('BRASILIA');
         setMostrarModal(false);
         setEventoParaEditar(null);
         carregarEventos();
@@ -536,6 +561,88 @@ export default function MasterEventos() {
                     <p className="text-xs text-gray-500 font-semibold">Se desativado, apenas o Master poderá configurar as chaves do Asaas/Mercado Pago.</p>
                   </div>
                 </label>
+              </div>
+
+              {/* CONFIGURAÇÃO DE RECEBIMENTO PIX / GATEWAY */}
+              <div className="bg-amber-500/10 border-2 border-amber-500/30 p-5 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[#1D3461] font-black text-sm uppercase tracking-wider flex items-center gap-2">
+                    <span>⚡</span> Configuração de Recebimento PIX (PF / PJ)
+                  </h4>
+                  <span className="text-[10px] font-bold bg-amber-500/20 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                    Acesso Master Exclusivo
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-bold mb-1 text-xs">Método de Recebimento Ativo</label>
+                  <select
+                    value={gatewayActive}
+                    onChange={(e) => setGatewayActive(e.target.value)}
+                    className="w-full bg-white border-2 border-amber-200 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2.5 font-bold text-sm text-gray-900"
+                  >
+                    <option value="PIX_DIRETO">⚡ PIX Direto (Chave Própria PF/PJ - Padrão)</option>
+                    <option value="MERCADO_PAGO">Mercado Pago (OAuth / Split)</option>
+                    <option value="ASAAS">Asaas Gateway</option>
+                    <option value="PAGBANK">PagBank (PagSeguro)</option>
+                  </select>
+                </div>
+
+                {gatewayActive === 'PIX_DIRETO' && (
+                  <div className="space-y-3 pt-2 border-t border-amber-500/20">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-gray-700 font-bold mb-1 text-xs">Tipo de Chave</label>
+                        <select
+                          value={tipoChavePix}
+                          onChange={(e) => setTipoChavePix(e.target.value)}
+                          className="w-full bg-white border-2 border-gray-200 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2 text-xs font-semibold text-gray-900"
+                        >
+                          <option value="CPF">CPF (Pessoa Física)</option>
+                          <option value="CNPJ">CNPJ (Pessoa Jurídica)</option>
+                          <option value="EMAIL">E-mail</option>
+                          <option value="TELEFONE">Celular / Telefone</option>
+                          <option value="ALEATORIA">Chave Aleatória (EVP)</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-gray-700 font-bold mb-1 text-xs">Chave PIX para Recebimento *</label>
+                        <input
+                          type="text"
+                          value={chavePix}
+                          onChange={(e) => setChavePix(e.target.value)}
+                          placeholder={tipoChavePix === 'CPF' ? 'Ex: 000.000.000-00' : (tipoChavePix === 'EMAIL' ? 'pix@produtor.com' : 'Informe a chave PIX')}
+                          className="w-full bg-white border-2 border-amber-300 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2 text-xs font-mono font-bold text-gray-900"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-gray-700 font-bold mb-1 text-xs">Nome do Titular da Conta (PF / PJ)</label>
+                        <input
+                          type="text"
+                          value={titularPix}
+                          onChange={(e) => setTitularPix(e.target.value)}
+                          placeholder="Ex: LEONARDO CAVALCANTI"
+                          className="w-full bg-white border-2 border-gray-200 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2 text-xs font-semibold text-gray-900"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-gray-700 font-bold mb-1 text-xs">Cidade do Titular</label>
+                        <input
+                          type="text"
+                          value={cidadePix}
+                          onChange={(e) => setCidadePix(e.target.value)}
+                          placeholder="Ex: BRASILIA"
+                          className="w-full bg-white border-2 border-gray-200 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2 text-xs font-semibold text-gray-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

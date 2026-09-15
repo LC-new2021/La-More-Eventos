@@ -55,7 +55,10 @@ model Evento {
   mercadoPagoPublicKey   String?
   mercadoPagoAccessToken String?
   mercadoPagoRefreshToken String?
-  mercadoPagoUserId       String?
+  chavePix                String?
+  tipoChavePix            String?  @default("CPF") // CPF, CNPJ, EMAIL, TELEFONE, ALEATORIA
+  titularPix              String?
+  cidadePix               String?  @default("BRASILIA")
   permiteDevolucao        Boolean  @default(false)
   permitirEdicaoGateway   Boolean  @default(false)
   modoOperacao            String   @default("INTEGRADO")
