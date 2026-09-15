@@ -6,21 +6,18 @@ import { criarPixMercadoPago } from "@/lib/mercadopago";
 export const dynamic = 'force-dynamic';
 
 async function obterTokensGateway(evento) {
-  let asaasToken = evento?.asaasToken || process.env.ASAAS_API_KEY;
-  let mpToken = evento?.mercadoPagoAccessToken || process.env.MERCADOPAGO_ACCESS_TOKEN;
+  let asaasToken = (evento?.asaasToken || process.env.ASAAS_API_KEY || '').trim();
+  let mpToken = (evento?.mercadoPagoAccessToken || process.env.MERCADOPAGO_ACCESS_TOKEN || '').trim();
 
   if (!asaasToken || !mpToken) {
-    const eventoComToken = await prisma.evento.findFirst({
-      where: {
-        OR: [
-          { asaasToken: { not: null } },
-          { mercadoPagoAccessToken: { not: null } },
-        ],
-      },
-    });
-    if (eventoComToken) {
-      if (!asaasToken && eventoComToken.asaasToken) asaasToken = eventoComToken.asaasToken;
-      if (!mpToken && eventoComToken.mercadoPagoAccessToken) mpToken = eventoComToken.mercadoPagoAccessToken;
+    const eventos = await prisma.evento.findMany();
+    for (const ev of eventos) {
+      if (!asaasToken && ev.asaasToken && ev.asaasToken.trim().length > 10) {
+        asaasToken = ev.asaasToken.trim();
+      }
+      if (!mpToken && ev.mercadoPagoAccessToken && ev.mercadoPagoAccessToken.trim().length > 10) {
+        mpToken = ev.mercadoPagoAccessToken.trim();
+      }
     }
   }
 
