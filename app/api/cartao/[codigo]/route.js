@@ -92,11 +92,14 @@ export async function GET(req, { params }) {
                 },
               });
             } else {
-              // Atualiza dados de contato se necessário
+              // Atualiza nome e dados de contato reais sempre que vier da Bilheteria
               const updateData = {};
-              if (!cliente.cpf && cpfLimpo) updateData.cpf = cpfLimpo;
-              if (!cliente.celular && celularLimpo) updateData.celular = celularLimpo;
-              if (!cliente.email && emailLimpo) updateData.email = emailLimpo;
+              if (nomeCliente && nomeCliente !== 'CLIENTE BILHETERIA' && cliente.nome !== nomeCliente) {
+                updateData.nome = nomeCliente;
+              }
+              if (cpfLimpo && cliente.cpf !== cpfLimpo) updateData.cpf = cpfLimpo;
+              if (celularLimpo && cliente.celular !== celularLimpo) updateData.celular = celularLimpo;
+              if (emailLimpo && cliente.email !== emailLimpo) updateData.email = emailLimpo;
               if (Object.keys(updateData).length > 0) {
                 cliente = await prisma.cliente.update({
                   where: { id: cliente.id },
