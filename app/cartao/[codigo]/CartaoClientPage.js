@@ -60,7 +60,6 @@ export default function CartaoClientPage() {
   const [pixPayload, setPixPayload] = useState('');
   const [pixQrCodeUrl, setPixQrCodeUrl] = useState('');
   const [txidPix, setTxidPix] = useState('');
-  const [confirmandoPix, setConfirmandoPix] = useState(false);
   const [copiadoPix, setCopiadoPix] = useState(false);
   const [passoRecarga, setPassoRecarga] = useState('valor'); // 'valor', 'checkout', 'sucesso'
   const [recargaErro, setRecargaErro] = useState('');
@@ -243,28 +242,30 @@ export default function CartaoClientPage() {
   useEffect(() => {
   }, []);
 
-  // Polling for Pix recharge payment check
+  // Polling em tempo real com consulta direta à API do Banco (Gateway)
   useEffect(() => {
     let interval;
-    if (abrirRecarga && passoRecarga === 'checkout' && tabAtiva === 'PIX' && pixQrCodeUrl) {
-      const initialBalance = cartao?.saldo || 0;
-      interval = setInterval(() => {
-        fetch(`/api/cartao/${codigo}`)
-          .then(r => r.json())
-          .then(data => {
-            if (!data.error && data.saldo > initialBalance) {
-              setCartao(data);
+    if (abrirRecarga && passoRecarga === 'checkout' && tabAtiva === 'PIX' && txidPix && cartao?.codigo) {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/pagamentos/status-recarga?paymentId=${encodeURIComponent(txidPix)}&cartaoCodigo=${encodeURIComponent(cartao.codigo)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'APROVADO' && data.cartao) {
+              setCartao(data.cartao);
               setPassoRecarga('sucesso');
               clearInterval(interval);
             }
-          })
-          .catch(console.error);
-      }, 4000);
+          }
+        } catch (e) {
+          console.warn('[POLLING PIX]:', e);
+        }
+      }, 3000);
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [abrirRecarga, passoRecarga, tabAtiva, pixQrCodeUrl, codigo, cartao]);
+  }, [abrirRecarga, passoRecarga, tabAtiva, txidPix, cartao?.codigo]);
 
   // Auto-geração do Pix quando a aba muda para PIX
   useEffect(() => {
@@ -339,43 +340,12 @@ export default function CartaoClientPage() {
       } else {
         setPixPayload(data.pixPayload);
         setPixQrCodeUrl(data.qrCodeUrl);
-        setTxidPix(data.txid || '');
+        setTxidPix(data.paymentId || data.txid || '');
       }
     } catch (err) {
       setRecargaErro(err.message);
     } finally {
       setProcessando(false);
-    }
-  };
-
-  const confirmarPagamentoPix = async () => {
-    setConfirmandoPix(true);
-    setRecargaErro('');
-    try {
-      const res = await fetch('/api/pagamentos/confirmar-recarga', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cartaoCodigo: cartao.codigo,
-          valor: parseFloat(valorRecarga),
-          eventoId: cartao.eventoId,
-          txid: txidPix || `PIX_${cartao.codigo}_${Date.now()}`
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Erro ao confirmar recarga');
-      }
-      if (data.cartao) {
-        setCartao(data.cartao);
-      } else {
-        carregarCartao();
-      }
-      setPassoRecarga('sucesso');
-    } catch (err) {
-      setRecargaErro(err.message || 'Erro ao processar confirmação');
-    } finally {
-      setConfirmandoPix(false);
     }
   };
 
@@ -1029,28 +999,16 @@ export default function CartaoClientPage() {
 
                         {recargaErro && <p className="text-red-500 font-bold text-xs text-center mb-3">{recargaErro}</p>}
 
-                        {/* Botão de confirmação de pagamento */}
-                        <button
-                          type="button"
-                          onClick={confirmarPagamentoPix}
-                          disabled={confirmandoPix}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-3.5 rounded-2xl transition-all shadow-lg text-sm flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          {confirmandoPix ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              <span>Creditando Saldo...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>✅</span>
-                              <span>Já fiz o PIX / Confirmar Recarga</span>
-                            </>
-                          )}
-                        </button>
-                        <p className="text-[10px] text-gray-400 mt-2 font-medium">
-                          Após realizar a transferência no seu banco, clique no botão acima para liberar seus créditos instantaneamente.
-                        </p>
+                        {/* Status de aguardo e confirmação automática pelo banco */}
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 text-left">
+                          <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                          <div>
+                            <p className="text-xs font-black text-emerald-900 leading-tight">Aguardando pagamento no banco...</p>
+                            <p className="text-[10px] text-emerald-700 font-semibold mt-0.5">
+                              Assim que você concluir o PIX no app do seu banco, o sistema reconhece automaticamente e libera seus créditos na hora.
+                            </p>
+                          </div>
+                        </div>
                       </>
                     ) : (
                       <div className="py-12 text-center text-xs font-bold text-red-500">Erro ao carregar Pix. Tente novamente.</div>
