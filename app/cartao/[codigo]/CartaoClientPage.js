@@ -59,6 +59,9 @@ export default function CartaoClientPage() {
   const [processando, setProcessando] = useState(false);
   const [pixPayload, setPixPayload] = useState('');
   const [pixQrCodeUrl, setPixQrCodeUrl] = useState('');
+  const [txidPix, setTxidPix] = useState('');
+  const [confirmandoPix, setConfirmandoPix] = useState(false);
+  const [copiadoPix, setCopiadoPix] = useState(false);
   const [passoRecarga, setPassoRecarga] = useState('valor'); // 'valor', 'checkout', 'sucesso'
   const [recargaErro, setRecargaErro] = useState('');
   const [brickInstance, setBrickInstance] = useState(null);
@@ -332,14 +335,47 @@ export default function CartaoClientPage() {
       if (isStone) {
         setPixPayload(data.pix.qrCodeStr);
         setPixQrCodeUrl(data.pix.qrCodeUrl);
+        setTxidPix(data.pix.id || '');
       } else {
         setPixPayload(data.pixPayload);
         setPixQrCodeUrl(data.qrCodeUrl);
+        setTxidPix(data.txid || '');
       }
     } catch (err) {
       setRecargaErro(err.message);
     } finally {
       setProcessando(false);
+    }
+  };
+
+  const confirmarPagamentoPix = async () => {
+    setConfirmandoPix(true);
+    setRecargaErro('');
+    try {
+      const res = await fetch('/api/pagamentos/confirmar-recarga', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cartaoCodigo: cartao.codigo,
+          valor: parseFloat(valorRecarga),
+          eventoId: cartao.eventoId,
+          txid: txidPix || `PIX_${cartao.codigo}_${Date.now()}`
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao confirmar recarga');
+      }
+      if (data.cartao) {
+        setCartao(data.cartao);
+      } else {
+        carregarCartao();
+      }
+      setPassoRecarga('sucesso');
+    } catch (err) {
+      setRecargaErro(err.message || 'Erro ao processar confirmação');
+    } finally {
+      setConfirmandoPix(false);
     }
   };
 
@@ -708,6 +744,10 @@ export default function CartaoClientPage() {
                 setAbrirRecarga(true);
                 setPassoRecarga('valor');
                 setTabAtiva('PIX');
+                setPixQrCodeUrl('');
+                setPixPayload('');
+                setTxidPix('');
+                setCopiadoPix(false);
                 setRecargaErro('');
               }} 
               className="w-full bg-[#0D9488] hover:bg-[#0F766E] text-white font-black py-4 rounded-2xl transition-all shadow-lg text-lg flex items-center justify-center gap-2"
@@ -951,26 +991,66 @@ export default function CartaoClientPage() {
                       <div className="py-12 text-center text-xs font-bold text-gray-400 animate-pulse">Gerando Pix...</div>
                     ) : pixQrCodeUrl ? (
                       <>
-                        <img src={pixQrCodeUrl} alt="QR Code Pix" className="w-44 h-44 mx-auto mb-4 border border-gray-100 rounded-2xl p-2" />
+                        <img src={pixQrCodeUrl} alt="QR Code Pix" className="w-44 h-44 mx-auto mb-3 border border-gray-100 rounded-2xl p-2 bg-white shadow-sm" />
                         
-                        <div className="mb-4">
-                          <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">Código Copia e Cola</p>
-                          <input 
-                            type="text"
-                            readOnly
-                            value={pixPayload}
-                            onClick={(e) => {
-                              e.target.select();
-                              navigator.clipboard.writeText(pixPayload);
-                              alert('Pix Copia e Cola copiado!');
-                            }}
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-mono text-center cursor-pointer select-all truncate"
-                            title="Clique para copiar"
-                          />
-                          <p className="text-[9px] text-gray-400 mt-1">Toque no campo acima para copiar</p>
+                        <div className="mb-4 text-left bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Código Copia e Cola</p>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text"
+                              readOnly
+                              value={pixPayload}
+                              onClick={(e) => {
+                                e.target.select();
+                                navigator.clipboard.writeText(pixPayload);
+                                setCopiadoPix(true);
+                                setTimeout(() => setCopiadoPix(false), 3000);
+                              }}
+                              className="flex-1 bg-white border border-gray-200 rounded-xl px-2.5 py-2 text-[11px] font-mono select-all truncate outline-none text-gray-700 cursor-pointer"
+                              title="Toque para selecionar"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(pixPayload);
+                                setCopiadoPix(true);
+                                setTimeout(() => setCopiadoPix(false), 3000);
+                              }}
+                              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1 ${
+                                copiadoPix
+                                  ? 'bg-emerald-600 text-white shadow-sm'
+                                  : 'bg-[#1E3A8A] hover:bg-[#152A66] text-white shadow-sm'
+                              }`}
+                            >
+                              {copiadoPix ? '✓ Copiado!' : '📋 Copiar'}
+                            </button>
+                          </div>
                         </div>
 
+                        {recargaErro && <p className="text-red-500 font-bold text-xs text-center mb-3">{recargaErro}</p>}
 
+                        {/* Botão de confirmação de pagamento */}
+                        <button
+                          type="button"
+                          onClick={confirmarPagamentoPix}
+                          disabled={confirmandoPix}
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-3.5 rounded-2xl transition-all shadow-lg text-sm flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          {confirmandoPix ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              <span>Creditando Saldo...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>✅</span>
+                              <span>Já fiz o PIX / Confirmar Recarga</span>
+                            </>
+                          )}
+                        </button>
+                        <p className="text-[10px] text-gray-400 mt-2 font-medium">
+                          Após realizar a transferência no seu banco, clique no botão acima para liberar seus créditos instantaneamente.
+                        </p>
                       </>
                     ) : (
                       <div className="py-12 text-center text-xs font-bold text-red-500">Erro ao carregar Pix. Tente novamente.</div>
@@ -1056,6 +1136,8 @@ export default function CartaoClientPage() {
                       setBrickInstance(null);
                       setPixQrCodeUrl('');
                       setPixPayload('');
+                      setTxidPix('');
+                      setCopiadoPix(false);
                       setRecargaErro('');
                       setPassoRecarga('valor');
                     }}
