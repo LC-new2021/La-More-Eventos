@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { criarPixAsaas } from "@/lib/asaas";
 import { criarPixMercadoPago } from "@/lib/mercadopago";
+import { gerarPixCompleto } from "@/lib/pix";
 
 export const dynamic = 'force-dynamic';
 
@@ -52,8 +53,8 @@ export async function POST(req) {
 
     let pixResult = null;
 
-    // 1. Tenta criar PIX oficial no Banco Asaas
-    if (asaasToken && evento?.gatewayActive !== "MERCADO_PAGO") {
+    // 1. Tenta criar PIX oficial no Banco Asaas se o gateway configurado for ASAAS
+    if (asaasToken && evento?.gatewayActive === "ASAAS") {
       try {
         const asaasPix = await criarPixAsaas({
           token: asaasToken,
@@ -71,14 +72,15 @@ export async function POST(req) {
             ? `data:image/png;base64,${asaasPix.qrCodeBase64}`
             : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(asaasPix.qrCode)}`,
           valor: value,
+          isGateway: true,
         };
       } catch (errAsaas) {
         console.warn("[PIX ROUTE] Aviso Asaas:", errAsaas.message);
       }
     }
 
-    // 2. Se não gerou via Asaas, tenta Mercado Pago
-    if (!pixResult && mpToken) {
+    // 2. Tenta Mercado Pago se o gateway configurado for MERCADO_PAGO
+    if (!pixResult && mpToken && evento?.gatewayActive === "MERCADO_PAGO") {
       try {
         const mpPix = await criarPixMercadoPago({
           token: mpToken,
@@ -97,15 +99,38 @@ export async function POST(req) {
             ? `data:image/jpeg;base64,${mpPix.qrCodeBase64}`
             : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(mpPix.qrCode)}`,
           valor: value,
+          isGateway: true,
         };
       } catch (errMp) {
-        console.error("[PIX ROUTE] Erro Mercado Pago:", errMp.message);
-        throw new Error(`Falha ao gerar cobrança PIX no banco: ${errMp.message}`);
+        console.warn("[PIX ROUTE] Aviso Mercado Pago:", errMp.message);
       }
     }
 
+    // 3. Fallback PIX Direto (Chave do Produtor / BR Code Oficial Banco Central)
     if (!pixResult) {
-      throw new Error("Nenhum gateway bancário disponível para emitir PIX dinâmico.");
+      const chavePix = evento?.chavePix || process.env.PIX_CHAVE_PADRAO || '61993688095';
+      const titular = evento?.titularPix || evento?.nome || "LEONARDO CAVALCANTI";
+      const cidade = evento?.cidadePix || "BRASILIA";
+
+      const pixDireto = await gerarPixCompleto({
+        chave: chavePix,
+        valor: value,
+        nomeRecebedor: titular,
+        cidade: cidade,
+        txid: "***",
+        descricao: `Recarga Cartao ${cartaoCodigo || ""}`.trim(),
+      });
+
+      pixResult = {
+        paymentId: `PIX_DIR_${cartaoCodigo || 'REC'}_${Date.now()}`,
+        txid: `PIX_DIR_${cartaoCodigo || 'REC'}_${Date.now()}`,
+        pixPayload: pixDireto.copiaCola,
+        qrCodeUrl: `data:image/png;base64,${pixDireto.qrCodeBase64}`,
+        valor: value,
+        isGateway: false,
+        chavePix,
+        titular,
+      };
     }
 
     return NextResponse.json(pixResult);
