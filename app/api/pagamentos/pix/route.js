@@ -88,7 +88,7 @@ export async function POST(req) {
           descricao: `Recarga Saldo - Cartao ${cartaoCodigo || ""}`,
           codigoPedido,
           payer,
-          appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://la-more-eventos-production.up.railway.app",
+          appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://eventos.grupolamore.com.br",
         });
 
         pixResult = {
