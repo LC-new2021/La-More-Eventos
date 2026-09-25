@@ -99,7 +99,7 @@ export async function POST(req) {
         transaction_amount: value,
         description: `Recarga Cartão Virtual ${cartaoCodigo.toUpperCase()}`,
         payer: {
-          email: payerEmail || "financeiro@lamore.com.br"
+          email: payerEmail || "financeiro@grupolamore.com.br"
         },
         ...(applicationFee > 0 && { application_fee: applicationFee })
       })

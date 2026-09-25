@@ -36,7 +36,7 @@ export async function POST(req) {
       const payload = {
         customer: {
           name: cartao.cliente.nome || 'Cliente Local',
-          email: cartao.cliente.email || 'financeiro@lamore.com.br',
+          email: cartao.cliente.email || 'financeiro@grupolamore.com.br',
           type: 'individual',
           document: cartao.cliente.cpf || '00000000000'
         },
@@ -87,7 +87,7 @@ export async function POST(req) {
         reference_id: `REC_${cartao.codigo}_${Date.now()}`,
         customer: {
           name: cartao.cliente.nome || "Cliente Lamore",
-          email: "financeiro@lamore.com.br",
+          email: "financeiro@grupolamore.com.br",
           tax_id: cartao.cliente.cpf ? cartao.cliente.cpf.replace(/\D/g, "") : "00000000000"
         },
         items: [{

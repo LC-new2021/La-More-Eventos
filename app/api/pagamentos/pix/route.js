@@ -48,7 +48,7 @@ export async function POST(req) {
     const payer = {
       nomeCompleto: clienteNome || "Consumidor La More",
       cpf: cpf ? cpf.replace(/\D/g, "") : "",
-      email: "financeiro@lamore.com.br",
+      email: "financeiro@grupolamore.com.br",
     };
 
     let pixResult = null;

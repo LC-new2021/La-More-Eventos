@@ -104,7 +104,7 @@ export async function POST(req) {
           reference_id: txid,
           customer: {
             name: clienteNome || clientRecord?.nome || "Consumidor La More",
-            email: clientRecord?.email || "financeiro@lamore.com.br",
+            email: clientRecord?.email || "financeiro@grupolamore.com.br",
             tax_id: cleanCpf || "00000000000",
             phones: [
               {
