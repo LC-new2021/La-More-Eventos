@@ -382,7 +382,6 @@ export default function MasterUsuarios() {
                     <option value="TESOURARIA">Tesouraria (Acesso Multi)</option>
                     <option value="ORGANIZADOR">Produtor</option>
                     <option value="SUPORTE_OPERACIONAL">Suporte Operacional</option>
-                    <option value="CLIENTE">Suporte Operacional (Cliente)</option>
                     <option value="MASTER">Master Admin</option>
                   </select>
                 </div>
@@ -404,7 +403,7 @@ export default function MasterUsuarios() {
                 )}
               </div>
 
-              {(role === 'ORGANIZADOR' || role === 'CLIENTE') && (
+              {role === 'ORGANIZADOR' && (
                 <div className="border-t border-gray-100 pt-4 mt-4 space-y-4">
                   <p className="font-black text-[#1D3461] text-base flex items-center gap-1.5">🏢 Dados Comerciais / Empresa</p>
                   <div className="grid grid-cols-2 gap-4">

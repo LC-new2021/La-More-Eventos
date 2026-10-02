@@ -6,6 +6,7 @@ import { saveAs } from "file-saver";
 
 export default function ProdutosPage() {
   const { data: session } = useSession();
+  const isSupport = session?.user?.role === 'SUPORTE_OPERACIONAL' || session?.user?.role === 'CLIENTE' || session?.user?.role === 'SUPORTE';
   const [produtos, setProdutos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -391,8 +392,6 @@ export default function ProdutosPage() {
       ? produtos
       : produtos.filter((p) => p.grupo === grupoFiltro)
   ).sort((a, b) => a.nome.localeCompare(b.nome));
-
-  const isSupport = session?.user?.role === 'SUPORTE_OPERACIONAL' || session?.user?.role === 'CLIENTE' || session?.user?.role === 'SUPORTE';
 
   return (
     <div className="max-w-5xl mx-auto">
