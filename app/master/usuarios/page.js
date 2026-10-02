@@ -85,7 +85,9 @@ export default function MasterUsuarios() {
     setNome(user.nome || '');
     setEmail(user.email || '');
     setSenha(''); // Leave password empty unless updating
-    setRole(user.role || 'OPERADOR_BAR');
+    let userRole = user.role || 'OPERADOR_BAR';
+    if (userRole === 'CLIENTE' || userRole === 'SUPORTE') userRole = 'SUPORTE_OPERACIONAL';
+    setRole(userRole);
     setEventoId(user.eventoId || '');
     setRazaoSocial(user.razaoSocial || '');
     setCnpj(user.cnpj || '');
@@ -291,6 +293,27 @@ export default function MasterUsuarios() {
                         {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}
                       </td>
                       <td className="p-4 flex flex-col xl:flex-row items-center justify-center gap-2">
+                        {u.role !== 'MASTER' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (u.eventoId) {
+                                localStorage.setItem("activeEventoId", u.eventoId);
+                              }
+                              if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(u.role)) {
+                                window.location.href = `/org?v=${Date.now()}`;
+                              } else if (['CAIXA', 'TESOURARIA'].includes(u.role)) {
+                                window.location.href = `/pos?v=${Date.now()}`;
+                              } else if (u.role === 'OPERADOR_BAR') {
+                                window.location.href = `/bar?v=${Date.now()}`;
+                              }
+                            }}
+                            className="w-full xl:w-auto font-black text-xs px-3 py-2 rounded-xl transition-all border-2 text-teal-700 bg-teal-50 border-teal-200 hover:bg-teal-100 text-center flex items-center justify-center gap-1 cursor-pointer"
+                            title="Acessar tela operacional deste usuário"
+                          >
+                            <span>🚀</span> Acessar
+                          </button>
+                        )}
                         <button
                           onClick={() => abrirEditar(u)}
                           className="w-full xl:w-auto font-black text-sm px-3 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-100 hover:bg-gray-50 text-center"
@@ -376,6 +399,7 @@ export default function MasterUsuarios() {
                     <option value="TESOURARIA">Tesouraria (Acesso Multi)</option>
                     <option value="ORGANIZADOR">Produtor</option>
                     <option value="SUPORTE_OPERACIONAL">Suporte Operacional</option>
+                    <option value="CLIENTE">Suporte Operacional (Cliente)</option>
                     <option value="MASTER">Master Admin</option>
                   </select>
                 </div>

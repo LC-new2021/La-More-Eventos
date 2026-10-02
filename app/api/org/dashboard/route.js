@@ -7,11 +7,7 @@ export async function GET(req) {
   try {
     const session = await getServerSession(authOptions);
     const { searchParams } = new URL(req.url);
-    let eventoId = session?.user?.eventoId;
-
-    if (session?.user?.role === 'MASTER') {
-      eventoId = searchParams.get('eventoId') || eventoId;
-    }
+    let eventoId = session?.user?.eventoId || searchParams.get('eventoId');
 
     if (!eventoId) return NextResponse.json({ error: 'Sem evento' }, { status: 400 });
 

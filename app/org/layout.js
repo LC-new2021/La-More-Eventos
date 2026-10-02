@@ -49,7 +49,24 @@ export default function OrgLayout({ children }) {
             }
           });
       } else {
-        setEventoId(session.user.eventoId);
+        if (session.user.eventoId) {
+          setEventoId(session.user.eventoId);
+        } else {
+          const stored = localStorage.getItem("activeEventoId");
+          if (stored) {
+            setEventoId(stored);
+          } else {
+            fetch('/api/eventos')
+              .then(res => res.json())
+              .then(data => {
+                if (data && data.length > 0 && !data.error) {
+                  localStorage.setItem("activeEventoId", data[0].id);
+                  setEventoId(data[0].id);
+                }
+              })
+              .catch(console.error);
+          }
+        }
       }
     }
   }, [session, isMaster]);

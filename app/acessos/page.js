@@ -7,12 +7,21 @@ const perfis = {
   MASTER: { href: "/master", titulo: "Painel Master", desc: "Gestão completa: eventos, taxas, auditoria.", emoji: "👑", cor: "bg-yellow-50", textoCor: "text-yellow-600", bgCor: "bg-yellow-100" },
   ORGANIZADOR: { href: "/org", titulo: "Retaguarda do Produtor", desc: "Cardápio, operadores, relatórios e acompanhamento.", emoji: "🎯", cor: "bg-blue-50", textoCor: "text-blue-600", bgCor: "bg-blue-100" },
   SUPORTE_OPERACIONAL: { href: "/org", titulo: "Suporte Operacional", desc: "Acompanhamento ao vivo, cardápio, operadores e clientes.", emoji: "🛠️", cor: "bg-teal-50", textoCor: "text-teal-600", bgCor: "bg-teal-100" },
-  SUPORTE: { href: "/org", titulo: "Suporte Operacional", desc: "Acompanhamento ao vivo, cardápio, operadores e clientes.", emoji: "🛠️", cor: "bg-teal-50", textoCor: "text-teal-600", bgCor: "bg-teal-100" },
-  CLIENTE: { href: "/org", titulo: "Suporte Operacional", desc: "Acompanhamento ao vivo, cardápio, operadores e clientes.", emoji: "🛠️", cor: "bg-teal-50", textoCor: "text-teal-600", bgCor: "bg-teal-100" },
   CAIXA: { href: "/pos", titulo: "Caixa de Entrada (POS)", desc: "Cadastro de clientes, venda de créditos e QR Code.", emoji: "💳", cor: "bg-green-50", textoCor: "text-green-600", bgCor: "bg-green-100" },
   TESOURARIA: { href: "/pos", titulo: "Tesouraria (Acesso Multi)", desc: "Cadastro de clientes, vendas em dinheiro, cartão e Pix.", emoji: "💵", cor: "bg-purple-50", textoCor: "text-purple-600", bgCor: "bg-purple-100" },
   OPERADOR_BAR: { href: "/bar", titulo: "Operador de Bar", desc: "Escanear QR, selecionar produto e confirmar débito.", emoji: "🍺", cor: "bg-orange-50", textoCor: "text-orange-600", bgCor: "bg-orange-100" },
 };
+
+perfis.CLIENTE = perfis.SUPORTE_OPERACIONAL;
+perfis.SUPORTE = perfis.SUPORTE_OPERACIONAL;
+
+const perfisMasterList = [
+  { roleKey: "ORGANIZADOR", ...perfis.ORGANIZADOR },
+  { roleKey: "SUPORTE_OPERACIONAL", ...perfis.SUPORTE_OPERACIONAL },
+  { roleKey: "CAIXA", ...perfis.CAIXA },
+  { roleKey: "TESOURARIA", ...perfis.TESOURARIA },
+  { roleKey: "OPERADOR_BAR", ...perfis.OPERADOR_BAR },
+];
 
 export default function AcessosPage() {
   const { data: session, status } = useSession();
@@ -30,8 +39,9 @@ export default function AcessosPage() {
   }, [status]);
 
   useEffect(() => {
-    if (eventoId) {
-      fetch(`/api/eventos/${eventoId}`)
+    const targetId = eventoId || (typeof window !== 'undefined' ? localStorage.getItem("activeEventoId") : null);
+    if (targetId) {
+      fetch(`/api/eventos/${targetId}`)
         .then(r => r.json())
         .then(data => {
           if (!data.error) setEvento(data);
@@ -76,7 +86,7 @@ export default function AcessosPage() {
             <a href={`${perfil.href}?v=${new Date().getTime()}`} className={`flex items-center gap-5 p-5 ${perfil.cor} rounded-3xl border-2 border-gray-200 shadow-sm hover:shadow-lg transition-all group cursor-pointer block`}>
               <div className={`w-16 h-16 ${perfil.bgCor} rounded-2xl flex items-center justify-center shrink-0 text-3xl`}>{perfil.emoji}</div>
               <div className="flex-1">
-                <p className={`text-xs font-black uppercase tracking-widest ${perfil.textoCor} mb-1`}>{role}</p>
+                <p className={`text-xs font-black uppercase tracking-widest ${perfil.textoCor} mb-1`}>{role === 'CLIENTE' || role === 'SUPORTE' ? 'SUPORTE_OPERACIONAL' : role}</p>
                 <h2 className="text-xl font-black text-gray-900">{perfil.titulo}</h2>
                 <p className="text-gray-500 text-sm mt-1">{perfil.desc}</p>
               </div>
@@ -85,11 +95,11 @@ export default function AcessosPage() {
           )}
 
           {/* Master pode acessar tudo */}
-          {role === "MASTER" && Object.entries(perfis).filter(([r]) => r !== "MASTER").map(([r, p]) => (
-            <a key={r} href={`${p.href}?v=${new Date().getTime()}`} className="flex items-center gap-5 p-5 bg-white rounded-3xl border-2 border-gray-100 hover:border-gray-300 shadow-sm hover:shadow-lg transition-all group cursor-pointer block">
+          {role === "MASTER" && perfisMasterList.map((p) => (
+            <a key={p.roleKey} href={`${p.href}?v=${new Date().getTime()}`} className="flex items-center gap-5 p-5 bg-white rounded-3xl border-2 border-gray-100 hover:border-gray-300 shadow-sm hover:shadow-lg transition-all group cursor-pointer block">
               <div className={`w-16 h-16 ${p.bgCor} rounded-2xl flex items-center justify-center shrink-0 text-3xl`}>{p.emoji}</div>
               <div className="flex-1">
-                <p className={`text-xs font-black uppercase tracking-widest ${p.textoCor} mb-1`}>{r}</p>
+                <p className={`text-xs font-black uppercase tracking-widest ${p.textoCor} mb-1`}>{p.roleKey}</p>
                 <h2 className="text-xl font-black text-gray-900">{p.titulo}</h2>
                 <p className="text-gray-500 text-sm mt-1">{p.desc}</p>
               </div>
