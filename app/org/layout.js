@@ -179,12 +179,14 @@ export default function OrgLayout({ children }) {
           >
             Sair do Sistema →
           </button>
-          <Link
-            href="/acessos"
-            className="flex items-center justify-center gap-2 px-4 py-1.5 text-blue-200 hover:text-white transition-colors font-semibold text-sm"
-          >
-            ← Portal de Acessos
-          </Link>
+          {isMaster && (
+            <Link
+              href="/acessos"
+              className="flex items-center justify-center gap-2 px-4 py-1.5 text-blue-200 hover:text-white transition-colors font-semibold text-sm"
+            >
+              ← Portal de Acessos
+            </Link>
+          )}
         </div>
       </aside>
 
@@ -199,7 +201,15 @@ export default function OrgLayout({ children }) {
               <p className="font-black text-base truncate">{loading ? "..." : (evento ? evento.nome : "Sem evento")}</p>
             </div>
           </div>
-          <Link href="/acessos" className="text-xs font-black bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">Sair</Link>
+          <button 
+            onClick={async () => {
+              await signOut({ redirect: false });
+              window.location.href = "/login";
+            }}
+            className="text-xs font-black bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 text-white cursor-pointer"
+          >
+            Sair
+          </button>
         </div>
 
         {children}

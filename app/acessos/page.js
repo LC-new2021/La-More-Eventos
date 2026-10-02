@@ -31,7 +31,12 @@ export default function AcessosPage() {
   const [evento, setEvento] = useState(null);
   const eventoId = session?.user?.eventoId;
 
-
+  // Se o usuário não for MASTER, redireciona diretamente e sem atrito para o painel correspondente
+  useEffect(() => {
+    if (status === "authenticated" && role && role !== "MASTER" && perfil?.href) {
+      window.location.href = perfil.href;
+    }
+  }, [status, role, perfil]);
 
   useEffect(() => {
     const targetId = eventoId || (typeof window !== 'undefined' ? localStorage.getItem("activeEventoId") : null);
@@ -78,7 +83,14 @@ export default function AcessosPage() {
         <div className="space-y-4">
           {/* Acesso direto ao perfil do usuário logado */}
           {perfil && (
-            <Link href={perfil.href} className={`flex items-center gap-5 p-5 ${perfil.cor} rounded-3xl border-2 border-gray-200 shadow-sm hover:shadow-lg transition-all group cursor-pointer block`}>
+            <a 
+              href={perfil.href} 
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = perfil.href;
+              }}
+              className={`flex items-center gap-5 p-5 ${perfil.cor} rounded-3xl border-2 border-gray-200 shadow-sm hover:shadow-lg transition-all group cursor-pointer block`}
+            >
               <div className={`w-16 h-16 ${perfil.bgCor} rounded-2xl flex items-center justify-center shrink-0 text-3xl`}>{perfil.emoji}</div>
               <div className="flex-1">
                 <p className={`text-xs font-black uppercase tracking-widest ${perfil.textoCor} mb-1`}>{role === 'CLIENTE' || role === 'SUPORTE' ? 'SUPORTE_OPERACIONAL' : role}</p>
@@ -88,7 +100,7 @@ export default function AcessosPage() {
               <div className="bg-[#1D3461] text-white px-5 py-2.5 rounded-2xl font-black text-sm group-hover:bg-[#112244] transition-all flex items-center gap-1 shrink-0 shadow-md">
                 Acessar Retaguarda →
               </div>
-            </Link>
+            </a>
           )}
 
           {/* Master pode acessar tudo */}
