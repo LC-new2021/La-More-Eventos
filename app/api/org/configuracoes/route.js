@@ -86,8 +86,8 @@ export async function POST(req) {
       include: { evento: true }
     });
 
-    if (usuario.role !== 'ORGANIZADOR' && usuario.role !== 'MASTER') {
-      return NextResponse.json({ error: 'Acesso negado. Apenas Organizadores podem alterar configurações financeiras.' }, { status: 403 });
+    if (usuario.role !== 'MASTER') {
+      return NextResponse.json({ error: 'Acesso negado. Apenas o perfil Master pode alterar configurações de gateway.' }, { status: 403 });
     }
 
     let targetEventoId = usuario.eventoId;

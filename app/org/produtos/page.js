@@ -43,17 +43,6 @@ export default function ProdutosPage() {
   const [pgTroco, setPgTroco] = useState(false);
   const [salvandoPg, setSalvandoPg] = useState(false);
 
-  // Gateway config states
-  const [gatewayActive, setGatewayActive] = useState("ASAAS");
-  const [asaasToken, setAsaasToken] = useState("");
-  const [asaasUrl, setAsaasUrl] = useState("");
-  const [pagbankToken, setPagbankToken] = useState("");
-  const [pagbankKey, setPagbankKey] = useState("");
-  const [mercadoPagoPublicKey, setMercadoPagoPublicKey] = useState("");
-  const [mercadoPagoAccessToken, setMercadoPagoAccessToken] = useState("");
-  const [salvandoGateway, setSalvandoGateway] = useState(false);
-  const [sucessoGateway, setSucessoGateway] = useState("");
-
   // Extracted unique groups from products list. Only groups with products will exist!
   const grupos = [...new Set(produtos.map((p) => p.grupo).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
@@ -132,18 +121,9 @@ export default function ProdutosPage() {
         } else {
           setPagamentosConfig(defaultPgs);
         }
-
-        // Carregar configurações de gateway diretamente do evento
-        setGatewayActive(data.gatewayActive || "ASAAS");
-        setAsaasToken(data.asaasToken || "");
-        setAsaasUrl(data.asaasUrl || "");
-        setPagbankToken(data.pagbankToken || "");
-        setPagbankKey(data.pagbankKey || "");
-        setMercadoPagoPublicKey(data.mercadoPagoPublicKey || "");
-        setMercadoPagoAccessToken(data.mercadoPagoAccessToken || "");
       }
     } catch (e) {
-      console.error("Erro ao carregar configurações de pagamento e gateway", e);
+      console.error("Erro ao carregar configurações de pagamento", e);
     }
   };
 
@@ -456,13 +436,12 @@ export default function ProdutosPage() {
         )}
       </div>
 
-      {/* ABAS (Apenas para Organizadores/Master) */}
+      {/* ABAS (Apenas para Produtor/Organizador) */}
       {!isSupport && (
         <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-full overflow-x-auto whitespace-nowrap scrollbar-none">
           {[
             { id: "produtos", label: "🍺 Cardápio de Produtos" },
             { id: "pagamentos", label: "💳 Métodos de Pagamento" },
-            { id: "gateway", label: "🔌 Configuração do Gateway" },
           ].map((a) => (
             <button
               key={a.id}
@@ -641,208 +620,6 @@ export default function ProdutosPage() {
             ))}
           </div>
         )
-      )}
-
-      {/* ABA: GATEWAY */}
-      {aba === "gateway" && (
-        <div className="space-y-6">
-          <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-5 mb-6 font-semibold">
-            <p className="font-black text-blue-800 text-lg">🔌 Integração com Gateways de Pagamento</p>
-            <p className="text-blue-700 text-base mt-1">
-              Configure as credenciais da sua conta Asaas ou PagBank para receber pagamentos dinâmicos de Pix e Cartão de Crédito direto na sua conta.
-            </p>
-          </div>
-
-          <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 md:p-8 shadow-sm">
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              if (!eventoId) {
-                setError("Nenhum evento ativo selecionado para configurar o gateway.");
-                return;
-              }
-              setSalvandoGateway(true);
-              setSucessoGateway("");
-              setError("");
-              try {
-                const res = await fetch(`/api/eventos/${eventoId}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    gatewayActive,
-                    asaasToken: (asaasToken || "").trim(),
-                    asaasUrl: (asaasUrl || "").trim(),
-                    pagbankToken: (pagbankToken || "").trim(),
-                    pagbankKey: (pagbankKey || "").trim(),
-                    mercadoPagoPublicKey: (mercadoPagoPublicKey || "").trim(),
-                    mercadoPagoAccessToken: (mercadoPagoAccessToken || "").trim()
-                  })
-                });
-                
-                let data = null;
-                const contentType = res.headers.get("content-type");
-                if (contentType && contentType.includes("application/json")) {
-                  data = await res.json();
-                }
-                
-                if (!res.ok) {
-                  const errorMsg = data?.error || `Erro do servidor (Status ${res.status}): ${res.statusText || "Erro Desconhecido"}`;
-                  setError(errorMsg);
-                } else {
-                  setSucessoGateway("Configurações do gateway salvas com sucesso!");
-                  setTimeout(() => setSucessoGateway(""), 4000);
-                }
-              } catch (err) {
-                console.error("Erro no processamento:", err);
-                setError(`Erro de conexão ou processamento: ${err.message}`);
-              } finally {
-                setSalvandoGateway(false);
-              }
-            }} className="space-y-6">
-              {/* Seletor do Gateway */}
-              <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Gateway de Pagamento Ativo *</label>
-                <p className="text-gray-400 text-sm font-semibold mb-3">Escolha qual gateway processará as recargas no caixa (POS).</p>
-                <select
-                  value={gatewayActive}
-                  onChange={(e) => setGatewayActive(e.target.value)}
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
-                  style={{ minHeight: "52px" }}
-                >
-                  <option value="ASAAS">Asaas (Recomendado para Pix e Cartão Online)</option>
-                  <option value="MERCADO_PAGO">Mercado Pago (Pix e Cartão via App)</option>
-                  <option value="PAGBANK">PagBank (Smart POS / Integrações Locais)</option>
-                  <option value="NENHUM">Nenhum / Desativado (Apenas Simulação)</option>
-                </select>
-              </div>
-
-              {/* Seção Asaas */}
-              {gatewayActive === "ASAAS" && (
-                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-3xl">🔵</span>
-                    <h4 className="text-xl font-black text-gray-900">Configurações do Asaas</h4>
-                  </div>
-                  
-                  <div>
-                    <label className="block font-bold text-gray-700 text-sm mb-1 uppercase tracking-wide">Access Token (Chave de API) *</label>
-                    <input
-                      type="password"
-                      required
-                      value={asaasToken}
-                      onChange={(e) => setAsaasToken(e.target.value)}
-                      placeholder="Ex: $aae.Y29t..."
-                      className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-mono text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
-                    />
-                    <p className="text-gray-400 text-xs mt-1.5 font-semibold">Insira o Token de Acesso gerado em sua conta do Asaas (Configurações → Integrações → Gerar API Key).</p>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-gray-700 text-sm mb-1 uppercase tracking-wide">URL da API (Opcional)</label>
-                    <input
-                      type="text"
-                      value={asaasUrl}
-                      onChange={(e) => setAsaasUrl(e.target.value)}
-                      placeholder="Deixe em branco para detecção automática"
-                      className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-mono text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
-                    />
-                    <p className="text-gray-400 text-xs mt-1.5 font-semibold">Use `https://sandbox.asaas.com/api` para testes ou deixe em branco para detecção automática (produção).</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Seção Mercado Pago */}
-              {gatewayActive === "MERCADO_PAGO" && (
-                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-3xl">🤝</span>
-                    <h4 className="text-xl font-black text-gray-900">Configurações do Mercado Pago</h4>
-                  </div>
-                  
-                  <div>
-                    <label className="block font-bold text-gray-700 text-sm mb-1 uppercase tracking-wide">Public Key (Chave Pública) *</label>
-                    <input
-                      type="text"
-                      required
-                      value={mercadoPagoPublicKey}
-                      onChange={(e) => setMercadoPagoPublicKey(e.target.value)}
-                      placeholder="Ex: APP_USR-..."
-                      className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-mono text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
-                    />
-                    <p className="text-gray-400 text-xs mt-1.5 font-semibold">Usada para iniciar o checkout na tela do cliente.</p>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-gray-700 text-sm mb-1 uppercase tracking-wide">Access Token (Token Privado) *</label>
-                    <input
-                      type="password"
-                      required
-                      value={mercadoPagoAccessToken}
-                      onChange={(e) => setMercadoPagoAccessToken(e.target.value)}
-                      placeholder="Ex: APP_USR-..."
-                      className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-mono text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
-                    />
-                    <p className="text-gray-400 text-xs mt-1.5 font-semibold">Usado pelo servidor para confirmar transações (Configurações → Integrações).</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Seção PagBank */}
-              {gatewayActive === "PAGBANK" && (
-                <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-3xl">🟡</span>
-                    <h4 className="text-xl font-black text-gray-900">Configurações do PagBank</h4>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-gray-700 text-sm mb-1 uppercase tracking-wide">Token do PagBank *</label>
-                    <input
-                      type="password"
-                      required
-                      value={pagbankToken}
-                      onChange={(e) => setPagbankToken(e.target.value)}
-                      placeholder="Insira o token do PagBank"
-                      className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-mono text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-gray-700 text-sm mb-1 uppercase tracking-wide">Chave de Criptografia (Key) *</label>
-                    <input
-                      type="password"
-                      required
-                      value={pagbankKey}
-                      onChange={(e) => setPagbankKey(e.target.value)}
-                      placeholder="Insira a chave de criptografia do PagBank"
-                      className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-mono text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {gatewayActive === "NENHUM" && (
-                <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-2xl text-yellow-800 font-semibold">
-                  ⚠️ No modo simulação, o caixa não criará transações reais. Apenas mostrará QR codes e telas de sucesso fictícias para demonstração.
-                </div>
-              )}
-
-              {sucessoGateway && (
-                <div className="bg-green-500/10 border-2 border-green-500/20 text-green-700 p-4 rounded-2xl font-bold">
-                  ✨ {sucessoGateway}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={salvandoGateway}
-                className="w-full bg-[#1D3461] hover:bg-blue-900 text-white font-black text-lg py-4 rounded-2xl transition-all flex items-center justify-center gap-2"
-                style={{ minHeight: "52px" }}
-              >
-                {salvandoGateway ? "Salvando..." : "💾 Salvar Configurações do Gateway"}
-              </button>
-            </form>
-          </div>
-        </div>
       )}
 
       {/* MODAL: PRODUTO */}

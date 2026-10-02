@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !['MASTER', 'ORGANIZADOR'].includes(session.user.role)) {
+    if (!session || !['MASTER', 'ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Acesso não autorizado' }, { status: 401 });
     }
 

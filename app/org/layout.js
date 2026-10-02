@@ -10,7 +10,6 @@ const todosMenuItens = [
   { href: "/org/operadores", emoji: "👥", titulo: "Operadores" },
   { href: "/org/clientes", emoji: "👤", titulo: "Clientes" },
   { href: "/org/relatorios", emoji: "📈", titulo: "Relatórios" },
-  { href: "/org/configuracoes", emoji: "⚙️", titulo: "Financeiro" },
 ];
 
 export default function OrgLayout({ children }) {
@@ -26,7 +25,7 @@ export default function OrgLayout({ children }) {
   const [eventoId, setEventoId] = useState(null);
 
   const menuItens = isSupport 
-    ? todosMenuItens.filter(item => item.href !== "/org/relatorios" && item.href !== "/org/configuracoes")
+    ? todosMenuItens.filter(item => item.href !== "/org/relatorios")
     : todosMenuItens;
 
   useEffect(() => {
