@@ -31,12 +31,20 @@ export default function AcessosPage() {
   const [evento, setEvento] = useState(null);
   const eventoId = session?.user?.eventoId;
 
-  // Redireciona para o login se não autenticado
+  // Redireciona para o login se não autenticado, ou direto para a retaguarda/POS se for operador/suporte
   useEffect(() => {
     if (status === 'unauthenticated') {
       window.location.replace("/login");
+    } else if (status === 'authenticated' && role) {
+      if (role === 'CAIXA' || role === 'TESOURARIA') {
+        window.location.replace("/pos");
+      } else if (role === 'OPERADOR_BAR') {
+        window.location.replace("/bar");
+      } else if (role === 'ORGANIZADOR' || role === 'SUPORTE_OPERACIONAL' || role === 'CLIENTE' || role === 'SUPORTE') {
+        window.location.replace("/org");
+      }
     }
-  }, [status]);
+  }, [status, role]);
 
   useEffect(() => {
     const targetId = eventoId || (typeof window !== 'undefined' ? localStorage.getItem("activeEventoId") : null);
@@ -83,15 +91,17 @@ export default function AcessosPage() {
         <div className="space-y-4">
           {/* Acesso direto ao perfil do usuário logado */}
           {perfil && (
-            <a href={`${perfil.href}?v=${new Date().getTime()}`} className={`flex items-center gap-5 p-5 ${perfil.cor} rounded-3xl border-2 border-gray-200 shadow-sm hover:shadow-lg transition-all group cursor-pointer block`}>
+            <Link href={perfil.href} className={`flex items-center gap-5 p-5 ${perfil.cor} rounded-3xl border-2 border-gray-200 shadow-sm hover:shadow-lg transition-all group cursor-pointer block`}>
               <div className={`w-16 h-16 ${perfil.bgCor} rounded-2xl flex items-center justify-center shrink-0 text-3xl`}>{perfil.emoji}</div>
               <div className="flex-1">
                 <p className={`text-xs font-black uppercase tracking-widest ${perfil.textoCor} mb-1`}>{role === 'CLIENTE' || role === 'SUPORTE' ? 'SUPORTE_OPERACIONAL' : role}</p>
                 <h2 className="text-xl font-black text-gray-900">{perfil.titulo}</h2>
                 <p className="text-gray-500 text-sm mt-1">{perfil.desc}</p>
               </div>
-              <span className="text-2xl text-gray-300 group-hover:text-[#1D3461] transition-colors">→</span>
-            </a>
+              <div className="bg-[#1D3461] text-white px-5 py-2.5 rounded-2xl font-black text-sm group-hover:bg-[#112244] transition-all flex items-center gap-1 shrink-0 shadow-md">
+                Acessar Retaguarda →
+              </div>
+            </Link>
           )}
 
           {/* Master pode acessar tudo */}
