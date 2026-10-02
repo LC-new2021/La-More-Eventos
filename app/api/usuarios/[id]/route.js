@@ -80,6 +80,8 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
+    const updateData = {};
+
     if (email) {
       const emailLower = email.trim().toLowerCase();
       if (emailLower !== targetUser.email.toLowerCase()) {
@@ -91,7 +93,6 @@ export async function PATCH(req, { params }) {
       updateData.email = emailLower;
     }
 
-    const updateData = {};
     if (nome) updateData.nome = nome.trim();
     if (role) updateData.role = role;
     if (ativo !== undefined) updateData.ativo = ativo;
