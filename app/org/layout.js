@@ -44,7 +44,6 @@ export default function OrgLayout({ children }) {
               if (!stored && data.length > 0) {
                 localStorage.setItem("activeEventoId", data[0].id);
                 setEventoId(data[0].id);
-                window.location.reload();
               }
             }
           });

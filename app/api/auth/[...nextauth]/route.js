@@ -12,9 +12,13 @@ export const authOptions = {
         password: { label: "Senha", type: "password" },
       },
       async authorize(credentials) {
-        const rawEmail = credentials.email.trim();
+        if (!credentials?.email || !credentials?.password) return null;
+
+        const rawEmail = String(credentials.email).trim();
         const lowerEmail = rawEmail.toLowerCase();
-        const trimmedPassword = credentials.password.trim();
+        const trimmedPassword = String(credentials.password).trim();
+
+        if (!rawEmail || !trimmedPassword) return null;
 
         let usuario = await prisma.usuario.findUnique({
           where: { email: lowerEmail },
@@ -28,7 +32,7 @@ export const authOptions = {
 
         if (!usuario) {
           const allUsers = await prisma.usuario.findMany();
-          usuario = allUsers.find(u => u.email.trim().toLowerCase() === lowerEmail);
+          usuario = allUsers.find(u => u.email && u.email.trim().toLowerCase() === lowerEmail);
         }
 
         if (!usuario || !usuario.ativo) return null;
@@ -79,10 +83,14 @@ export const authOptions = {
       return token;
     },
     async session({ session, token }) {
-      session.user.id = token.id;
-      session.user.nome = token.nome;
-      session.user.role = token.role;
-      session.user.eventoId = token.eventoId;
+      if (!session) session = {};
+      if (!session.user) session.user = {};
+      if (token) {
+        session.user.id = token.id;
+        session.user.nome = token.nome;
+        session.user.role = token.role;
+        session.user.eventoId = token.eventoId;
+      }
       return session;
     },
   },
