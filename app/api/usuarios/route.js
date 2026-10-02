@@ -58,6 +58,10 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
     }
 
+    email = email.trim().toLowerCase();
+    nome = nome.trim();
+    if (role === 'CLIENTE' || role === 'SUPORTE') role = 'SUPORTE_OPERACIONAL';
+
     // Enforce scoping for ORGANIZADOR and SUPORTE_OPERACIONAL
     if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
       eventoId = session.user.eventoId;
@@ -74,7 +78,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'E-mail já cadastrado' }, { status: 400 });
     }
 
-    const hashedPassword = await bcrypt.hash(senha, 10);
+    const hashedPassword = await bcrypt.hash(senha.trim(), 10);
 
     const usuario = await prisma.usuario.create({
       data: {

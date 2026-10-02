@@ -31,12 +31,20 @@ export default function AcessosPage() {
   const [evento, setEvento] = useState(null);
   const eventoId = session?.user?.eventoId;
 
-  // Se não estiver autenticado, direciona para o login do operador
+  // Redireciona para o login se não autenticado, ou direto para a retaguarda/POS se for operador/suporte
   useEffect(() => {
     if (status === 'unauthenticated') {
       window.location.href = "/login";
+    } else if (status === 'authenticated' && role && role !== 'MASTER') {
+      if (role === 'CAIXA' || role === 'TESOURARIA') {
+        window.location.href = `/pos?v=${Date.now()}`;
+      } else if (role === 'OPERADOR_BAR') {
+        window.location.href = `/bar?v=${Date.now()}`;
+      } else {
+        window.location.href = `/org?v=${Date.now()}`;
+      }
     }
-  }, [status]);
+  }, [status, role]);
 
   useEffect(() => {
     const targetId = eventoId || (typeof window !== 'undefined' ? localStorage.getItem("activeEventoId") : null);

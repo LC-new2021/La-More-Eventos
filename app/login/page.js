@@ -26,18 +26,26 @@ export default function LoginPage() {
     }
 
     // Aguarda um curto tempo para garantir a gravação do cookie
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Busca a sessão
-    const sessao = await fetch("/api/auth/session").then((r) => r.json());
-    const role = sessao?.user?.role;
+    // Busca a sessão e redireciona diretamente
+    try {
+      const sessaoRes = await fetch("/api/auth/session");
+      const sessao = sessaoRes.ok ? await sessaoRes.json() : null;
+      const role = sessao?.user?.role;
 
-    // Hard redirect para inicializar a sessão do servidor corretamente
-    if (role === "MASTER") window.location.href = "/master";
-    else if (role === "ORGANIZADOR" || role === "SUPORTE_OPERACIONAL" || role === "CLIENTE" || role === "SUPORTE") window.location.href = "/org";
-    else if (role === "CAIXA" || role === "TESOURARIA") window.location.href = "/pos";
-    else if (role === "OPERADOR_BAR") window.location.href = "/bar";
-    else window.location.href = "/acessos";
+      if (role === "MASTER") {
+        window.location.href = "/master";
+      } else if (role === "CAIXA" || role === "TESOURARIA") {
+        window.location.href = "/pos";
+      } else if (role === "OPERADOR_BAR") {
+        window.location.href = "/bar";
+      } else {
+        window.location.href = "/org";
+      }
+    } catch {
+      window.location.href = "/org";
+    }
   }
 
   return (

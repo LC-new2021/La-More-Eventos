@@ -12,25 +12,40 @@ export const authOptions = {
         password: { label: "Senha", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
-
-        const trimmedEmail = credentials.email.trim().toLowerCase();
+        const rawEmail = credentials.email.trim();
+        const lowerEmail = rawEmail.toLowerCase();
         const trimmedPassword = credentials.password.trim();
 
-        const usuario = await prisma.usuario.findUnique({
-          where: { email: trimmedEmail },
+        let usuario = await prisma.usuario.findUnique({
+          where: { email: lowerEmail },
         });
+
+        if (!usuario) {
+          usuario = await prisma.usuario.findUnique({
+            where: { email: rawEmail },
+          });
+        }
+
+        if (!usuario) {
+          const allUsers = await prisma.usuario.findMany();
+          usuario = allUsers.find(u => u.email.trim().toLowerCase() === lowerEmail);
+        }
 
         if (!usuario || !usuario.ativo) return null;
 
         const senhaValida = await bcrypt.compare(trimmedPassword, usuario.senha);
         if (!senhaValida) return null;
 
+        let role = usuario.role;
+        if (role === 'CLIENTE' || role === 'SUPORTE') {
+          role = 'SUPORTE_OPERACIONAL';
+        }
+
         return {
           id: usuario.id,
           nome: usuario.nome,
           email: usuario.email,
-          role: usuario.role,
+          role,
           eventoId: usuario.eventoId,
         };
       },
@@ -51,7 +66,9 @@ export const authOptions = {
             select: { role: true, eventoId: true, nome: true },
           });
           if (dbUser) {
-            token.role = dbUser.role;
+            let userRole = dbUser.role;
+            if (userRole === 'CLIENTE' || userRole === 'SUPORTE') userRole = 'SUPORTE_OPERACIONAL';
+            token.role = userRole;
             token.eventoId = dbUser.eventoId;
             token.nome = dbUser.nome;
           }
