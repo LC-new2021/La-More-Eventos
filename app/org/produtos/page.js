@@ -298,13 +298,15 @@ export default function ProdutosPage() {
     const url = produtoEditando ? `/api/produtos/${produtoEditando.id}` : "/api/produtos";
     const method = produtoEditando ? "PATCH" : "POST";
 
+    const precoFinal = (isSupport && produtoEditando) ? parseFloat(produtoEditando.preco) : parseFloat(preco);
+
     try {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nome,
-          preco: parseFloat(preco),
+          preco: precoFinal,
           grupo: grupoFinal,
           imagem,
           observacao: observacao.trim() || null,
@@ -373,15 +375,17 @@ export default function ProdutosPage() {
       : produtos.filter((p) => p.grupo === grupoFiltro)
   ).sort((a, b) => a.nome.localeCompare(b.nome));
 
+  const isSupport = session?.user?.role === 'SUPORTE_OPERACIONAL' || session?.user?.role === 'CLIENTE' || session?.user?.role === 'SUPORTE';
+
   return (
     <div className="max-w-5xl mx-auto">
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-4xl font-black text-[#1D3461]">Cardápio & Pagamentos</h2>
+          <h2 className="text-4xl font-black text-[#1D3461]">Cardápio {isSupport ? "" : "& Pagamentos"}</h2>
           <p className="text-gray-500 text-lg font-semibold mt-1">
             {!eventoId 
-              ? "Gerencie o cardápio, pagamentos e integrações"
+              ? "Gerencie o cardápio do evento"
               : (aba === "produtos" 
                   ? `${produtos.filter((p) => p.ativo).length} produtos ativos · ${grupos.length} grupos`
                   : (aba === "pagamentos" 
@@ -423,7 +427,7 @@ export default function ProdutosPage() {
             </button>
           </div>
         )}
-        {aba === "pagamentos" && eventoId && (
+        {aba === "pagamentos" && eventoId && !isSupport && (
           <button onClick={() => {
             setPgLabel("");
             setPgEmoji("💳");
@@ -436,25 +440,27 @@ export default function ProdutosPage() {
         )}
       </div>
 
-      {/* ABAS */}
-      <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-full overflow-x-auto whitespace-nowrap scrollbar-none">
-        {[
-          { id: "produtos", label: "🍺 Cardápio de Produtos" },
-          { id: "pagamentos", label: "💳 Métodos de Pagamento" },
-          { id: "gateway", label: "🔌 Configuração do Gateway" },
-        ].map((a) => (
-          <button
-            key={a.id}
-            onClick={() => setAba(a.id)}
-            className={`px-5 py-3 rounded-xl font-black text-base transition-all shrink-0 ${
-              aba === a.id ? "bg-white text-[#1D3461] shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-            style={{ minHeight: "52px" }}
-          >
-            {a.label}
-          </button>
-        ))}
-      </div>
+      {/* ABAS (Apenas para Organizadores/Master) */}
+      {!isSupport && (
+        <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-full overflow-x-auto whitespace-nowrap scrollbar-none">
+          {[
+            { id: "produtos", label: "🍺 Cardápio de Produtos" },
+            { id: "pagamentos", label: "💳 Métodos de Pagamento" },
+            { id: "gateway", label: "🔌 Configuração do Gateway" },
+          ].map((a) => (
+            <button
+              key={a.id}
+              onClick={() => setAba(a.id)}
+              className={`px-5 py-3 rounded-xl font-black text-base transition-all shrink-0 ${
+                aba === a.id ? "bg-white text-[#1D3461] shadow-sm" : "text-gray-500 hover:text-gray-700"
+              }`}
+              style={{ minHeight: "52px" }}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold">
@@ -848,11 +854,21 @@ export default function ProdutosPage() {
                   type="number"
                   step="0.01"
                   required
+                  disabled={isSupport && !!produtoEditando}
                   value={preco}
                   onChange={(e) => setPreco(e.target.value)}
                   placeholder="0,00"
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  className={`w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold ${
+                    isSupport && !!produtoEditando 
+                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                      : 'text-gray-900 focus:outline-none focus:border-[#1D3461]'
+                  }`}
                 />
+                {isSupport && !!produtoEditando && (
+                  <p className="text-amber-800 bg-amber-50 border border-amber-200 text-xs font-bold p-3 rounded-xl mt-2 leading-relaxed">
+                    🔒 <strong>Preço fixo:</strong> O perfil Suporte Operacional não altera valores de produtos já cadastrados. Para aplicar promoções, cadastre um novo produto com o preço promocional.
+                  </p>
+                )}
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">

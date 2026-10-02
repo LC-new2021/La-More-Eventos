@@ -11,14 +11,15 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || params?.id;
     const targetUser = await prisma.usuario.findUnique({ where: { id } });
     if (!targetUser) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
     if (session.user.role !== 'MASTER' && targetUser.id !== session.user.id) {
-      if (session.user.role === 'ORGANIZADOR') {
+      if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
         if (targetUser.eventoId !== session.user.eventoId) {
           return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
         }
@@ -41,7 +42,8 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || params?.id;
     const body = await req.json();
     const { nome, email, senha, role, ativo, eventoId, razaoSocial, cnpj, ie, endereco, telefone, gatewayActive, asaasToken, asaasUrl, pagbankToken, pagbankKey, stoneToken } = body;
 
@@ -51,10 +53,12 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
-    if (session.user.role === 'ORGANIZADOR') {
+    const isOrgOrSupport = ['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role);
+
+    if (isOrgOrSupport) {
       if (targetUser.id === session.user.id) {
         // Can edit self, but cannot change own role or eventId
-        if (role && role !== 'ORGANIZADOR') {
+        if (role && role !== session.user.role) {
           return NextResponse.json({ error: 'Função não permitida' }, { status: 403 });
         }
         if (eventoId && eventoId !== session.user.eventoId) {
@@ -65,7 +69,7 @@ export async function PATCH(req, { params }) {
         if (targetUser.eventoId !== session.user.eventoId) {
           return NextResponse.json({ error: 'Acesso negado a este usuário' }, { status: 403 });
         }
-        if (role && !['CAIXA', 'OPERADOR_BAR', 'TESOURARIA'].includes(role)) {
+        if (role && !['CAIXA', 'OPERADOR_BAR', 'TESOURARIA', 'SUPORTE_OPERACIONAL'].includes(role)) {
           return NextResponse.json({ error: 'Função não permitida' }, { status: 403 });
         }
         if (eventoId && eventoId !== session.user.eventoId) {
@@ -117,13 +121,14 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || params?.id;
     const targetUser = await prisma.usuario.findUnique({ where: { id } });
     if (!targetUser) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
-    if (session.user.role === 'ORGANIZADOR') {
+    if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
       if (targetUser.eventoId !== session.user.eventoId) {
         return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
       }

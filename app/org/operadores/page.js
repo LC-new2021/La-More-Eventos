@@ -6,6 +6,9 @@ const labels = {
   CAIXA: { label: "Caixa Entrada", cor: "bg-green-100 text-green-700", emoji: "💳" },
   OPERADOR_BAR: { label: "Operador Bar/Food", cor: "bg-blue-100 text-blue-700", emoji: "🍺" },
   TESOURARIA: { label: "Tesouraria (Acesso Multi)", cor: "bg-purple-100 text-purple-700", emoji: "💵" },
+  SUPORTE_OPERACIONAL: { label: "Suporte Operacional", cor: "bg-teal-100 text-teal-700", emoji: "🛠️" },
+  CLIENTE: { label: "Suporte Operacional", cor: "bg-teal-100 text-teal-700", emoji: "🛠️" },
+  SUPORTE: { label: "Suporte Operacional", cor: "bg-teal-100 text-teal-700", emoji: "🛠️" },
 };
 
 export default function OperadoresPage() {
@@ -293,6 +296,7 @@ export default function OperadoresPage() {
                   <option value="OPERADOR_BAR">🍺 Operador de Bar/Food</option>
                   <option value="CAIXA">💳 Caixa de Entrada (Sem Dinheiro)</option>
                   <option value="TESOURARIA">💵 Tesouraria (Acesso Multi)</option>
+                  <option value="SUPORTE_OPERACIONAL">🛠️ Suporte Operacional</option>
                 </select>
               </div>
 

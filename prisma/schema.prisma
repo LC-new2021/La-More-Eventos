@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// role: "MASTER" | "ORGANIZADOR" | "CAIXA" | "OPERADOR_BAR"
+// role: "MASTER" | "ORGANIZADOR" | "SUPORTE_OPERACIONAL" | "CAIXA" | "TESOURARIA" | "OPERADOR_BAR"
 model Usuario {
   id        String   @id @default(cuid())
   nome      String

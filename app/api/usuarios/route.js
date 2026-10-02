@@ -15,8 +15,8 @@ export async function GET(req) {
     const role = searchParams.get('role');
     let eventoId = searchParams.get('eventoId');
 
-    // Enforce scoping for ORGANIZADOR
-    if (session.user.role === 'ORGANIZADOR') {
+    // Enforce scoping for ORGANIZADOR and SUPORTE_OPERACIONAL
+    if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
       eventoId = session.user.eventoId;
     } else if (session.user.role !== 'MASTER') {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
@@ -58,12 +58,12 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
     }
 
-    // Enforce scoping for ORGANIZADOR
-    if (session.user.role === 'ORGANIZADOR') {
+    // Enforce scoping for ORGANIZADOR and SUPORTE_OPERACIONAL
+    if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
       eventoId = session.user.eventoId;
-      // Organizers can only create POS/Caixa and Bar operators
-      if (!['CAIXA', 'OPERADOR_BAR', 'TESOURARIA'].includes(role)) {
-        return NextResponse.json({ error: 'Função não permitida para organizadores' }, { status: 403 });
+      // Organizers and support can create POS/Caixa, Bar, Tesouraria, and Support operators
+      if (!['CAIXA', 'OPERADOR_BAR', 'TESOURARIA', 'SUPORTE_OPERACIONAL'].includes(role)) {
+        return NextResponse.json({ error: 'Função não permitida para este perfil' }, { status: 403 });
       }
     } else if (session.user.role !== 'MASTER') {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });

@@ -34,7 +34,7 @@ export default function LoginPage() {
 
     // Hard redirect para inicializar a sessão do servidor corretamente
     if (role === "MASTER") window.location.href = "/master";
-    else if (role === "ORGANIZADOR") window.location.href = "/org";
+    else if (role === "ORGANIZADOR" || role === "SUPORTE_OPERACIONAL" || role === "CLIENTE" || role === "SUPORTE") window.location.href = "/org";
     else if (role === "CAIXA" || role === "TESOURARIA") window.location.href = "/pos";
     else if (role === "OPERADOR_BAR") window.location.href = "/bar";
     else window.location.href = "/acessos";

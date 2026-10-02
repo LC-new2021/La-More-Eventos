@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 
-const menuItens = [
+const todosMenuItens = [
   { href: "/org", emoji: "📊", titulo: "Dashboard", exact: true },
   { href: "/org/produtos", emoji: "🍺", titulo: "Cardápio" },
   { href: "/org/operadores", emoji: "👥", titulo: "Operadores" },
@@ -20,8 +20,14 @@ export default function OrgLayout({ children }) {
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const isMaster = session?.user?.role === 'MASTER';
+  const role = session?.user?.role;
+  const isMaster = role === 'MASTER';
+  const isSupport = role === 'SUPORTE_OPERACIONAL' || role === 'CLIENTE' || role === 'SUPORTE';
   const [eventoId, setEventoId] = useState(null);
+
+  const menuItens = isSupport 
+    ? todosMenuItens.filter(item => item.href !== "/org/relatorios" && item.href !== "/org/configuracoes")
+    : todosMenuItens;
 
   useEffect(() => {
     if (session) {
@@ -74,7 +80,9 @@ export default function OrgLayout({ children }) {
             </div>
             <div>
               <h1 className="font-black text-lg leading-tight">Retaguarda</h1>
-              <p className="text-blue-200 text-sm font-semibold">Produtor</p>
+              <p className="text-blue-200 text-sm font-semibold">
+                {isSupport ? "Suporte Operacional" : isMaster ? "Painel Master" : "Produtor"}
+              </p>
             </div>
           </div>
           {/* Evento ativo */}
@@ -143,7 +151,9 @@ export default function OrgLayout({ children }) {
         <div className="p-4 border-t border-white/10 space-y-2">
           <div className="px-4 py-3 bg-blue-800/50 rounded-2xl">
             <p className="text-blue-300 text-xs font-black uppercase tracking-widest">Perfil</p>
-            <p className="text-white font-bold text-base">🎯 Produtor</p>
+            <p className="text-white font-bold text-base">
+              {isSupport ? "🛠️ Suporte Operacional" : isMaster ? "👑 Master Admin" : "🎯 Produtor"}
+            </p>
           </div>
           <button
             onClick={async () => {

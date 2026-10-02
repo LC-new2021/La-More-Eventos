@@ -394,23 +394,25 @@ export default function ClientesPage({ isMasterView = false }) {
                       </button>
                     )}
 
-                    {/* Botão de Ação: Reativar ou Encerrar Individual */}
-                    {c.status === "ENCERRADO" ? (
-                      <button 
-                        onClick={() => alterarStatusCartao(c.id, "ATIVO", c.cliente.nome)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
-                        title="Reativar acesso e consumo deste cartão"
-                      >
-                        <span>🔓</span> Reativar
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => alterarStatusCartao(c.id, "ENCERRADO", c.cliente.nome)}
-                        className="bg-gray-700 hover:bg-black text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
-                        title="Encerrar/Bloquear acesso a este cartão"
-                      >
-                        <span>🔒</span> Encerrar
-                      </button>
+                    {/* Botão de Ação: Reativar ou Encerrar Individual (Apenas Master ou Organizador) */}
+                    {!(session?.user?.role === 'SUPORTE_OPERACIONAL' || session?.user?.role === 'CLIENTE' || session?.user?.role === 'SUPORTE') && (
+                      c.status === "ENCERRADO" ? (
+                        <button 
+                          onClick={() => alterarStatusCartao(c.id, "ATIVO", c.cliente.nome)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                          title="Reativar acesso e consumo deste cartão"
+                        >
+                          <span>🔓</span> Reativar
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => alterarStatusCartao(c.id, "ENCERRADO", c.cliente.nome)}
+                          className="bg-gray-700 hover:bg-black text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                          title="Encerrar/Bloquear acesso a este cartão"
+                        >
+                          <span>🔒</span> Encerrar
+                        </button>
+                      )
                     )}
                   </div>
                 </div>

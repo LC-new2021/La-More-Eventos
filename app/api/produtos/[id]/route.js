@@ -7,8 +7,26 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 export async function PATCH(req, { params }) {
   try {
     const session = await getServerSession(authOptions);
-    const { id } = await params;
+    if (!session) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || params?.id;
     const body = await req.json();
+
+    const role = session.user?.role;
+    const isSupport = role === 'SUPORTE_OPERACIONAL' || role === 'CLIENTE' || role === 'SUPORTE';
+
+    if (isSupport && body.preco !== undefined) {
+      const existing = await prisma.produto.findUnique({ where: { id } });
+      if (existing && Number(existing.preco) !== Number(body.preco)) {
+        return NextResponse.json({
+          error: 'O perfil Suporte Operacional não possui permissão para alterar o preço de produtos existentes. Cadastre um novo produto com o preço promocional.'
+        }, { status: 403 });
+      }
+    }
+
     const produto = await prisma.produto.update({
       where: { id },
       data: {
@@ -24,7 +42,8 @@ export async function PATCH(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || params?.id;
     await prisma.produto.update({
       where: { id },
       data: { ativo: false },

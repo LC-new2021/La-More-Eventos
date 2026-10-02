@@ -271,10 +271,12 @@ export default function MasterUsuarios() {
                         <span className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider ${
                           u.role === 'MASTER' ? 'bg-purple-100 text-purple-700' :
                           u.role === 'ORGANIZADOR' ? 'bg-blue-100 text-blue-700' :
+                          (u.role === 'SUPORTE_OPERACIONAL' || u.role === 'CLIENTE' || u.role === 'SUPORTE') ? 'bg-teal-100 text-teal-700' :
+                          u.role === 'TESOURARIA' ? 'bg-purple-100 text-purple-700' :
                           u.role === 'CAIXA' ? 'bg-yellow-100 text-yellow-700' :
                           'bg-green-100 text-green-700'
                         }`}>
-                          {u.role.replace('_', ' ')}
+                          {u.role === 'SUPORTE_OPERACIONAL' || u.role === 'CLIENTE' || u.role === 'SUPORTE' ? 'Suporte Operacional' : u.role.replace('_', ' ')}
                         </span>
                       </td>
                       <td className="p-4 font-bold text-gray-700">
@@ -368,7 +370,7 @@ export default function MasterUsuarios() {
                     <option value="CAIXA">Operador de Caixa (Sem Dinheiro)</option>
                     <option value="TESOURARIA">Tesouraria (Acesso Multi)</option>
                     <option value="ORGANIZADOR">Produtor</option>
-                    <option value="CLIENTE">Cliente Final (Portal)</option>
+                    <option value="SUPORTE_OPERACIONAL">Suporte Operacional</option>
                     <option value="MASTER">Master Admin</option>
                   </select>
                 </div>

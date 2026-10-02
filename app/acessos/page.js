@@ -6,6 +6,9 @@ import Link from "next/link";
 const perfis = {
   MASTER: { href: "/master", titulo: "Painel Master", desc: "Gestão completa: eventos, taxas, auditoria.", emoji: "👑", cor: "bg-yellow-50", textoCor: "text-yellow-600", bgCor: "bg-yellow-100" },
   ORGANIZADOR: { href: "/org", titulo: "Retaguarda do Produtor", desc: "Cardápio, operadores, relatórios e acompanhamento.", emoji: "🎯", cor: "bg-blue-50", textoCor: "text-blue-600", bgCor: "bg-blue-100" },
+  SUPORTE_OPERACIONAL: { href: "/org", titulo: "Suporte Operacional", desc: "Acompanhamento ao vivo, cardápio, operadores e clientes.", emoji: "🛠️", cor: "bg-teal-50", textoCor: "text-teal-600", bgCor: "bg-teal-100" },
+  SUPORTE: { href: "/org", titulo: "Suporte Operacional", desc: "Acompanhamento ao vivo, cardápio, operadores e clientes.", emoji: "🛠️", cor: "bg-teal-50", textoCor: "text-teal-600", bgCor: "bg-teal-100" },
+  CLIENTE: { href: "/org", titulo: "Suporte Operacional", desc: "Acompanhamento ao vivo, cardápio, operadores e clientes.", emoji: "🛠️", cor: "bg-teal-50", textoCor: "text-teal-600", bgCor: "bg-teal-100" },
   CAIXA: { href: "/pos", titulo: "Caixa de Entrada (POS)", desc: "Cadastro de clientes, venda de créditos e QR Code.", emoji: "💳", cor: "bg-green-50", textoCor: "text-green-600", bgCor: "bg-green-100" },
   TESOURARIA: { href: "/pos", titulo: "Tesouraria (Acesso Multi)", desc: "Cadastro de clientes, vendas em dinheiro, cartão e Pix.", emoji: "💵", cor: "bg-purple-50", textoCor: "text-purple-600", bgCor: "bg-purple-100" },
   OPERADOR_BAR: { href: "/bar", titulo: "Operador de Bar", desc: "Escanear QR, selecionar produto e confirmar débito.", emoji: "🍺", cor: "bg-orange-50", textoCor: "text-orange-600", bgCor: "bg-orange-100" },
@@ -52,7 +55,9 @@ export default function AcessosPage() {
                 Função: {
                   role === "MASTER" ? "👑 Administrador Master" :
                   role === "ORGANIZADOR" ? "🎯 Produtor / Organizador" :
+                  role === "SUPORTE_OPERACIONAL" || role === "CLIENTE" || role === "SUPORTE" ? "🛠️ Suporte Operacional" :
                   role === "CAIXA" ? "💳 Operador de Caixa" :
+                  role === "TESOURARIA" ? "💵 Tesouraria" :
                   role === "OPERADOR_BAR" ? "🍺 Operador de Bar" : role
                 }
               </p>

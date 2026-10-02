@@ -160,9 +160,11 @@ export default function OrgDashboard() {
           >
             <span>📱</span> Auto-Cadastro
           </button>
-          <Link href="/org/relatorios" className="w-full sm:w-auto justify-center bg-gray-100 text-gray-700 font-black text-base px-6 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-2">
-            <span>📊</span> Exportar
-          </Link>
+          {!(session?.user?.role === 'SUPORTE_OPERACIONAL' || session?.user?.role === 'CLIENTE' || session?.user?.role === 'SUPORTE') && (
+            <Link href="/org/relatorios" className="w-full sm:w-auto justify-center bg-gray-100 text-gray-700 font-black text-base px-6 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-2">
+              <span>📊</span> Exportar
+            </Link>
+          )}
         </div>
       </div>
 

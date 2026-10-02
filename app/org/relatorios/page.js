@@ -64,6 +64,10 @@ export default function OrgRelatoriosPage() {
 
   useEffect(() => {
     if (session) {
+      if (session.user.role === 'SUPORTE_OPERACIONAL' || session.user.role === 'CLIENTE' || session.user.role === 'SUPORTE') {
+        window.location.href = "/org";
+        return;
+      }
       if (session.user.role === 'MASTER') {
         const stored = localStorage.getItem("activeEventoId");
         if (stored) {
