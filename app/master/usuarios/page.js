@@ -197,15 +197,15 @@ export default function MasterUsuarios() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="w-full max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 className="text-4xl font-black text-[#1D3461] mb-2">Usuários e Operadores</h2>
           <p className="text-gray-500 text-lg font-semibold">Gerencie os acessos de organizadores, caixas e operadores</p>
         </div>
         <button
           onClick={abrirCriar}
-          className="bg-[#1D3461] hover:bg-[#112244] text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg text-lg flex items-center gap-2"
+          className="bg-[#1D3461] hover:bg-[#112244] text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg text-lg flex items-center justify-center gap-2 cursor-pointer shrink-0"
         >
           <span>➕</span> Novo Usuário
         </button>
@@ -253,15 +253,15 @@ export default function MasterUsuarios() {
       ) : (
         <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[750px]">
               <thead>
-                <tr className="bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold">
+                <tr className="bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold text-sm">
                   <th className="p-4">Nome</th>
                   <th className="p-4">E-mail</th>
                   <th className="p-4">Função</th>
                   <th className="p-4">Criado Por</th>
                   <th className="p-4">Evento Vinculado</th>
-                  <th className="p-4 text-center">Ações</th>
+                  <th className="p-4 text-center min-w-[180px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -292,40 +292,23 @@ export default function MasterUsuarios() {
                       <td className="p-4 font-bold text-gray-700">
                         {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}
                       </td>
-                      <td className="p-4 flex flex-col xl:flex-row items-center justify-center gap-2">
-                        {u.role !== 'MASTER' && (
+                      <td className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
-                            onClick={() => {
-                              if (u.eventoId) {
-                                localStorage.setItem("activeEventoId", u.eventoId);
-                              }
-                              if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(u.role)) {
-                                window.location.href = `/org?v=${Date.now()}`;
-                              } else if (['CAIXA', 'TESOURARIA'].includes(u.role)) {
-                                window.location.href = `/pos?v=${Date.now()}`;
-                              } else if (u.role === 'OPERADOR_BAR') {
-                                window.location.href = `/bar?v=${Date.now()}`;
-                              }
-                            }}
-                            className="w-full xl:w-auto font-black text-xs px-3 py-2 rounded-xl transition-all border-2 text-teal-700 bg-teal-50 border-teal-200 hover:bg-teal-100 text-center flex items-center justify-center gap-1 cursor-pointer"
-                            title="Acessar tela operacional deste usuário"
+                            onClick={() => abrirEditar(u)}
+                            className="font-black text-xs px-3.5 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-200 hover:bg-gray-100 text-center cursor-pointer shadow-sm"
                           >
-                            <span>🚀</span> Acessar
+                            ✏️ Editar
                           </button>
-                        )}
-                        <button
-                          onClick={() => abrirEditar(u)}
-                          className="w-full xl:w-auto font-black text-sm px-3 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-100 hover:bg-gray-50 text-center"
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          onClick={() => handleExcluir(u.id)}
-                          className="w-full xl:w-auto font-black text-sm px-3 py-2 rounded-xl transition-all border-2 text-red-600 border-red-100 hover:bg-red-50 text-center"
-                        >
-                          🗑️ Excluir
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExcluir(u.id)}
+                            className="font-black text-xs px-3.5 py-2 rounded-xl transition-all border-2 text-red-600 border-red-200 hover:bg-red-50 text-center cursor-pointer shadow-sm"
+                          >
+                            🗑️ Excluir
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
