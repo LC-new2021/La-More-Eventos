@@ -129,7 +129,7 @@ export default function MasterUsuarios() {
     }
  
     const url = usuarioParaEditar ? `/api/usuarios/${usuarioParaEditar.id}` : '/api/usuarios';
-    const method = usuarioParaEditar ? 'PUT' : 'POST';
+    const method = usuarioParaEditar ? 'PATCH' : 'POST';
  
     try {
       const res = await fetch(url, {
@@ -137,10 +137,15 @@ export default function MasterUsuarios() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const result = await res.json();
       
-      if (result.error) {
-        setError(result.error);
+      let result = null;
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        result = await res.json();
+      }
+      
+      if (!res.ok || result?.error) {
+        setError(result?.error || `Erro (${res.status}): Não foi possível salvar o usuário.`);
       } else {
         setNome('');
         setEmail('');
@@ -158,7 +163,7 @@ export default function MasterUsuarios() {
         carregarDados();
       }
     } catch (e) {
-      setError(usuarioParaEditar ? 'Erro ao atualizar usuário' : 'Erro ao criar usuário');
+      setError(e.message || (usuarioParaEditar ? 'Erro ao atualizar usuário' : 'Erro ao criar usuário'));
     } finally {
       setSalvando(false);
     }

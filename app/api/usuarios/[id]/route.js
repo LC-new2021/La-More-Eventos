@@ -80,13 +80,23 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
+    if (email) {
+      const emailLower = email.trim().toLowerCase();
+      if (emailLower !== targetUser.email.toLowerCase()) {
+        const existing = await prisma.usuario.findUnique({ where: { email: emailLower } });
+        if (existing && existing.id !== id) {
+          return NextResponse.json({ error: 'Este e-mail já está em uso por outro usuário.' }, { status: 400 });
+        }
+      }
+      updateData.email = emailLower;
+    }
+
     const updateData = {};
-    if (nome) updateData.nome = nome;
-    if (email) updateData.email = email;
+    if (nome) updateData.nome = nome.trim();
     if (role) updateData.role = role;
     if (ativo !== undefined) updateData.ativo = ativo;
     if (eventoId !== undefined) updateData.eventoId = eventoId;
-    if (senha) updateData.senha = await bcrypt.hash(senha, 10);
+    if (senha && senha.trim()) updateData.senha = await bcrypt.hash(senha.trim(), 10);
     if (razaoSocial !== undefined) updateData.razaoSocial = razaoSocial;
     if (cnpj !== undefined) updateData.cnpj = cnpj;
     if (ie !== undefined) updateData.ie = ie;
@@ -110,8 +120,12 @@ export async function PATCH(req, { params }) {
     if (e.code === 'P2002' && e.meta?.target?.includes('email')) {
       return NextResponse.json({ error: 'Este e-mail já está em uso por outro usuário.' }, { status: 400 });
     }
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: e.message || 'Erro ao atualizar usuário' }, { status: 500 });
   }
+}
+
+export async function PUT(req, ctx) {
+  return PATCH(req, ctx);
 }
 
 export async function DELETE(req, { params }) {

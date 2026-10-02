@@ -6,7 +6,8 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 export async function GET(req, { params }) {
   try {
     const session = await getServerSession(authOptions);
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || params?.id;
     const evento = await prisma.evento.findUnique({
       where: { id }
     });
@@ -43,7 +44,8 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || params?.id;
     const body = await req.json();
 
     // Se for organizador, verificar se este é o evento dele
@@ -94,6 +96,10 @@ export async function PATCH(req, { params }) {
   }
 }
 
+export async function PUT(req, ctx) {
+  return PATCH(req, ctx);
+}
+
 export async function DELETE(req, { params }) {
   try {
     const session = await getServerSession(authOptions);
@@ -101,7 +107,8 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = resolvedParams?.id || params?.id;
 
     // Prisma Transaction to delete everything linked to the event
     await prisma.$transaction([
