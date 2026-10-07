@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { processarRecargaIdempotente, buscarCartao } from "@/lib/recarga-service";
 
 export async function POST(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
     // Mercado Pago envia webhooks informando a ação
-    // Os webhooks de pagamento possuem action: "payment.created" ou "payment.updated"
-    if (body.action && (body.action === "payment.created" || body.action === "payment.updated")) {
-      const paymentId = body.data?.id;
+    if (body.action === "payment.created" || body.action === "payment.updated" || body.type === "payment" || searchParams.get("topic") === "payment") {
+      const paymentId = body.data?.id || body.id || searchParams.get("id");
 
       if (paymentId) {
-        // Obter os detalhes do pagamento na API do Mercado Pago
-        // Como o webhook pode vir sem o eventoId no corpo, buscamos na query do webhook
-        // (Ao cadastrar o webhook no Mercado Pago, passamos ?eventoId=xxx no URL)
         const webhookEventoId = searchParams.get("eventoId");
 
         let mpAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
@@ -22,86 +19,90 @@ export async function POST(req) {
 
         if (webhookEventoId) {
           eventRecord = await prisma.evento.findUnique({
-            where: { id: webhookEventoId }
+            where: { id: webhookEventoId },
           });
           if (eventRecord?.mercadoPagoAccessToken) {
             mpAccessToken = eventRecord.mercadoPagoAccessToken;
           }
         }
 
+        if (!mpAccessToken) {
+          const eventos = await prisma.evento.findMany();
+          for (const ev of eventos) {
+            if (ev.mercadoPagoAccessToken && ev.mercadoPagoAccessToken.trim().length > 10) {
+              mpAccessToken = ev.mercadoPagoAccessToken.trim();
+              break;
+            }
+          }
+        }
+
         if (mpAccessToken) {
           const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
             headers: {
-              "Authorization": `Bearer ${mpAccessToken}`,
-              "Content-Type": "application/json"
-            }
+              Authorization: `Bearer ${mpAccessToken}`,
+              "Content-Type": "application/json",
+            },
           });
 
           if (response.ok) {
             const paymentData = await response.json();
 
             if (paymentData.status === "approved") {
-              const txid = paymentData.external_reference; 
-              const value = paymentData.transaction_amount;
-              const description = paymentData.description; // Contém o código do cartão
+              const txid = paymentData.external_reference || "";
+              const value = parseFloat(paymentData.transaction_amount || 0);
+              const description = paymentData.description || "";
 
-              // Localiza o código do cartão na descrição ("Recarga Cartão Virtual LM...")
               let codigo = "";
-              if (description && description.includes("Recarga Cartão Virtual ")) {
-                codigo = description.replace("Recarga Cartão Virtual ", "").trim().toUpperCase();
+              if (txid.startsWith("REC-")) {
+                const parts = txid.split("-");
+                if (parts.length >= 3) {
+                  codigo = parts.slice(1, -1).join("-").trim().toUpperCase();
+                } else if (parts.length === 2) {
+                  codigo = parts[1].trim().toUpperCase();
+                }
+              } else if (txid.startsWith("RECARGA_PIX_")) {
+                codigo = txid.replace("RECARGA_PIX_", "").trim().toUpperCase();
+              } else if (txid.startsWith("REC_")) {
+                codigo = txid.replace("REC_", "").split("_")[0].trim().toUpperCase();
+              } else if (txid && !txid.includes(" ")) {
+                codigo = txid.trim().toUpperCase();
               }
 
+              if (!codigo && description) {
+                const match = description.match(/Cart[aã]o(?:\s+Virtual)?\s+([A-Za-z0-9\-]+)/i);
+                if (match && match[1]) {
+                  codigo = match[1].trim().toUpperCase();
+                }
+              }
+
+              let cartao = null;
               if (codigo) {
-                // Verificar se a movimentação já foi gravada
+                cartao = await buscarCartao(codigo);
+              }
+              if (!cartao) {
                 const movExistente = await prisma.movimentacao.findFirst({
-                  where: { gatewayId: paymentId.toString() }
+                  where: { gatewayId: paymentId.toString() },
+                  include: { cartao: true },
+                });
+                if (movExistente?.cartao) {
+                  cartao = movExistente.cartao;
+                }
+              }
+
+              if (cartao && value > 0) {
+                const resultado = await processarRecargaIdempotente({
+                  cartaoId: cartao.id,
+                  valor: value,
+                  gatewayId: paymentId.toString(),
+                  gatewayStatus: "CONFIRMADO",
+                  descricao: `Recarga Carteira Digital / Pix Webhook (${(paymentData.payment_method_id || "MP").toUpperCase()})`,
+                  operadorNome: "Mercado Pago Webhook",
                 });
 
-                if (!movExistente) {
-                  const cartao = await prisma.cartao.findUnique({
-                    where: { codigo },
-                    include: { cliente: true }
-                  });
-
-                  if (cartao) {
-                    const taxaPct = eventRecord?.taxaMasterPercent || 0;
-                    const valorTaxaMaster = (value * taxaPct) / 100;
-
-                    await prisma.$transaction([
-                      prisma.cartao.update({
-                        where: { id: cartao.id },
-                        data: { saldo: { increment: value } }
-                      }),
-                      prisma.movimentacao.create({
-                        data: {
-                          tipo: "RECARGA",
-                          valor: value,
-                          descricao: `Recarga Carteira Digital Webhook (${paymentData.payment_method_id.toUpperCase()})`,
-                          cartaoId: cartao.id,
-                          gatewayId: paymentId.toString(),
-                          gatewayStatus: "CONFIRMADO",
-                          valorTaxaMaster
-                        }
-                      })
-                    ]);
-
-                    // Enviar push de recarga webhook Mercado Pago
-                    if (cartao.cliente?.pushSubscriptionJson) {
-                      const { enviarNotificacao } = require('@/lib/push');
-                      const formattedValue = value.toFixed(2).replace('.', ',');
-                      const formattedSaldo = (cartao.saldo + value).toFixed(2).replace('.', ',');
-                      enviarNotificacao(
-                        cartao.cliente.pushSubscriptionJson,
-                        'Saldo Adicionado! ⚡',
-                        `Recarga de R$ ${formattedValue} creditada. Novo saldo: R$ ${formattedSaldo}.`,
-                        `/cartao/${codigo.toUpperCase()}`
-                      ).catch(console.error);
-                    }
-
-                    // Notificacao para operadores removida para evitar spam
-
-                    console.log(`[Mercado Pago Webhook] Cartão ${codigo} recarregado com R$ ${value} via Webhook.`);
-                  }
+                if (resultado.jaProcessado) {
+                  console.log(`[Mercado Pago Webhook] Pagamento ${paymentId} já havia sido creditado. Bloqueado duplicidade com sucesso.`);
+                } else {
+                  console.log(`[Mercado Pago Webhook] Cartão ${cartao.codigo} recarregado com R$ ${value}. Novo saldo: R$ ${resultado.novoSaldo}`);
                 }
               }
             }

@@ -115,7 +115,7 @@ model Movimentacao {
   operadorId String?
   operador   Usuario? @relation(fields: [operadorId], references: [id], onDelete: SetNull)
   operadorNome String?
-  gatewayId      String?
+  gatewayId      String?  @unique
   gatewayStatus  String?
   valorTaxaMaster Float?
   criadaEm DateTime @default(now())

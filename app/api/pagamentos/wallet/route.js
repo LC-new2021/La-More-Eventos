@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { processarRecargaIdempotente, buscarCartao } from "@/lib/recarga-service";
 
 export async function POST(req) {
   try {
@@ -38,46 +39,17 @@ export async function POST(req) {
 
     if (!mpAccessToken) {
       // Se não estiver configurado o Mercado Pago, simula aprovação automática (modo testes/fallback)
-      const cartao = await prisma.cartao.findUnique({
-        where: { codigo: cartaoCodigo.toUpperCase() },
-        include: { cliente: true }
+      const simulatedId = "simulated_wallet_" + Date.now();
+      const resultado = await processarRecargaIdempotente({
+        cartaoCodigo,
+        valor: value,
+        gatewayId: simulatedId,
+        gatewayStatus: "SIMULADO",
+        descricao: `Recarga Carteira Digital (Simulada ${paymentMethodId || 'WALLET'})`,
+        operadorNome: "Sistema (Simulado)",
       });
-      if (cartao) {
-        const taxaPct = evento.taxaMasterPercent || 0;
-        const valorTaxaMaster = (value * taxaPct) / 100;
-        await prisma.$transaction([
-          prisma.cartao.update({
-            where: { id: cartao.id },
-            data: { saldo: { increment: value } }
-          }),
-          prisma.movimentacao.create({
-            data: {
-              tipo: "RECARGA",
-              valor: value,
-              descricao: `Recarga Carteira Digital (Simulada ${paymentMethodId})`,
-              cartaoId: cartao.id,
-              gatewayStatus: "SIMULADO",
-              valorTaxaMaster
-            }
-          })
-        ]);
 
-        // Enviar push de recarga simulada
-        if (cartao.cliente?.pushSubscriptionJson) {
-          const { enviarNotificacao } = require('@/lib/push');
-          const formattedValue = value.toFixed(2).replace('.', ',');
-          const formattedSaldo = (cartao.saldo + value).toFixed(2).replace('.', ',');
-          enviarNotificacao(
-            cartao.cliente.pushSubscriptionJson,
-            'Saldo Adicionado! ⚡',
-            `Recarga de R$ ${formattedValue} creditada. Novo saldo: R$ ${formattedSaldo}.`,
-            `/cartao/${cartaoCodigo.toUpperCase()}`
-          ).catch(console.error);
-        }
-
-        // Notificacao para operadores removida para evitar spam
-      }
-      return NextResponse.json({ success: true, status: "approved", id: "simulated_" + Date.now() });
+      return NextResponse.json({ success: true, status: "approved", id: simulatedId, cartao: resultado.cartao });
     }
 
     // 2. Chamar a API real do Mercado Pago
@@ -112,50 +84,17 @@ export async function POST(req) {
       return NextResponse.json({ error: errorMsg, details: paymentData }, { status: response.ok ? 400 : response.status });
     }
 
-    // 3. Se aprovado, incrementa o saldo do cartão na hora
+    // 3. Se aprovado, credita de forma idempotente
     const aprovado = paymentData.status === "approved";
     if (aprovado) {
-      const cartao = await prisma.cartao.findUnique({
-        where: { codigo: cartaoCodigo.toUpperCase() },
-        include: { cliente: true }
+      await processarRecargaIdempotente({
+        cartaoCodigo,
+        valor: value,
+        gatewayId: paymentData.id.toString(),
+        gatewayStatus: "CONFIRMADO",
+        descricao: `Recarga Carteira Digital (${(paymentMethodId || 'WALLET').toUpperCase()})`,
+        operadorNome: "Mercado Pago Wallet",
       });
-      if (cartao) {
-        const taxaPct = evento.taxaMasterPercent || 0;
-        const valorTaxaMaster = (value * taxaPct) / 100;
-        await prisma.$transaction([
-          prisma.cartao.update({
-            where: { id: cartao.id },
-            data: { saldo: { increment: value } }
-          }),
-          prisma.movimentacao.create({
-            data: {
-              tipo: "RECARGA",
-              valor: value,
-              descricao: `Recarga Carteira Digital (${paymentMethodId.toUpperCase()})`,
-              cartaoId: cartao.id,
-              gatewayId: paymentData.id.toString(),
-              gatewayStatus: "CONFIRMADO",
-              valorTaxaMaster
-            }
-          })
-        ]);
-
-        // Enviar push de recarga real
-        if (cartao.cliente?.pushSubscriptionJson) {
-          const { enviarNotificacao } = require('@/lib/push');
-          const formattedValue = value.toFixed(2).replace('.', ',');
-          const formattedSaldo = (cartao.saldo + value).toFixed(2).replace('.', ',');
-          enviarNotificacao(
-            cartao.cliente.pushSubscriptionJson,
-            'Saldo Adicionado! ⚡',
-            `Recarga de R$ ${formattedValue} creditada. Novo saldo: R$ ${formattedSaldo}.`,
-            `/cartao/${cartaoCodigo.toUpperCase()}`
-          ).catch(console.error);
-        }
-
-        // Notificar operadores vinculados ao evento
-        // Notificacao para operadores removida para evitar spam
-      }
     }
 
     return NextResponse.json({

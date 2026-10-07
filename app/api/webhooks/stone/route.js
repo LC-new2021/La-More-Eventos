@@ -1,42 +1,54 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/prisma';
+import { processarRecargaIdempotente } from '@/lib/recarga-service';
 
 // Recebe notificações da Stone/Pagar.me
 export async function POST(req) {
   try {
-    const payload = await req.json();
+    const payload = await req.json().catch(() => ({}));
 
-    // A Stone avisa quando o status do pedido muda. Vamos escutar quando for pago.
     if (payload.type === 'order.paid') {
-      const order = payload.data; // Dados do pedido
+      const order = payload.data;
+      const orderId = order?.id;
 
-      // Procura a movimentação pendente no nosso banco atrelada a esse pedido
-      const movimentacao = await prisma.movimentacao.findFirst({
-        where: { 
-          gatewayId: order.id,
-          tipo: 'RECARGA_PENDENTE' 
-        },
-        include: { cartao: true }
-      });
+      if (orderId) {
+        const movimentacao = await prisma.movimentacao.findFirst({
+          where: { gatewayId: String(orderId) },
+          include: { cartao: true }
+        });
 
-      if (movimentacao) {
-        // Transação atômica para efetivar a recarga
-        await prisma.$transaction([
-          prisma.movimentacao.update({
-            where: { id: movimentacao.id },
-            data: { 
-              tipo: 'RECARGA',
-              gatewayStatus: 'paid'
-            }
-          }),
-          prisma.cartao.update({
-            where: { id: movimentacao.cartaoId },
-            data: { saldo: { increment: movimentacao.valor } }
-          })
-        ]);
-        console.log(`[STONE WEBHOOK] Recarga de R$${movimentacao.valor} aprovada para o cartão ${movimentacao.cartao.codigo}`);
+        if (movimentacao && movimentacao.tipo === 'RECARGA_PENDENTE') {
+          await prisma.$transaction([
+            prisma.movimentacao.update({
+              where: { id: movimentacao.id },
+              data: { tipo: 'RECARGA', gatewayStatus: 'paid' }
+            }),
+            prisma.cartao.update({
+              where: { id: movimentacao.cartaoId },
+              data: { saldo: { increment: movimentacao.valor } }
+            })
+          ]);
+          console.log(`[STONE WEBHOOK] Recarga de R$${movimentacao.valor} aprovada para o cartão ${movimentacao.cartao?.codigo}`);
+        } else if (!movimentacao) {
+          // Extrair código do item code
+          const itemCode = order.items?.[0]?.code || '';
+          let cartaoCodigo = '';
+          if (itemCode.startsWith('REC_')) {
+            cartaoCodigo = itemCode.replace('REC_', '');
+          }
+          const valor = parseFloat(order.amount ? (order.amount / 100) : 0);
+
+          if (cartaoCodigo && valor > 0) {
+            await processarRecargaIdempotente({
+              cartaoCodigo,
+              valor,
+              gatewayId: String(orderId),
+              gatewayStatus: 'paid',
+              descricao: 'Recarga Online (Stone Webhook)',
+              operadorNome: 'Stone Webhook'
+            });
+          }
+        }
       }
     }
 

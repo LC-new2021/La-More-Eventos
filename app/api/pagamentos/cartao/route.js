@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { processarRecargaIdempotente } from "@/lib/recarga-service";
 
 export async function POST(req) {
   try {
@@ -54,7 +55,6 @@ export async function POST(req) {
         } else if (cleanKey.startsWith("$aact_prod_")) {
           asaasUrl = "https://api.asaas.com";
         } else {
-          // Formato antigo ou indefinido
           if (cleanKey.startsWith("$")) {
             asaasUrl = "https://sandbox.asaas.com/api";
           } else {
@@ -79,14 +79,6 @@ export async function POST(req) {
         const cleanCpf = cpf ? cpf.replace(/\D/g, "") : "";
         if (cleanCpf) {
           clientRecord = await prisma.cliente.findFirst({ where: { cpf: cleanCpf } });
-        }
-
-        let cartao = null;
-        if (cartaoCodigo) {
-          cartao = await prisma.cartao.findUnique({
-            where: { codigo: cartaoCodigo.toUpperCase() },
-            include: { cliente: true }
-          });
         }
 
         if (useSavedCard) {
@@ -165,29 +157,14 @@ export async function POST(req) {
         const confirmado = charge.status === "PAID" || charge.status === "AUTHORIZED";
 
         if (confirmado && cartaoCodigo) {
-          const cartaoDb = cartao || await prisma.cartao.findUnique({ where: { codigo: cartaoCodigo.toUpperCase() } });
-          if (cartaoDb) {
-            const evento = await prisma.evento.findUnique({ where: { id: cartaoDb.eventoId } });
-            const taxaPct = evento?.taxaMasterPercent || 0;
-            const valorTaxaMaster = (value * taxaPct) / 100;
-            await prisma.$transaction([
-              prisma.cartao.update({
-                where: { id: cartaoDb.id },
-                data: { saldo: { increment: value } }
-              }),
-              prisma.movimentacao.create({
-                data: {
-                  tipo: 'RECARGA',
-                  valor: value,
-                  descricao: `Recarga Cartão Online (PagBank)`,
-                  cartaoId: cartaoDb.id,
-                  gatewayId: data.id,
-                  gatewayStatus: charge.status,
-                  valorTaxaMaster
-                }
-              })
-            ]);
-          }
+          await processarRecargaIdempotente({
+            cartaoCodigo,
+            valor: value,
+            gatewayId: data.id ? String(data.id) : txid,
+            gatewayStatus: charge.status,
+            descricao: `Recarga Cartão Online (PagBank)`,
+            operadorNome: "PagBank Cartão",
+          });
         }
 
         return NextResponse.json({
@@ -211,17 +188,6 @@ export async function POST(req) {
         const cleanCpf = cpf ? cpf.replace(/\D/g, "") : "";
         if (cleanCpf) {
           clientRecord = await prisma.cliente.findFirst({ where: { cpf: cleanCpf } });
-        }
-
-        let cartao = null;
-        if (cartaoCodigo) {
-          cartao = await prisma.cartao.findUnique({
-            where: { codigo: cartaoCodigo.toUpperCase() },
-            include: { cliente: true }
-          });
-          if (!clientRecord && cartao?.cliente) {
-            clientRecord = cartao.cliente;
-          }
         }
 
         if (useSavedCard) {
@@ -286,7 +252,7 @@ export async function POST(req) {
             holderName: cardName,
             number: cardNumber.replace(/\s/g, ""),
             expiryMonth: expiryMonth.trim(),
-            expiryYear: "20" + expiryYear.trim(), // Asaas espera ano em 4 dígitos
+            expiryYear: "20" + expiryYear.trim(),
             ccv: cardCvc
           };
           paymentPayload.creditCardHolderInfo = {
@@ -335,29 +301,14 @@ export async function POST(req) {
         const confirmado = paymentData.status === "CONFIRMED" || paymentData.status === "RECEIVED";
 
         if (confirmado && cartaoCodigo) {
-          const cartaoDb = cartao || await prisma.cartao.findUnique({ where: { codigo: cartaoCodigo.toUpperCase() } });
-          if (cartaoDb) {
-            const evento = await prisma.evento.findUnique({ where: { id: cartaoDb.eventoId } });
-            const taxaPct = evento?.taxaMasterPercent || 0;
-            const valorTaxaMaster = (value * taxaPct) / 100;
-            await prisma.$transaction([
-              prisma.cartao.update({
-                where: { id: cartaoDb.id },
-                data: { saldo: { increment: value } }
-              }),
-              prisma.movimentacao.create({
-                data: {
-                  tipo: 'RECARGA',
-                  valor: value,
-                  descricao: useSavedCard ? `Recarga Cartão Salvo (Asaas)` : `Recarga Cartão Online (Asaas)`,
-                  cartaoId: cartaoDb.id,
-                  gatewayId: paymentData.id,
-                  gatewayStatus: "CONFIRMADO",
-                  valorTaxaMaster
-                }
-              })
-            ]);
-          }
+          await processarRecargaIdempotente({
+            cartaoCodigo,
+            valor: value,
+            gatewayId: paymentData.id ? String(paymentData.id) : txid,
+            gatewayStatus: "CONFIRMADO",
+            descricao: useSavedCard ? `Recarga Cartão Salvo (Asaas)` : `Recarga Cartão Online (Asaas)`,
+            operadorNome: "Asaas Cartão",
+          });
         }
 
         return NextResponse.json({
@@ -373,26 +324,16 @@ export async function POST(req) {
       }
     }
 
-    // Fallback de teste (quando sem chave no .env)
+    // Fallback de teste (quando sem gateway ativo)
     if (cartaoCodigo) {
-      const cartao = await prisma.cartao.findUnique({ where: { codigo: cartaoCodigo.toUpperCase() } });
-      if (cartao) {
-        await prisma.$transaction([
-          prisma.cartao.update({
-            where: { id: cartao.id },
-            data: { saldo: { increment: value } }
-          }),
-          prisma.movimentacao.create({
-            data: {
-              tipo: 'RECARGA',
-              valor: value,
-              descricao: `Recarga Cartão Online (Simulado)`,
-              cartaoId: cartao.id,
-              gatewayStatus: "SIMULADO"
-            }
-          })
-        ]);
-      }
+      await processarRecargaIdempotente({
+        cartaoCodigo,
+        valor: value,
+        gatewayId: txid,
+        gatewayStatus: "SIMULADO",
+        descricao: `Recarga Cartão Online (Simulado)`,
+        operadorNome: "Sistema Simulado",
+      });
     }
 
     return NextResponse.json({

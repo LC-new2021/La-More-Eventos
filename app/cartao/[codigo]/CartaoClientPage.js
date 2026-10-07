@@ -299,6 +299,18 @@ export default function CartaoClientPage() {
       .finally(() => setLoading(false));
   };
 
+  const fecharModalRecarga = () => {
+    setAbrirRecarga(false);
+    setPassoRecarga('valor');
+    setPixQrCodeUrl('');
+    setPixPayload('');
+    setTxidPix('');
+    setCopiadoPix(false);
+    setRecargaErro('');
+    setProcessando(false);
+    carregarCartao();
+  };
+
   const tentarNovamente = () => {
     setLoading(true);
     setErro('');
@@ -819,7 +831,7 @@ export default function CartaoClientPage() {
             
             {/* Fechar */}
             <button 
-              onClick={() => setAbrirRecarga(false)}
+              onClick={fecharModalRecarga}
               className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 font-black text-xl"
             >
               ✕
@@ -1115,10 +1127,7 @@ export default function CartaoClientPage() {
                   Seus créditos de <span className="font-bold text-gray-900">R$ {parseFloat(valorRecarga).toFixed(2).replace('.', ',')}</span> já foram adicionados ao seu saldo.
                 </p>
                 <button 
-                  onClick={() => {
-                    setAbrirRecarga(false);
-                    carregarCartao();
-                  }}
+                  onClick={fecharModalRecarga}
                   className="w-full bg-[#1E3A8A] text-white font-black py-4 rounded-xl shadow-lg"
                 >
                   Visualizar Meu Saldo
