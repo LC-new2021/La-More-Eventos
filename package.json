@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "node prisma/build.js && prisma generate && next build",
-    "start": "prisma db push --accept-data-loss && node prisma/seed.js && next start",
+    "start": "node prisma/build.js && (prisma db push --accept-data-loss || true) && (node prisma/seed.js || true) && next start",
     "lint": "eslint",
     "seed": "node --experimental-vm-modules prisma/seed.js",
     "db:push": "prisma db push",
@@ -39,8 +39,8 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
-    "web-push": "^3.6.7",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
