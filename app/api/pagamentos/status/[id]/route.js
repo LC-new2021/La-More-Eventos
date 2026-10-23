@@ -1,77 +1,97 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { consultarPagamentoAsaas } from "@/lib/asaas";
+import { consultarPagamentoMercadoPago } from "@/lib/mercadopago";
+
+export const dynamic = "force-dynamic";
+
+async function obterTokensGateway(evento) {
+  let asaasToken = (evento?.asaasToken || process.env.ASAAS_API_KEY || "").trim();
+  let mpToken = (evento?.mercadoPagoAccessToken || process.env.MERCADOPAGO_ACCESS_TOKEN || "").trim();
+
+  if (!asaasToken || !mpToken) {
+    const eventos = await prisma.evento.findMany();
+    for (const ev of eventos) {
+      if (!asaasToken && ev.asaasToken && ev.asaasToken.trim().length > 10) {
+        asaasToken = ev.asaasToken.trim();
+      }
+      if (!mpToken && ev.mercadoPagoAccessToken && ev.mercadoPagoAccessToken.trim().length > 10) {
+        mpToken = ev.mercadoPagoAccessToken.trim();
+      }
+    }
+  }
+
+  return { asaasToken, mpToken };
+}
 
 export async function GET(req, { params }) {
   try {
-    const { id } = params;
+    const resolvedParams = await params;
+    const id = (resolvedParams?.id || "").trim();
     const { searchParams } = new URL(req.url);
     const eventoId = searchParams.get("eventoId");
 
-    if (!eventoId) {
+    if (!id) {
       return NextResponse.json({ status: "PENDING", simulated: true });
     }
 
-    const evento = await prisma.evento.findUnique({
-      where: { id: eventoId }
+    // 1. Verifica se já foi confirmado via Webhook no banco de dados
+    const movExistente = await prisma.movimentacao.findFirst({
+      where: { gatewayId: id },
     });
-
-    if (!evento) {
-      return NextResponse.json({ status: "PENDING", simulated: true });
+    if (movExistente && (movExistente.gatewayStatus === "CONFIRMADO" || movExistente.tipo === "RECARGA")) {
+      return NextResponse.json({ status: "CONFIRMED", simulated: false, gatewayId: id });
     }
 
-    const gateway = evento.gatewayActive || "NENHUM";
-
-    if (gateway === "MERCADO_PAGO" && evento.mercadoPagoAccessToken) {
-      const response = await fetch(`https://api.mercadopago.com/v1/payments/${id}`, {
-        headers: {
-          "Authorization": `Bearer ${evento.mercadoPagoAccessToken}`,
-          "Content-Type": "application/json"
-        }
+    let evento = null;
+    if (eventoId) {
+      evento = await prisma.evento.findUnique({
+        where: { id: eventoId }
       });
-      if (response.ok) {
-        const data = await response.json();
-        let s = "PENDING";
-        if (data.status === "approved") s = "CONFIRMED";
-        if (data.status === "rejected" || data.status === "cancelled") s = "CANCELLED";
-        return NextResponse.json({ status: s, simulated: false });
+    }
+
+    const { asaasToken, mpToken } = await obterTokensGateway(evento);
+    const gateway = (evento?.gatewayActive || "ASAAS").toUpperCase();
+
+    // 2. Se for ID do Asaas (inicia com 'pay_') ou gateway for ASAAS
+    if ((id.startsWith("pay_") || gateway === "ASAAS") && asaasToken && !id.startsWith("PIX_DIR_")) {
+      const data = await consultarPagamentoAsaas({ token: asaasToken, paymentId: id });
+      if (data && data.status) {
+        return NextResponse.json({ status: data.status, simulated: false, gateway: "ASAAS" });
       }
     }
 
-    if (gateway === "PAGBANK" && evento.pagbankToken) {
-      // O PagBank usa a API de Pedidos, mas o txid que geramos no POS pode ser o ID do Pedido
-      const url = evento.pagbankToken.startsWith("sandbox") ? "https://sandbox.api.pagseguro.com" : "https://api.pagseguro.com";
+    // 3. Se for numérico ou gateway for MERCADO_PAGO
+    if ((/^\d+$/.test(id) || gateway === "MERCADO_PAGO") && mpToken && !id.startsWith("PIX_DIR_")) {
+      const data = await consultarPagamentoMercadoPago({ token: mpToken, paymentId: id });
+      if (data && data.status) {
+        let s = "PENDING";
+        if (data.status === "approved") s = "CONFIRMED";
+        if (data.status === "rejected" || data.status === "cancelled") s = "CANCELLED";
+        return NextResponse.json({ status: s, simulated: false, gateway: "MERCADO_PAGO" });
+      }
+    }
+
+    // 4. Se for PagBank
+    if (gateway === "PAGBANK" && evento?.pagbankToken) {
+      const url = evento.pagbankToken.toLowerCase().includes("sandbox") ? "https://sandbox.api.pagseguro.com" : "https://api.pagseguro.com";
       const response = await fetch(`${url}/orders/${id}`, {
         headers: {
           "Authorization": `Bearer ${evento.pagbankToken}`,
           "Content-Type": "application/json"
-        }
+        },
+        cache: "no-store",
       });
       if (response.ok) {
         const data = await response.json();
         let s = "PENDING";
-        if (data.charges && data.charges.some(c => c.status === "PAID")) s = "CONFIRMED";
-        return NextResponse.json({ status: s, simulated: false });
+        if (data.charges && data.charges.some(c => c.status === "PAID" || c.status === "AUTHORIZED")) s = "CONFIRMED";
+        return NextResponse.json({ status: s, simulated: false, gateway: "PAGBANK" });
       }
     }
 
-    if (gateway === "ASAAS" && evento.asaasToken) {
-      const isSandbox = evento.asaasToken.startsWith("$");
-      const url = isSandbox ? "https://sandbox.asaas.com/api" : "https://api.asaas.com";
-      const response = await fetch(`${url}/v3/payments/${id}`, {
-        headers: {
-          "access_token": evento.asaasToken,
-          "Content-Type": "application/json"
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        return NextResponse.json({ status: data.status, simulated: false });
-      }
-    }
-
-    // Se não encontrou ou não tem gateway, apenas retorna pendente
-    // O operador vai precisar confirmar manualmente no botão
-    return NextResponse.json({ status: "PENDING", simulated: true });
+    // Se não encontrou ou é PIX_DIRETO estático, retorna pendente
+    return NextResponse.json({ status: "PENDING", simulated: id.startsWith("PIX_DIR_") });
 
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

@@ -1,6 +1,27 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
+async function obterTokensGateway(evento) {
+  let asaasToken = (evento?.asaasToken || process.env.ASAAS_API_KEY || '').trim();
+  let mpToken = (evento?.mercadoPagoAccessToken || process.env.MERCADOPAGO_ACCESS_TOKEN || '').trim();
+
+  if (!asaasToken || !mpToken) {
+    const eventos = await prisma.evento.findMany();
+    for (const ev of eventos) {
+      if (!asaasToken && ev.asaasToken && ev.asaasToken.trim().length > 10) {
+        asaasToken = ev.asaasToken.trim();
+      }
+      if (!mpToken && ev.mercadoPagoAccessToken && ev.mercadoPagoAccessToken.trim().length > 10 && ev.mercadoPagoAccessToken.trim() !== 'lamore2026') {
+        mpToken = ev.mercadoPagoAccessToken.trim();
+      }
+    }
+  }
+
+  return { asaasToken, mpToken };
+}
+
 export async function POST(req) {
   try {
     const { codigo, valor } = await req.json();
@@ -19,9 +40,10 @@ export async function POST(req) {
     if (!cartao) throw new Error('Cartão não encontrado');
     if (cartao.status !== 'ATIVO') throw new Error('Cartão inativo');
 
-    const gateway = cartao.evento.gatewayActive || 'ASAAS';
+    const { asaasToken, mpToken } = await obterTokensGateway(cartao.evento);
+    const gateway = (cartao.evento.gatewayActive || 'ASAAS').toUpperCase();
     
-    // Obter o host atual dinamicamente para garantir a URL correta (Railway)
+    // Obter o host atual dinamicamente para garantir a URL correta
     const host = req.headers.get('host') || 'la-more-eventos-production.up.railway.app';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
@@ -30,7 +52,7 @@ export async function POST(req) {
 
     // STONE (Pagar.me)
     if (gateway === 'STONE') {
-      const sk = cartao.evento.stoneSecretKey;
+      const sk = cartao.evento.stoneToken || cartao.evento.stoneSecretKey;
       if (!sk) throw new Error('Chave secreta da Stone não configurada.');
 
       const payload = {
@@ -50,7 +72,7 @@ export async function POST(req) {
         ],
         checkouts: [
           {
-            payment_methods: ["credit_card", "pix"],
+            payment_methods: ["credit_card", "debit_card"],
             success_url: successUrl,
             skip_checkout_success_page: true,
             customer_editable: false
@@ -71,7 +93,6 @@ export async function POST(req) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Erro na Stone');
 
-      // A Stone retorna o link de checkout dentro de checkouts[0].payment_url
       return NextResponse.json({ url: data.checkouts[0].payment_url });
     }
 
@@ -111,24 +132,24 @@ export async function POST(req) {
     }
 
     // ASAAS
-    if (gateway === 'ASAAS') {
-      const token = cartao.evento.asaasToken || process.env.ASAAS_API_KEY;
-      if (!token) throw new Error('Token Asaas ausente');
-      const isSandbox = token.startsWith('$aact_sandbox_') || token.startsWith('$aae.');
+    if (gateway === 'ASAAS' && asaasToken) {
+      const isSandbox = asaasToken.startsWith('$aact_sandbox_') || asaasToken.startsWith('$aae.');
       const asaasUrl = isSandbox ? "https://sandbox.asaas.com/api" : "https://api.asaas.com";
 
       const payload = {
         name: `Recarga Cartão ${cartao.codigo}`,
-        description: `Recarga rápida`,
-        value: valor,
-        billingType: "UNDEFINED", // Deixa o cliente escolher Cartão, Pix etc
+        description: `Recarga Cartão ${cartao.codigo} - ${cartao.evento.nome}`,
+        value: Number(valor),
+        billingType: "CREDIT_CARD", // Somente Cartão de Crédito (sem Boleto e sem Pix duplicado)
         chargeType: "DETACHED",
-        dueDateLimitDays: 1
+        maxInstallmentCount: 1,
+        dueDateLimitDays: 1,
+        externalReference: cartao.codigo,
       };
 
       const res = await fetch(`${asaasUrl}/v3/paymentLinks`, {
         method: 'POST',
-        headers: { 'access_token': token, 'Content-Type': 'application/json' },
+        headers: { 'access_token': asaasToken, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -137,16 +158,13 @@ export async function POST(req) {
       return NextResponse.json({ url: data.url });
     }
 
-    // MERCADO PAGO
-    if (gateway === 'MERCADO_PAGO') {
-      const token = cartao.evento.mercadoPagoAccessToken;
-      if (!token) throw new Error('Access Token do Mercado Pago ausente.');
-
+    // MERCADO PAGO (ou Fallback se Asaas não configurado)
+    if ((gateway === 'MERCADO_PAGO' || mpToken) && mpToken) {
       const mpPayload = {
         items: [
           {
             title: `Recarga Cartão ${cartao.codigo}`,
-            description: "Recarga de Saldo - Carteira Digital",
+            description: "Recarga de Saldo - Carteira Digital La More",
             quantity: 1,
             currency_id: "BRL",
             unit_price: Number(valor)
@@ -162,22 +180,17 @@ export async function POST(req) {
         payment_methods: {
           excluded_payment_types: [
             { id: "ticket" },
-            { id: "bank_transfer" },
-            { id: "atm" }
+            { id: "atm" },
+            { id: "bank_transfer" }
           ],
-          excluded_payment_methods: [
-            { id: "pix" },
-            { id: "bolbanc" },
-            { id: "pec" }
-          ],
-          installments: 12
+          installments: 1
         }
       };
 
       const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${mpToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(mpPayload)
@@ -188,7 +201,7 @@ export async function POST(req) {
       return NextResponse.json({ url: data.init_point });
     }
 
-    throw new Error('Gateway inválido');
+    throw new Error('Gateway de pagamento não configurado para este evento.');
 
   } catch (error) {
     console.error('Erro /api/pagamentos/checkout:', error);

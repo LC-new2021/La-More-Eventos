@@ -21,11 +21,11 @@ export async function GET(req) {
       }),
       prisma.movimentacao.findMany({
         where: { cartao: { eventoId } },
-        select: { tipo: true, valor: true, produto: { select: { id: true, nome: true } } }
+        select: { tipo: true, valor: true, descricao: true, produto: { select: { id: true, nome: true, preco: true } } }
       }),
       prisma.evento.findUnique({
         where: { id: eventoId },
-        select: { mercadoPagoUserId: true, gatewayActive: true }
+        select: { mercadoPagoAccessToken: true, gatewayActive: true }
       })
     ]);
 
@@ -33,12 +33,16 @@ export async function GET(req) {
     const totalDebitos = todasMovimentacoes.filter(m => m.tipo === 'DEBITO').reduce((s, m) => s + m.valor, 0);
     const saldoEmAberto = cartoes.reduce((s, c) => s + c.saldo, 0);
 
-    // Ranking de produtos
+    // Ranking de produtos (computado por unidade física vendida)
     const rankingMap = {};
     for (const m of todasMovimentacoes.filter(m => m.tipo === 'DEBITO' && m.produto)) {
       const key = m.produto.id;
       if (!rankingMap[key]) rankingMap[key] = { nome: m.produto.nome, qtd: 0, total: 0 };
-      rankingMap[key].qtd++;
+      const match = String(m.descricao || '').match(/^(\d+)x\s+/i);
+      const unidades = match && parseInt(match[1], 10) > 0
+        ? parseInt(match[1], 10)
+        : (m.produto.preco > 0 ? Math.max(1, Math.round(m.valor / m.produto.preco)) : 1);
+      rankingMap[key].qtd += unidades;
       rankingMap[key].total += m.valor;
     }
     const ranking = Object.values(rankingMap).sort((a, b) => b.qtd - a.qtd).slice(0, 5);
@@ -51,7 +55,7 @@ export async function GET(req) {
       totalPedidos: todasMovimentacoes.filter(m => m.tipo === 'DEBITO').length,
       movimentacoes: ultimasMovimentacoes.slice(0, 20),
       ranking,
-      mercadoPagoUserId: evento?.mercadoPagoUserId || null,
+      mercadoPagoUserId: evento?.mercadoPagoAccessToken ? 'CONECTADO' : null,
       gatewayActive: evento?.gatewayActive || null
     });
   } catch (e) {

@@ -58,7 +58,7 @@ export async function POST(req) {
         data: {
           tipo: 'DEBITO',
           valor: valorTotal,
-          descricao: qty > 1 ? `${qty}x ${produto.nome}` : produto.nome,
+          descricao: `${qty}x ${produto.nome} (${qty} un. × R$ ${precoUnitario.toFixed(2).replace('.', ',')})`,
           cartaoId: cartao.id,
           produtoId: produto.id,
           operadorId: session?.user?.id,
@@ -69,23 +69,25 @@ export async function POST(req) {
 
     // Enviar notificação push se configurada
     if (cartao.cliente?.pushSubscriptionJson) {
+      const formattedUnit = precoUnitario.toFixed(2).replace('.', ',');
       const formattedTotal = valorTotal.toFixed(2).replace('.', ',');
       const formattedSaldo = cartaoAtualizado.saldo.toFixed(2).replace('.', ',');
       enviarNotificacao(
         cartao.cliente.pushSubscriptionJson,
         'Consumo Confirmado! 🍻',
-        `${qty > 1 ? `${qty}x ` : ''}${produto.nome} - R$ ${formattedTotal} debitados. Novo saldo: R$ ${formattedSaldo}.`,
+        `${qty}x ${produto.nome} (${qty} un. × R$ ${formattedUnit}) = - R$ ${formattedTotal}. Novo saldo: R$ ${formattedSaldo}.`,
         `/cartao/${codigo.toUpperCase()}`
       ).catch(console.error);
     }
-
-    // Notificação removida para operadores (era disparada em loop para todo mundo)
 
     return NextResponse.json({
       ok: true,
       saldoAnterior: cartao.saldo,
       saldoAtual: cartaoAtualizado.saldo,
       produto: produto.nome,
+      quantidade: qty,
+      precoUnitario,
+      valorTotal,
       cliente: cartao.clienteId,
     });
   } catch (e) {

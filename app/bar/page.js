@@ -217,7 +217,15 @@ export default function BarApp() {
       if (!res.ok) {
         setResultado({ ok: false, motivo: data.error, saldoAtual: data.saldo });
       } else {
-        setResultado({ ok: true, saldoAtual: data.saldoAtual, produto: quantidade > 1 ? `${quantidade}x ${data.produto}` : data.produto });
+        const valorTotalDebitado = precoFinal * quantidade;
+        setResultado({
+          ok: true,
+          saldoAtual: data.saldoAtual,
+          quantidade,
+          precoUnitario: precoFinal,
+          valorTotal: valorTotalDebitado,
+          produto: `${quantidade}x ${data.produto} (${quantidade} ${quantidade === 1 ? 'unidade' : 'unidades'} × R$ ${precoFinal.toFixed(2).replace('.', ',')})`
+        });
         setCartao(prev => ({ ...prev, saldo: data.saldoAtual }));
       }
       setEtapa("resultado");
@@ -237,11 +245,14 @@ export default function BarApp() {
         <div className="text-9xl mb-6">{resultado?.ok ? "✅" : "❌"}</div>
         <h1 className="text-5xl font-black text-white mb-3">{resultado?.ok ? "LIBERADO!" : "RECUSADO"}</h1>
         <p className="text-3xl text-white/90 font-bold mb-2">{cartao?.cliente?.nome}</p>
-        <p className="text-2xl text-white/80 font-semibold mb-4">{resultado?.produto || resultado?.motivo}</p>
+        <p className="text-2xl text-white/95 font-black mb-4">{resultado?.produto || resultado?.motivo}</p>
         {resultado?.ok && (
           <div className="bg-white/20 rounded-3xl px-8 py-4 inline-block">
-            <p className="text-white font-black text-3xl">- R$ {produtoSel?.preco.toFixed(2).replace(".",",")}</p>
-            <p className="text-white/80 font-bold mt-1">Saldo: R$ {resultado?.saldoAtual?.toFixed(2).replace(".",",")}</p>
+            <p className="text-white font-black text-4xl">- R$ {(resultado?.valorTotal ?? (produtoSel?.preco * quantidade) ?? 0).toFixed(2).replace(".",",")}</p>
+            <p className="text-white/90 font-bold text-sm mt-1">
+              {resultado?.quantidade || quantidade} {(resultado?.quantidade || quantidade) === 1 ? 'unidade' : 'unidades'} × R$ {(resultado?.precoUnitario ?? produtoSel?.preco ?? 0).toFixed(2).replace(".",",")}
+            </p>
+            <p className="text-white/95 font-black text-lg mt-2 pt-2 border-t border-white/20">Novo Saldo: R$ {resultado?.saldoAtual?.toFixed(2).replace(".",",")}</p>
           </div>
         )}
       </div>

@@ -53,11 +53,11 @@ export async function GET(req) {
         where: { id: cartao.id },
         include: {
           cliente: true,
-          evento: { select: { id: true, nome: true, status: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+          evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
           movimentacoes: {
             orderBy: { criadaEm: 'desc' },
             take: 10,
-            include: { produto: { select: { nome: true } } },
+            include: { produto: { select: { nome: true, preco: true } } },
           },
         },
       });
@@ -75,6 +75,7 @@ export async function GET(req) {
 
     let pagamentoAprovado = false;
     let valorAprovado = 0;
+    let gatewayIdEfetivo = paymentId.toString();
 
     // Se for ID do Asaas (inicia com 'pay_') ou o evento usar Asaas
     if (paymentId.startsWith('pay_') && asaasToken) {
@@ -82,15 +83,55 @@ export async function GET(req) {
       if (asaasData && (asaasData.status === 'RECEIVED' || asaasData.status === 'CONFIRMED')) {
         pagamentoAprovado = true;
         valorAprovado = parseFloat(asaasData.value || 0);
+        gatewayIdEfetivo = asaasData.id;
       }
     }
 
-    // Se não for Asaas ou não aprovou por lá, tenta Mercado Pago
-    if (!pagamentoAprovado && mpToken) {
+    // Verificação secundária no Asaas: se o cliente gerou mais de um QR Code para este cartão hoje
+    // e pagou um deles, localiza qualquer cobrança RECEIVED/CONFIRMED deste cartão ainda não creditada
+    if (!pagamentoAprovado && asaasToken && cartao?.codigo) {
+      try {
+        const cleanToken = asaasToken.replace(/^\\\$/, '$');
+        const isSandbox = cleanToken.toLowerCase().includes('sandbox');
+        const baseUrl = isSandbox ? 'https://sandbox.asaas.com/api/v3' : 'https://api.asaas.com/v3';
+        const hoje = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const listRes = await fetch(`${baseUrl}/payments?dateCreated[ge]=${hoje}&limit=20`, {
+          headers: { access_token: cleanToken },
+          cache: 'no-store',
+        });
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const codUpper = cartao.codigo.toUpperCase();
+          for (const p of listData.data || []) {
+            if (p.status === 'RECEIVED' || p.status === 'CONFIRMED') {
+              const ref = String(p.externalReference || '').toUpperCase();
+              const desc = String(p.description || '').toUpperCase();
+              if (ref.includes(codUpper) || desc.includes(codUpper)) {
+                const jaCreditado = await prisma.movimentacao.findFirst({
+                  where: { gatewayId: String(p.id) },
+                });
+                if (!jaCreditado) {
+                  pagamentoAprovado = true;
+                  valorAprovado = parseFloat(p.value || 0);
+                  gatewayIdEfetivo = String(p.id);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } catch (errScan) {
+        console.warn('[STATUS RECARGA] Aviso scan secundário Asaas:', errScan.message);
+      }
+    }
+
+    // Se não for Asaas nem PIX_DIR_ estático, tenta Mercado Pago
+    if (!pagamentoAprovado && !paymentId.startsWith('pay_') && !paymentId.startsWith('PIX_DIR_') && mpToken) {
       const mpData = await consultarPagamentoMercadoPago({ token: mpToken, paymentId });
       if (mpData && mpData.status === 'approved') {
         pagamentoAprovado = true;
         valorAprovado = parseFloat(mpData.transaction_amount || 0);
+        gatewayIdEfetivo = String(mpData.id || paymentId);
       }
     }
 
@@ -99,7 +140,7 @@ export async function GET(req) {
       const resultado = await processarRecargaIdempotente({
         cartaoId: cartao.id,
         valor: valorAprovado,
-        gatewayId: paymentId.toString(),
+        gatewayId: gatewayIdEfetivo,
         gatewayStatus: 'CONFIRMADO',
         descricao: `Recarga Online PIX — ${cartao.evento?.nome || 'La More Eventos'}`,
         operadorNome: 'Gateway Bancário',

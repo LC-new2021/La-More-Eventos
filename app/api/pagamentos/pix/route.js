@@ -52,14 +52,15 @@ export async function POST(req) {
     };
 
     let pixResult = null;
+    const gatewayConfig = (evento?.gatewayActive || 'ASAAS').toUpperCase();
 
     // 1. Tenta criar PIX oficial no Banco Asaas se o gateway configurado for ASAAS
-    if (asaasToken && evento?.gatewayActive === "ASAAS") {
+    if (asaasToken && gatewayConfig === "ASAAS") {
       try {
         const asaasPix = await criarPixAsaas({
           token: asaasToken,
           valor: value,
-          descricao: `Recarga Saldo - Cartao ${cartaoCodigo || ""}`,
+          descricao: `Recarga Saldo - Cartao ${cartaoCodigo || ""}`.trim(),
           codigoPedido,
           payer,
         });
@@ -73,19 +74,20 @@ export async function POST(req) {
             : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(asaasPix.qrCode)}`,
           valor: value,
           isGateway: true,
+          gateway: "ASAAS",
         };
       } catch (errAsaas) {
         console.warn("[PIX ROUTE] Aviso Asaas:", errAsaas.message);
       }
     }
 
-    // 2. Tenta Mercado Pago se o gateway configurado for MERCADO_PAGO
-    if (!pixResult && mpToken && evento?.gatewayActive === "MERCADO_PAGO") {
+    // 2. Tenta Mercado Pago se o gateway configurado for MERCADO_PAGO (ou como contingência se Asaas falhar)
+    if (!pixResult && mpToken && (gatewayConfig === "MERCADO_PAGO" || gatewayConfig === "ASAAS")) {
       try {
         const mpPix = await criarPixMercadoPago({
           token: mpToken,
           valor: value,
-          descricao: `Recarga Saldo - Cartao ${cartaoCodigo || ""}`,
+          descricao: `Recarga Saldo - Cartao ${cartaoCodigo || ""}`.trim(),
           codigoPedido,
           payer,
           appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://eventos.grupolamore.com.br",
@@ -100,6 +102,7 @@ export async function POST(req) {
             : `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(mpPix.qrCode)}`,
           valor: value,
           isGateway: true,
+          gateway: "MERCADO_PAGO",
         };
       } catch (errMp) {
         console.warn("[PIX ROUTE] Aviso Mercado Pago:", errMp.message);
@@ -109,11 +112,13 @@ export async function POST(req) {
     // 3. Fallback PIX Direto (Chave do Produtor / BR Code Oficial Banco Central)
     if (!pixResult) {
       const chavePix = evento?.chavePix || process.env.PIX_CHAVE_PADRAO || '61993688095';
+      const tipoChavePix = evento?.chavePix ? (evento?.tipoChavePix || null) : 'TELEFONE';
       const titular = evento?.titularPix || evento?.nome || "LEONARDO CAVALCANTI";
       const cidade = evento?.cidadePix || "BRASILIA";
 
       const pixDireto = await gerarPixCompleto({
         chave: chavePix,
+        tipoChave: tipoChavePix,
         valor: value,
         nomeRecebedor: titular,
         cidade: cidade,
@@ -128,6 +133,7 @@ export async function POST(req) {
         qrCodeUrl: `data:image/png;base64,${pixDireto.qrCodeBase64}`,
         valor: value,
         isGateway: false,
+        gateway: "PIX_DIRETO",
         chavePix,
         titular,
       };

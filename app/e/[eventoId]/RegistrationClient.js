@@ -51,8 +51,8 @@ export default function RegistrationClient({ evento }) {
         throw new Error(data.error || "Erro ao realizar cadastro.");
       }
 
-      // Redireciona diretamente para o cartão recém-criado
-      router.push(`/cartao/${data.codigo}`);
+      // Redireciona diretamente para o cartão recém-criado acionando o assistente de Salvar na Tela Inicial e Notificações
+      router.push(`/cartao/${data.codigo}?novo=1`);
       
     } catch (err) {
       setError(err.message);

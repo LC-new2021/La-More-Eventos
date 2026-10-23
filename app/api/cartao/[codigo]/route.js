@@ -27,11 +27,11 @@ export async function GET(req, { params }) {
       },
       include: {
         cliente: true,
-        evento: { select: { id: true, nome: true, status: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+        evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
         movimentacoes: {
           orderBy: { criadaEm: 'desc' },
           take: 10,
-          include: { produto: { select: { nome: true } } },
+          include: { produto: { select: { nome: true, preco: true } } },
         },
       },
     });
@@ -116,11 +116,11 @@ export async function GET(req, { params }) {
               where: { clienteId: cliente.id, eventoId: evento.id },
               include: {
                 cliente: true,
-                evento: { select: { id: true, nome: true, status: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+                evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
                 movimentacoes: {
                   orderBy: { criadaEm: 'desc' },
                   take: 10,
-                  include: { produto: { select: { nome: true } } },
+                  include: { produto: { select: { nome: true, preco: true } } },
                 },
               },
             });
@@ -135,11 +135,11 @@ export async function GET(req, { params }) {
                     data: { codigo: codigoFinalDesejado },
                     include: {
                       cliente: true,
-                      evento: { select: { id: true, nome: true, status: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+                      evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
                       movimentacoes: {
                         orderBy: { criadaEm: 'desc' },
                         take: 10,
-                        include: { produto: { select: { nome: true } } },
+                        include: { produto: { select: { nome: true, preco: true } } },
                       },
                     },
                   });
@@ -192,11 +192,11 @@ export async function GET(req, { params }) {
                 },
                 include: {
                   cliente: true,
-                  evento: { select: { id: true, nome: true, status: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+                  evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
                   movimentacoes: {
                     orderBy: { criadaEm: 'desc' },
                     take: 10,
-                    include: { produto: { select: { nome: true } } },
+                    include: { produto: { select: { nome: true, preco: true } } },
                   },
                 },
               });
@@ -216,11 +216,11 @@ export async function GET(req, { params }) {
         },
         include: {
           cliente: true,
-          evento: { select: { id: true, nome: true, status: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+          evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
           movimentacoes: {
             orderBy: { criadaEm: 'desc' },
             take: 10,
-            include: { produto: { select: { nome: true } } },
+            include: { produto: { select: { nome: true, preco: true } } },
           },
         },
       });

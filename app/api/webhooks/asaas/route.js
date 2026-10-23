@@ -46,13 +46,13 @@ export async function POST(req) {
 
       // Fallback 2: busca se já existe uma movimentação pendente com esse gatewayId
       let cartao = null;
-      if (codigo) {
+      if (codigo && codigo !== "CARTAO") {
         cartao = await buscarCartao(codigo);
       }
       if (!cartao) {
         const movExistente = await prisma.movimentacao.findFirst({
           where: { gatewayId: paymentId },
-          include: { cartao: true },
+          include: { cartao: { include: { cliente: true, evento: true } } },
         });
         if (movExistente?.cartao) {
           cartao = movExistente.cartao;
@@ -60,12 +60,25 @@ export async function POST(req) {
       }
 
       if (cartao) {
+        // Se for pagamento no cartão de crédito e o Asaas retornou creditCardToken, salva no cliente para 1-Click futuro
+        if (payment.creditCardToken && cartao.clienteId) {
+          await prisma.cliente.update({
+            where: { id: cartao.clienteId },
+            data: {
+              creditCardToken: payment.creditCardToken,
+              creditCardBrand: payment.creditCard?.creditCardBrand || "CARTAO",
+              creditCardLastDigits: payment.creditCard?.creditCardNumber || "••••",
+            },
+          }).catch(() => {});
+        }
+
+        const isCard = payment.billingType === "CREDIT_CARD" || payment.billingType === "DEBIT_CARD";
         const resultado = await processarRecargaIdempotente({
           cartaoId: cartao.id,
           valor: valor,
           gatewayId: paymentId,
           gatewayStatus: "CONFIRMADO",
-          descricao: `Recarga Pix Online (Asaas)`,
+          descricao: isCard ? `Recarga Cartão Online (Asaas)` : `Recarga Pix Online (Asaas)`,
           operadorNome: "Asaas Webhook",
         });
 

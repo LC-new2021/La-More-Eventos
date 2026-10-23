@@ -21,6 +21,7 @@ export default function MasterEventos() {
   const [cidadePix, setCidadePix] = useState('BRASILIA');
   const [mpPublicKey, setMpPublicKey] = useState('');
   const [mpAccessToken, setMpAccessToken] = useState('');
+  const [asaasToken, setAsaasToken] = useState('');
   const [bilheteriaEventoId, setBilheteriaEventoId] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [sincronizandoId, setSincronizandoId] = useState(null);
@@ -89,6 +90,7 @@ export default function MasterEventos() {
     setCidadePix('BRASILIA');
     setMpPublicKey('');
     setMpAccessToken('');
+    setAsaasToken('');
     setBilheteriaEventoId('');
     setMostrarModal(true);
   };
@@ -108,6 +110,7 @@ export default function MasterEventos() {
     setCidadePix(evt.cidadePix || 'BRASILIA');
     setMpPublicKey(evt.mercadoPagoPublicKey || '');
     setMpAccessToken(evt.mercadoPagoAccessToken || '');
+    setAsaasToken(evt.asaasToken || '');
     setBilheteriaEventoId(evt.bilheteriaEventoId || '');
     setMostrarModal(true);
   };
@@ -160,6 +163,7 @@ export default function MasterEventos() {
           tipoChavePix,
           titularPix,
           cidadePix,
+          asaasToken: asaasToken,
           mercadoPagoPublicKey: mpPublicKey,
           mercadoPagoAccessToken: mpAccessToken,
           bilheteriaEventoId: bilheteriaEventoId || null,
@@ -640,6 +644,24 @@ export default function MasterEventos() {
                           className="w-full bg-white border-2 border-gray-200 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2 text-xs font-semibold text-gray-900"
                         />
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {gatewayActive === 'ASAAS' && (
+                  <div className="space-y-3 pt-2 border-t border-amber-500/20">
+                    <div>
+                      <label className="block text-gray-700 font-bold mb-1 text-xs">Chave de API do Asaas (Produção / Sandbox) *</label>
+                      <input
+                        type="text"
+                        value={asaasToken}
+                        onChange={(e) => setAsaasToken(e.target.value)}
+                        placeholder="$aact_prod_..."
+                        className="w-full bg-white border-2 border-amber-300 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2 text-xs font-mono font-bold text-gray-900"
+                      />
+                      <p className="text-[10px] text-gray-600 mt-1 font-semibold">
+                        Habilita Pix Dinâmico (QR Code + Copia e Cola) e Cartão de Crédito/Débito Integrado via API.
+                      </p>
                     </div>
                   </div>
                 )}

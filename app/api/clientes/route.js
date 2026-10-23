@@ -78,10 +78,25 @@ export async function POST(req) {
     const valorTaxaMaster = (valorFloat * taxaPct) / 100;
     const descricaoPag = pagamentos?.map(p => p.metodo).join(', ') || 'Recarga';
 
+    const primeiroGatewayId = pagamentos?.find(p => p.gatewayId)?.gatewayId
+      ? String(pagamentos.find(p => p.gatewayId).gatewayId).trim()
+      : null;
+
     // ── Recarga em cartão existente ──
     if (cartaoExistente) {
       const cartao = await prisma.cartao.findUnique({ where: { codigo: cartaoExistente.toUpperCase() } });
       if (!cartao) return NextResponse.json({ error: 'Cartão não encontrado' }, { status: 404 });
+
+      // Blindagem anti-duplicidade: se o pagamento online já foi creditado na Movimentacao, retorna sem duplicar
+      if (primeiroGatewayId) {
+        const movJaCreditada = await prisma.movimentacao.findFirst({
+          where: { gatewayId: primeiroGatewayId },
+        });
+        if (movJaCreditada) {
+          const cartaoAtual = await prisma.cartao.findUnique({ where: { id: cartao.id } });
+          return NextResponse.json({ cartao: cartaoAtual, codigo: cartaoExistente, jaProcessado: true });
+        }
+      }
 
       const [cartaoAtualizado] = await prisma.$transaction([
         prisma.cartao.update({
@@ -96,6 +111,8 @@ export async function POST(req) {
             cartaoId: cartao.id,
             operadorId: session?.user?.id,
             operadorNome: session?.user?.nome,
+            gatewayId: primeiroGatewayId,
+            gatewayStatus: primeiroGatewayId ? 'CONFIRMADO' : null,
             valorTaxaMaster,
           },
         }),
@@ -138,6 +155,8 @@ export async function POST(req) {
             descricao: `Recarga inicial — ${descricaoPag}`,
             operadorId: session?.user?.id,
             operadorNome: session?.user?.nome,
+            gatewayId: primeiroGatewayId,
+            gatewayStatus: primeiroGatewayId ? 'CONFIRMADO' : null,
             valorTaxaMaster,
           },
         },

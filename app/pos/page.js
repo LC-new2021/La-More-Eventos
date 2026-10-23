@@ -89,6 +89,8 @@ export default function PosApp() {
   const [cardCvc, setCardCvc] = useState("");
   const [processandoCartao, setProcessandoCartao] = useState(false);
   const [usarCheckoutOffline, setUsarCheckoutOffline] = useState(false);
+  const [tipoCartaoPos, setTipoCartaoPos] = useState("CREDITO"); // "CREDITO" | "DEBITO"
+  const [copiadoPixPos, setCopiadoPixPos] = useState(false);
 
   // Estados para Notificações Push do Caixa
   const [pushPermission, setPushPermission] = useState('default');
@@ -457,8 +459,9 @@ export default function PosApp() {
         body: JSON.stringify({
           valor: valorRestante,
           clienteNome: nome || cartaoEncontrado?.cliente?.nome || "Cliente Consumidor",
-          cpf: (cpf || "").replace(/\D/g, ""),
-          eventoId
+          cpf: (cpf || cartaoEncontrado?.cliente?.cpf || "").replace(/\D/g, ""),
+          eventoId,
+          cartaoCodigo: cartaoEncontrado?.codigo || undefined
         })
       });
       const data = await res.json();
@@ -509,15 +512,35 @@ export default function PosApp() {
     }
   }
 
+  async function copiarTextoPos(texto) {
+    if (!texto) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(texto);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = texto;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopiadoPixPos(true);
+      setTimeout(() => setCopiadoPixPos(false), 3000);
+    } catch (_) {
+      setCopiadoPixPos(true);
+      setTimeout(() => setCopiadoPixPos(false), 3000);
+    }
+  }
+
   async function processarCartaoAsaas() {
     const rawCpf = cpf ? cpf.replace(/\D/g, "") : "";
-    if (!rawCpf || rawCpf.length !== 11) {
-      setErro("CPF é obrigatório para transações de cartão online (Asaas). Preencha-o abaixo.");
-      return;
-    }
     if (!usarCartaoSalvo) {
       if (!cardName.trim() || !cardNumber.trim() || !cardExpiry.trim() || !cardCvc.trim()) {
-        setErro("Preencha todos os campos do cartão.");
+        setErro("Preencha todos os campos do cartão (Nome, Número, Validade e CVC).");
         return;
       }
     }
@@ -536,6 +559,7 @@ export default function PosApp() {
           cardNumber: usarCartaoSalvo ? undefined : cardNumber,
           cardExpiry: usarCartaoSalvo ? undefined : cardExpiry,
           cardCvc: usarCartaoSalvo ? undefined : cardCvc,
+          tipoCartao: tipoCartaoPos,
           useSavedCard: usarCartaoSalvo,
           cartaoCodigo: cartaoEncontrado?.codigo || undefined
         })
@@ -544,7 +568,8 @@ export default function PosApp() {
       if (!res.ok) {
         setErro(data.error || "Erro ao processar pagamento com cartão.");
       } else {
-        setPagamentos([...pagamentos, { metodo: "cartao", valor: valorRestante, gatewayId: data.txid }]);
+        const labelMetodo = tipoCartaoPos === "DEBITO" ? "Cartão Débito (API)" : "Cartão Crédito (API)";
+        setPagamentos([...pagamentos, { metodo: labelMetodo, valor: valorRestante, gatewayId: data.txid }]);
         setMetodoAtual("");
         setCardName("");
         setCardNumber("");
@@ -715,10 +740,12 @@ export default function PosApp() {
             <div className="mb-4 text-center">
               <p className="text-gray-500 font-bold mb-3">
                 {evento?.gatewayActive === "ASAAS"
-                  ? "Cobrança Pix integrada com Asaas"
+                  ? "Cobrança Pix Oficial integrada com Asaas"
+                  : evento?.gatewayActive === "MERCADO_PAGO"
+                  ? "Cobrança Pix Oficial integrada com Mercado Pago"
                   : evento?.gatewayActive === "PAGBANK"
                   ? "Cobrança Pix integrada com PagBank"
-                  : "Cobrança Pix (Simulação)"}
+                  : "Cobrança Pix Oficial (QR Code & Copia e Cola)"}
               </p>
               {erro && (
                 <div className="bg-red-100 border-2 border-red-200 text-red-700 p-3 rounded-2xl mb-3 font-bold text-sm">
@@ -729,10 +756,20 @@ export default function PosApp() {
                 type="button"
                 onClick={iniciarPixDinamico}
                 disabled={gerandoPix}
-                className="w-full bg-teal-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-teal-600 transition-colors"
+                className="w-full bg-teal-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-teal-600 transition-colors cursor-pointer"
                 style={{minHeight: "52px"}}
               >
-                {gerandoPix ? "Gerando Pix..." : `⚡ Gerar QR Code Pix ${evento?.gatewayActive === "ASAAS" ? "Asaas" : evento?.gatewayActive === "PAGBANK" ? "PagBank" : "Simulado"}`}
+                {gerandoPix
+                  ? "Gerando Pix..."
+                  : `⚡ Gerar QR Code Pix (${
+                      evento?.gatewayActive === "ASAAS"
+                        ? "Asaas"
+                        : evento?.gatewayActive === "MERCADO_PAGO"
+                        ? "Mercado Pago"
+                        : evento?.gatewayActive === "PAGBANK"
+                        ? "PagBank"
+                        : "Pix Direto"
+                    })`}
               </button>
             </div>
           )}
@@ -743,44 +780,169 @@ export default function PosApp() {
               <img 
                 src={pixQrCode} 
                 alt="QR Code Pix" 
-                className="w-56 h-56 mx-auto mb-3 border border-gray-200 rounded-xl" 
+                className="w-56 h-56 mx-auto mb-3 border border-gray-200 rounded-xl bg-white p-2" 
               />
               <div className="mb-4">
-                <input
-                  type="text"
-                  readOnly
-                  value={pixCopiaCola}
-                  onClick={(e) => {
-                    e.target.select();
-                    navigator.clipboard.writeText(pixCopiaCola);
-                    alert("Pix Copia e Cola copiado!");
-                  }}
-                  className="w-full bg-gray-100 text-teal-700 border border-teal-200 rounded-xl px-3 py-2 text-xs font-mono text-center cursor-pointer overflow-ellipsis"
-                  title="Clique para copiar"
-                />
-                <p className="text-gray-400 text-[10px] mt-1">Clique acima para copiar o Pix Copia e Cola</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={pixCopiaCola}
+                    onClick={(e) => {
+                      e.target.select();
+                      copiarTextoPos(pixCopiaCola);
+                    }}
+                    className="flex-1 bg-white text-teal-800 border border-teal-200 rounded-xl px-3 py-2 text-xs font-mono cursor-pointer truncate"
+                    title="Clique para copiar"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copiarTextoPos(pixCopiaCola)}
+                    className={`px-4 py-2 rounded-xl font-black text-xs transition-all cursor-pointer ${
+                      copiadoPixPos ? "bg-emerald-600 text-white" : "bg-[#1D3461] text-white hover:bg-[#152A66]"
+                    }`}
+                  >
+                    {copiadoPixPos ? "✓ Copiado!" : "📋 Copiar Pix"}
+                  </button>
+                </div>
+                <p className="text-gray-400 text-[10px] mt-1">Código Pix Copia e Cola (Padrão Banco Central)</p>
               </div>
 
               <div className="flex items-center justify-center gap-2 mt-4 text-teal-600 font-bold animate-pulse">
                 <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                Aguardando confirmação do banco...
+                Aguardando confirmação automática do banco...
               </div>
             </div>
           )}
 
           {metodoAtual === "cartao" && !pixGerado && (
-            <div className="mb-4 text-center">
-              <p className="text-gray-500 font-bold mb-3">Cobrança Digital (Cartão no Celular)</p>
-              {erro && <p className="text-red-500 text-sm font-bold mb-3">{erro}</p>}
+            <div className="mb-4 text-left bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-gray-800 font-black text-sm">
+                  💳 Cartão Integrado ({evento?.gatewayActive === "MERCADO_PAGO" ? "Mercado Pago" : "Asaas"})
+                </p>
+                <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full">
+                  Chave API Ativa
+                </span>
+              </div>
+
+              {/* Seletor Crédito vs Débito Integrado */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTipoCartaoPos("CREDITO")}
+                  className={`py-2.5 rounded-xl font-black text-xs border-2 transition-all cursor-pointer ${
+                    tipoCartaoPos === "CREDITO"
+                      ? "bg-[#1D3461] text-white border-[#1D3461]"
+                      : "bg-white text-gray-700 border-gray-200"
+                  }`}
+                >
+                  💳 Crédito Integrado
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipoCartaoPos("DEBITO")}
+                  className={`py-2.5 rounded-xl font-black text-xs border-2 transition-all cursor-pointer ${
+                    tipoCartaoPos === "DEBITO"
+                      ? "bg-[#1D3461] text-white border-[#1D3461]"
+                      : "bg-white text-gray-700 border-gray-200"
+                  }`}
+                >
+                  💳 Débito Integrado
+                </button>
+              </div>
+
+              {erro && (
+                <div className="bg-red-100 border border-red-200 text-red-700 p-2.5 rounded-xl text-xs font-bold">
+                  ⚠️ {erro}
+                </div>
+              )}
+
+              {savedCardToken && usarCartaoSalvo ? (
+                <div className="bg-white p-3 rounded-xl border border-blue-200 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black text-gray-900">Cartão Salvo ({savedCardBrand || "Cartão"})</p>
+                    <p className="text-xs text-gray-500 font-mono">•••• •••• •••• {savedCardLastDigits}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUsarCartaoSalvo(false)}
+                    className="text-xs text-blue-600 font-bold underline"
+                  >
+                    Usar outro
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="block text-gray-600 font-bold text-xs mb-0.5">Nome Impresso no Cartão</label>
+                    <input
+                      type="text"
+                      value={cardName}
+                      onChange={(e) => setCardName(e.target.value.toUpperCase())}
+                      placeholder="JOAO S SILVA"
+                      className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-semibold text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-600 font-bold text-xs mb-0.5">Número do Cartão</label>
+                    <input
+                      type="text"
+                      value={cardNumber}
+                      onChange={(e) => handleCardNumberChange(e.target.value)}
+                      placeholder="0000 0000 0000 0000"
+                      className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-mono font-semibold text-gray-900"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-gray-600 font-bold text-xs mb-0.5">Validade (MM/AA)</label>
+                      <input
+                        type="text"
+                        value={cardExpiry}
+                        onChange={(e) => handleCardExpiryChange(e.target.value)}
+                        placeholder="MM/AA"
+                        maxLength={5}
+                        className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-mono font-semibold text-gray-900 text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-600 font-bold text-xs mb-0.5">CVC / CVV</label>
+                      <input
+                        type="text"
+                        value={cardCvc}
+                        onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                        placeholder="123"
+                        maxLength={4}
+                        className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-mono font-semibold text-gray-900 text-center"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <button
                 type="button"
-                onClick={iniciarCheckoutOnline}
+                onClick={processarCartaoAsaas}
                 disabled={processandoCartao}
-                className="w-full bg-blue-600 text-white font-black text-lg py-4 rounded-2xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                style={{minHeight: "52px"}}
+                className="w-full bg-emerald-600 text-white font-black text-base py-3.5 rounded-2xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                style={{minHeight: "48px"}}
               >
-                {processandoCartao ? "Gerando Link..." : "⚡ Gerar Link de Pagamento"}
+                {processandoCartao
+                  ? "Processando na API..."
+                  : `⚡ Cobrar R$ ${valorRestante.toFixed(2).replace(".", ",")} no ${tipoCartaoPos === "DEBITO" ? "Débito" : "Crédito"}`}
               </button>
+
+              {cartaoEncontrado?.codigo && (
+                <button
+                  type="button"
+                  onClick={iniciarCheckoutOnline}
+                  disabled={processandoCartao}
+                  className="w-full bg-blue-50 text-blue-700 border border-blue-200 font-bold text-xs py-2.5 rounded-xl hover:bg-blue-100 transition-colors cursor-pointer"
+                >
+                  🔗 Ou Gerar Link de Checkout para o Celular do Cliente
+                </button>
+              )}
             </div>
           )}
 
