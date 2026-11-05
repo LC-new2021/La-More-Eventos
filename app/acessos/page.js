@@ -7,7 +7,7 @@ const perfis = {
   MASTER: { href: "/master", titulo: "Painel Master", desc: "Gestão completa: eventos, taxas, auditoria.", emoji: "👑", cor: "bg-yellow-50", textoCor: "text-yellow-600", bgCor: "bg-yellow-100" },
   ORGANIZADOR: { href: "/org", titulo: "Retaguarda do Produtor", desc: "Cardápio, operadores, relatórios e acompanhamento.", emoji: "🎯", cor: "bg-blue-50", textoCor: "text-blue-600", bgCor: "bg-blue-100" },
   SUPORTE_OPERACIONAL: { href: "/org", titulo: "Suporte Operacional", desc: "Acompanhamento ao vivo, cardápio, operadores e clientes.", emoji: "🛠️", cor: "bg-teal-50", textoCor: "text-teal-600", bgCor: "bg-teal-100" },
-  CAIXA: { href: "/pos", titulo: "Caixa de Entrada (POS)", desc: "Cadastro de clientes, venda de créditos e QR Code.", emoji: "💳", cor: "bg-green-50", textoCor: "text-green-600", bgCor: "bg-green-100" },
+  CAIXA: { href: "/pos", titulo: "Caixa de Entrada (POS / Vendas)", desc: "Cadastro de clientes, venda de créditos e QR Code.", emoji: "💳", cor: "bg-green-50", textoCor: "text-green-600", bgCor: "bg-green-100" },
   TESOURARIA: { href: "/pos", titulo: "Tesouraria (Acesso Multi)", desc: "Cadastro de clientes, vendas em dinheiro, cartão e Pix.", emoji: "💵", cor: "bg-purple-50", textoCor: "text-purple-600", bgCor: "bg-purple-100" },
   OPERADOR_BAR: { href: "/bar", titulo: "Operador de Bar", desc: "Escanear QR, selecionar produto e confirmar débito.", emoji: "🍺", cor: "bg-orange-50", textoCor: "text-orange-600", bgCor: "bg-orange-100" },
 };
@@ -15,12 +15,12 @@ const perfis = {
 perfis.CLIENTE = perfis.SUPORTE_OPERACIONAL;
 perfis.SUPORTE = perfis.SUPORTE_OPERACIONAL;
 
-const perfisMasterList = [
+const perfisListaAlternar = [
   { roleKey: "ORGANIZADOR", ...perfis.ORGANIZADOR },
-  { roleKey: "SUPORTE_OPERACIONAL", ...perfis.SUPORTE_OPERACIONAL },
   { roleKey: "CAIXA", ...perfis.CAIXA },
-  { roleKey: "TESOURARIA", ...perfis.TESOURARIA },
   { roleKey: "OPERADOR_BAR", ...perfis.OPERADOR_BAR },
+  { roleKey: "SUPORTE_OPERACIONAL", ...perfis.SUPORTE_OPERACIONAL },
+  { roleKey: "TESOURARIA", ...perfis.TESOURARIA },
 ];
 
 export default function AcessosPage() {
@@ -29,14 +29,15 @@ export default function AcessosPage() {
   const perfil = perfis[role];
 
   const [evento, setEvento] = useState(null);
+  const [saindo, setSaindo] = useState(false);
   const eventoId = session?.user?.eventoId;
 
-  // Se o usuário não for MASTER, redireciona diretamente e sem atrito para o painel correspondente
+  // Se não autenticado, vai para login
   useEffect(() => {
-    if (status === "authenticated" && role && role !== "MASTER" && perfil?.href) {
-      window.location.href = perfil.href;
+    if (status === 'unauthenticated') {
+      window.location.href = "/login";
     }
-  }, [status, role, perfil]);
+  }, [status]);
 
   useEffect(() => {
     const targetId = eventoId || (typeof window !== 'undefined' ? localStorage.getItem("activeEventoId") : null);
@@ -50,17 +51,28 @@ export default function AcessosPage() {
     }
   }, [eventoId]);
 
+  const handleLogout = async () => {
+    setSaindo(true);
+    try {
+      await signOut({ callbackUrl: "/login", redirect: true });
+    } catch {
+      window.location.href = "/login";
+    }
+  };
+
+  const isGestor = role === "MASTER" || role === "ORGANIZADOR" || role === "ORG" || role === "SUPORTE_OPERACIONAL" || role === "CLIENTE" || role === "SUPORTE";
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-10 pt-6">
+        <div className="text-center mb-8 pt-4">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-xl mb-4 overflow-hidden p-1 border border-gray-200">
             <img src="/logo.png?v=3" alt="La More Automação Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-4xl font-black text-[#1D3461]">La More Eventos</h1>
           {session?.user?.nome && (
             <div>
-              <p className="text-gray-500 text-lg font-semibold mt-1">Olá, {session.user.nome}!</p>
+              <p className="text-gray-600 text-lg font-semibold mt-1">Olá, {session.user.nome}!</p>
               <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">
                 Função: {
                   role === "MASTER" ? "👑 Administrador Master" :
@@ -81,51 +93,58 @@ export default function AcessosPage() {
         </div>
 
         <div className="space-y-4">
-          {/* Acesso direto ao perfil do usuário logado */}
+          {/* Acesso direto ao perfil principal do usuário logado */}
           {perfil && (
             <a 
               href={perfil.href} 
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.href = perfil.href;
-              }}
               className={`flex items-center gap-5 p-5 ${perfil.cor} rounded-3xl border-2 border-gray-200 shadow-sm hover:shadow-lg transition-all group cursor-pointer block`}
             >
               <div className={`w-16 h-16 ${perfil.bgCor} rounded-2xl flex items-center justify-center shrink-0 text-3xl`}>{perfil.emoji}</div>
               <div className="flex-1">
-                <p className={`text-xs font-black uppercase tracking-widest ${perfil.textoCor} mb-1`}>{role === 'CLIENTE' || role === 'SUPORTE' ? 'SUPORTE_OPERACIONAL' : role}</p>
+                <p className={`text-xs font-black uppercase tracking-widest ${perfil.textoCor} mb-1`}>Seu Perfil Principal ({role})</p>
                 <h2 className="text-xl font-black text-gray-900">{perfil.titulo}</h2>
                 <p className="text-gray-500 text-sm mt-1">{perfil.desc}</p>
               </div>
-              <div className="bg-[#1D3461] text-white px-5 py-2.5 rounded-2xl font-black text-sm group-hover:bg-[#112244] transition-all flex items-center gap-1 shrink-0 shadow-md">
-                Acessar Retaguarda →
-              </div>
+              <span className="text-2xl text-gray-300 group-hover:text-[#1D3461] transition-colors">→</span>
             </a>
           )}
 
-          {/* Master pode acessar tudo */}
-          {role === "MASTER" && perfisMasterList.map((p) => (
-            <a key={p.roleKey} href={`${p.href}?v=${new Date().getTime()}`} className="flex items-center gap-5 p-5 bg-white rounded-3xl border-2 border-gray-100 hover:border-gray-300 shadow-sm hover:shadow-lg transition-all group cursor-pointer block">
-              <div className={`w-16 h-16 ${p.bgCor} rounded-2xl flex items-center justify-center shrink-0 text-3xl`}>{p.emoji}</div>
-              <div className="flex-1">
-                <p className={`text-xs font-black uppercase tracking-widest ${p.textoCor} mb-1`}>{p.roleKey}</p>
-                <h2 className="text-xl font-black text-gray-900">{p.titulo}</h2>
-                <p className="text-gray-500 text-sm mt-1">{p.desc}</p>
+          {/* Master e Gestores podem alternar entre todas as operações para demonstração */}
+          {isGestor && (
+            <div className="pt-2">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-2 mb-3">
+                Alternar Operações (Modo Demonstração / Gestão)
+              </p>
+              <div className="space-y-3">
+                {perfisListaAlternar
+                  .filter((p) => p.roleKey !== role && (role === "MASTER" || p.roleKey !== "MASTER"))
+                  .map((p) => (
+                    <a 
+                      key={p.roleKey} 
+                      href={p.href} 
+                      className="flex items-center gap-5 p-4 bg-white rounded-3xl border-2 border-gray-100 hover:border-[#1D3461]/40 shadow-sm hover:shadow-md transition-all group cursor-pointer block"
+                    >
+                      <div className={`w-12 h-12 ${p.bgCor} rounded-2xl flex items-center justify-center shrink-0 text-2xl`}>{p.emoji}</div>
+                      <div className="flex-1">
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${p.textoCor}`}>{p.roleKey}</p>
+                        <h3 className="text-base font-black text-gray-900 leading-tight">{p.titulo}</h3>
+                        <p className="text-gray-400 text-xs mt-0.5 truncate">{p.desc}</p>
+                      </div>
+                      <span className="text-xl text-gray-300 group-hover:text-[#1D3461] transition-colors">→</span>
+                    </a>
+                  ))}
               </div>
-              <span className="text-2xl text-gray-300 group-hover:text-[#1D3461] transition-colors">→</span>
-            </a>
-          ))}
+            </div>
+          )}
 
-          {/* Sair */}
+          {/* Sair do sistema sem delay */}
           {session && (
             <button 
-              onClick={async () => {
-                await signOut({ redirect: false });
-                window.location.href = "/login";
-              }} 
-              className="w-full flex items-center justify-center gap-3 p-4 bg-white rounded-3xl border-2 border-gray-100 text-gray-500 font-bold hover:border-red-200 hover:text-red-500 transition-all cursor-pointer"
+              onClick={handleLogout} 
+              disabled={saindo}
+              className="w-full flex items-center justify-center gap-3 p-4 bg-white rounded-3xl border-2 border-red-100 text-red-600 font-black hover:bg-red-50 hover:border-red-300 transition-all cursor-pointer shadow-sm mt-4"
             >
-              Sair do sistema →
+              {saindo ? "Saindo do sistema..." : "🚪 Sair do Sistema (Encerrar Sessão) →"}
             </button>
           )}
 

@@ -28,6 +28,60 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+function PosHeader({ evento, session, voltarFn = null, tituloExtra = null, onNavegar, onSair }) {
+  return (
+    <div className="p-4 bg-[#152849] border-b border-white/10 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 shadow-md mb-6 -mx-6 -mt-6">
+      <div className="flex items-center gap-3">
+        {voltarFn && (
+          <button 
+            onClick={voltarFn}
+            className="text-white font-bold text-sm bg-white/10 hover:bg-white/20 px-3.5 py-2 rounded-xl border border-white/10 transition-all cursor-pointer"
+          >
+            ← Voltar
+          </button>
+        )}
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">💳</span>
+            <h1 className="text-base sm:text-lg font-black text-white leading-tight">
+              {evento?.nome || "Caixa de Entrada (POS)"}
+            </h1>
+          </div>
+          <p className="text-blue-300 text-xs font-semibold">
+            {session?.user?.nome ? `Operador: ${session.user.nome}` : "Caixa"} {tituloExtra ? `• ${tituloExtra}` : ""}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onNavegar("/bar")}
+          className="bg-orange-600 hover:bg-orange-500 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+          title="Alternar diretamente para o Bar"
+        >
+          <span>🍺</span> <span className="hidden sm:inline">Ir para</span> Bar
+        </button>
+
+        <button
+          onClick={() => onNavegar("/acessos")}
+          className="bg-white/10 hover:bg-white/20 text-blue-200 hover:text-white text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition-all flex items-center gap-1 cursor-pointer"
+          title="Voltar ao Portal de Acessos"
+        >
+          <span>🏠</span> <span className="hidden sm:inline">Portal</span>
+        </button>
+
+        <button
+          onClick={onSair}
+          className="bg-red-600 hover:bg-red-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+          title="Sair do sistema e encerrar sessão"
+        >
+          <span>🚪</span> Sair
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PosApp() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -81,6 +135,20 @@ export default function PosApp() {
 
   // Estado do evento completo
   const [evento, setEvento] = useState(null);
+
+  const navegarPara = (url) => {
+    window.location.href = url;
+  };
+
+  const sairDoSistema = async () => {
+    try {
+      await signOut({ callbackUrl: "/login", redirect: true });
+    } catch {
+      window.location.href = "/login";
+    }
+  };
+
+
 
   // Cartão Online (Asaas)
   const [cardName, setCardName] = useState("");
@@ -363,7 +431,7 @@ export default function PosApp() {
       const res = await fetch("/api/clientes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, cpf: cpf.replace(/\D/g,""), celular: celular.replace(/\D/g,""), eventoId, valorRecarga: parseFloat(valorTotal), pagamentos }),
+        body: JSON.stringify({ nome, cpf: cpf.replace(/\D/g,""), celular: celular.replace(/\D/g,""), eventoId, valorRecarga: parseFloat(valorTotal), pagamentos, cartaoExistente: cartaoEncontrado?.codigo || undefined }),
       });
       const data = await res.json();
       if (!res.ok) { setErro(data.error || "Erro ao cadastrar"); return; }
@@ -584,38 +652,61 @@ export default function PosApp() {
     }
   }
 
-  async function handleCpfChange(val) {
-    const formatted = formatarCpf(val);
-    setCpf(formatted);
-
-    const rawCpf = val.replace(/\D/g, "");
-    if (rawCpf.length === 11) {
+  async function verificarClienteExistente(rawCpf, rawCelular) {
+    if ((rawCpf && rawCpf.length === 11) || (rawCelular && rawCelular.length >= 10)) {
       try {
-        const res = await fetch(`/api/clientes/consultar?cpf=${rawCpf}`);
+        const queryParams = new URLSearchParams();
+        if (rawCpf && rawCpf.length === 11) queryParams.set("cpf", rawCpf);
+        if (rawCelular && rawCelular.length >= 10) queryParams.set("celular", rawCelular);
+        if (eventoId) queryParams.set("eventoId", eventoId);
+
+        const res = await fetch(`/api/clientes/consultar?${queryParams.toString()}`);
         const data = await res.json();
-        if (data.found) {
-          setNome(data.cliente.nome);
-          if (data.cliente.celular) {
-            setCelular(formatarTel(data.cliente.celular));
-          }
+
+        if (data.found && data.cliente) {
+          if (!nome || nome.trim() === "") setNome(data.cliente.nome);
+          if (data.cliente.celular && !celular) setCelular(formatarTel(data.cliente.celular));
+          if (data.cliente.cpf && !cpf) setCpf(formatarCpf(data.cliente.cpf));
+
           if (data.cliente.creditCardToken) {
             setSavedCardToken(data.cliente.creditCardToken);
             setSavedCardBrand(data.cliente.creditCardBrand || "");
             setSavedCardLastDigits(data.cliente.creditCardLastDigits || "");
             setUsarCartaoSalvo(true);
-          } else {
-            setSavedCardToken("");
-            setSavedCardBrand("");
-            setSavedCardLastDigits("");
-            setUsarCartaoSalvo(false);
           }
-          setErro("✨ Cliente localizado! Dados preenchidos automaticamente.");
-          setTimeout(() => setErro(prev => prev.startsWith("✨") ? "" : prev), 4000);
+
+          if (data.cartaoExistente) {
+            setCartaoEncontrado({
+              ...data.cartaoExistente,
+              cliente: data.cliente
+            });
+            setErro(`⚠️ Cliente já possui o cartão ${data.cartaoExistente.codigo} neste evento (Saldo: R$ ${data.cartaoExistente.saldo.toFixed(2).replace('.',',')}). A recarga será creditada neste cartão para não gerar duplicidade.`);
+          } else {
+            setCartaoEncontrado(null);
+            setErro("✨ Cliente localizado no cadastro! Dados preenchidos.");
+            setTimeout(() => setErro(prev => prev.startsWith("✨") ? "" : prev), 3500);
+          }
         }
       } catch (e) {
-        console.error("Erro ao buscar CPF", e);
+        console.error("Erro ao verificar cliente existente:", e);
       }
     }
+  }
+
+  async function handleCpfChange(val) {
+    const formatted = formatarCpf(val);
+    setCpf(formatted);
+    const rawCpf = val.replace(/\D/g, "");
+    const rawCelular = celular.replace(/\D/g, "");
+    verificarClienteExistente(rawCpf, rawCelular);
+  }
+
+  async function handleCelularChange(val) {
+    const formatted = formatarTel(val);
+    setCelular(formatted);
+    const rawCpf = cpf.replace(/\D/g, "");
+    const rawCelular = val.replace(/\D/g, "");
+    verificarClienteExistente(rawCpf, rawCelular);
   }
 
   if (status === "loading") return <div className="min-h-screen bg-[#1D3461] flex items-center justify-center"><p className="text-white text-2xl">Carregando...</p></div>;
@@ -1044,8 +1135,8 @@ export default function PosApp() {
 
   // ── Valor ──
   if (etapa === "valor") return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
-      <button onClick={() => { setValorTotal(""); setEtapa(cartaoEncontrado ? "busca" : "novo_cliente"); }} className="text-blue-200 text-xl font-bold mb-8">← Voltar</button>
+    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6"><PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} voltarFn={() => { setValorTotal(""); setEtapa(cartaoEncontrado ? "busca" : "novo_cliente"); }} tituloExtra="Valor da Recarga" />
+      
       <h2 className="text-3xl font-black text-white mb-2">Valor da Recarga</h2>
       <p className="text-blue-200 text-xl font-semibold mb-6">Cliente: <span className="text-white font-black">{nome || cartaoEncontrado?.cliente?.nome}</span></p>
       <div className="bg-white/10 rounded-3xl p-6 mb-6">
@@ -1082,8 +1173,8 @@ export default function PosApp() {
 
   // ── Novo Cliente ──
   if (etapa === "novo_cliente") return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
-      <button onClick={() => setEtapa("inicio")} className="text-blue-200 text-xl font-bold mb-8">← Voltar</button>
+    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6"><PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} voltarFn={() => setEtapa("inicio")} tituloExtra="Novo Cliente" />
+      
       <h2 className="text-3xl font-black text-white mb-8">Novo Cliente</h2>
       {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500">{erro}</p>}
       <div className="space-y-5 flex-1">
@@ -1097,17 +1188,17 @@ export default function PosApp() {
         </div>
         <div>
           <label className="text-white font-black text-xl mb-2 block">Celular <span className="text-blue-300 text-base font-semibold">(opcional)</span></label>
-          <input type="tel" value={celular} onChange={e=>setCelular(formatarTel(e.target.value))} placeholder="(11) 99999-9999" className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300 rounded-2xl px-5 py-4 text-xl font-semibold focus:outline-none focus:border-white" />
+          <input type="tel" value={celular} onChange={e=>handleCelularChange(e.target.value)} placeholder="(11) 99999-9999" className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300 rounded-2xl px-5 py-4 text-xl font-semibold focus:outline-none focus:border-white" />
         </div>
       </div>
-      <button onClick={() => { setCartaoEncontrado(null); setEtapa("valor"); }} disabled={!nome.trim()} className="w-full bg-white text-[#1D3461] font-black text-2xl py-6 rounded-3xl shadow-2xl disabled:opacity-40 mt-8" style={{minHeight:"72px"}}>Avançar →</button>
+      <button onClick={() => setEtapa("valor")} disabled={!nome.trim()} className="w-full bg-white text-[#1D3461] font-black text-2xl py-6 rounded-3xl shadow-2xl disabled:opacity-40 mt-8" style={{minHeight:"72px"}}>Avançar →</button>
     </div>
   );
 
   // ── Busca de Cliente ──
   if (etapa === "busca") return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
-      <button onClick={() => setEtapa("inicio")} className="text-blue-200 text-xl font-bold mb-8">← Voltar</button>
+    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6"><PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} voltarFn={() => setEtapa("inicio")} tituloExtra="Buscar Cliente" />
+      
       <h2 className="text-3xl font-black text-white mb-2">Buscar Cliente</h2>
       <p className="text-blue-200 text-lg mb-6">Para recarga ou reemissão de QR</p>
       {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500">{erro}</p>}
@@ -1157,20 +1248,7 @@ export default function PosApp() {
   // ── Início ──
   return (
     <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
-      <div className="flex items-center justify-between mb-10 pt-4">
-        <div>
-          <p className="text-blue-300 text-base font-bold uppercase tracking-widest">Caixa de Entrada</p>
-          <h1 className="text-3xl font-black text-white">{evento?.nome || "POS La More"}</h1>
-        </div>
-        <button 
-          onClick={() => {
-            router.push("/acessos");
-          }} 
-          className="text-blue-300 font-bold text-lg cursor-pointer"
-        >
-          Voltar ao Portal
-        </button>
-      </div>
+      <PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} />
 
       {/* NOTIFICATION TOGGLE / CONTROLS FOR CASHIER */}
       <div className="bg-white/5 p-4 rounded-2xl mb-6 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-left relative">

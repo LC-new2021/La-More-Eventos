@@ -3,6 +3,61 @@ import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+// Componente de Cabeçalho Universal fora do render para conformidade React
+function BarHeader({ evento, session, voltarFn = null, tituloExtra = null, onNavegar, onSair }) {
+  return (
+    <div className="p-4 bg-[#152849] border-b border-white/10 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 shadow-md">
+      <div className="flex items-center gap-3">
+        {voltarFn && (
+          <button 
+            onClick={voltarFn}
+            className="text-white font-bold text-sm bg-white/10 hover:bg-white/20 px-3.5 py-2 rounded-xl border border-white/10 transition-all cursor-pointer"
+          >
+            ← Voltar
+          </button>
+        )}
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🍺</span>
+            <h1 className="text-base sm:text-lg font-black text-white leading-tight">
+              {evento?.nome || "Operação de Bar"}
+            </h1>
+          </div>
+          <p className="text-blue-300 text-xs font-semibold">
+            {session?.user?.nome ? `Operador: ${session.user.nome}` : "Bar"} {tituloExtra ? `• ${tituloExtra}` : ""}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onNavegar("/pos")}
+          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+          title="Alternar diretamente para o Caixa / Vendas (POS)"
+        >
+          <span>💳</span> <span className="hidden sm:inline">Ir para</span> Vendas (POS)
+        </button>
+
+        <button
+          onClick={() => onNavegar("/acessos")}
+          className="bg-white/10 hover:bg-white/20 text-blue-200 hover:text-white text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition-all flex items-center gap-1 cursor-pointer"
+          title="Voltar ao Portal de Acessos"
+        >
+          <span>🏠</span> <span className="hidden sm:inline">Portal</span>
+        </button>
+
+        <button
+          onClick={onSair}
+          className="bg-red-600 hover:bg-red-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+          title="Sair do sistema e encerrar sessão"
+        >
+          <span>🚪</span> Sair
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function BarApp() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -33,7 +88,9 @@ export default function BarApp() {
   const [evento, setEvento] = useState(null);
 
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
+    if (status === "unauthenticated") {
+      window.location.href = "/login";
+    }
   }, [status]);
 
   useEffect(() => {
@@ -148,39 +205,33 @@ export default function BarApp() {
 
   async function pararScanner() {
     if (html5QrRef.current) {
-      try { await html5QrRef.current.stop(); } catch {}
+      try {
+        await html5QrRef.current.stop();
+      } catch {}
       html5QrRef.current = null;
     }
   }
 
-  async function lerImagemQR(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setCarregando(true);
-    setErro("");
+  // Navegação segura sem atrasos nem travas de câmera
+  const navegarPara = async (url) => {
     try {
-      const { Html5Qrcode } = await import("html5-qrcode");
-      const tempId = "temp-qr-reader";
-      let tempEl = document.getElementById(tempId);
-      if (!tempEl) {
-        tempEl = document.createElement("div");
-        tempEl.id = tempId;
-        tempEl.style.display = "none";
-        document.body.appendChild(tempEl);
-      }
-      const scanner = new Html5Qrcode(tempId);
-      const texto = await scanner.scanFile(file, false);
-      processarQR(texto);
-    } catch (err) {
-      console.error(err);
-      setErro("Não foi possível detectar um QR Code na imagem. Certifique-se de tirar a foto bem próxima e com boa iluminação.");
-    } finally {
-      setCarregando(false);
+      await pararScanner();
+    } catch {}
+    window.location.href = url;
+  };
+
+  const sairDoSistema = async () => {
+    try {
+      await pararScanner();
+    } catch {}
+    try {
+      await signOut({ callbackUrl: "/login", redirect: true });
+    } catch {
+      window.location.href = "/login";
     }
-  }
+  };
 
   async function processarQR(texto) {
-    // Extrair código do URL ou usar o texto direto
     let codigo = texto;
     try {
       const url = new URL(texto);
@@ -217,15 +268,7 @@ export default function BarApp() {
       if (!res.ok) {
         setResultado({ ok: false, motivo: data.error, saldoAtual: data.saldo });
       } else {
-        const valorTotalDebitado = precoFinal * quantidade;
-        setResultado({
-          ok: true,
-          saldoAtual: data.saldoAtual,
-          quantidade,
-          precoUnitario: precoFinal,
-          valorTotal: valorTotalDebitado,
-          produto: `${quantidade}x ${data.produto} (${quantidade} ${quantidade === 1 ? 'unidade' : 'unidades'} × R$ ${precoFinal.toFixed(2).replace('.', ',')})`
-        });
+        setResultado({ ok: true, saldoAtual: data.saldoAtual, produto: quantidade > 1 ? `${quantidade}x ${data.produto}` : data.produto });
         setCartao(prev => ({ ...prev, saldo: data.saldoAtual }));
       }
       setEtapa("resultado");
@@ -236,7 +279,7 @@ export default function BarApp() {
 
   const produtosFiltrados = produtos.filter(p => p.grupo === grupoSel && p.ativo);
 
-  if (status === "loading") return <div className="min-h-screen bg-[#1D3461] flex items-center justify-center"><p className="text-white text-2xl">Carregando...</p></div>;
+  if (status === "loading") return <div className="min-h-screen bg-[#1D3461] flex items-center justify-center"><p className="text-white text-2xl font-bold">Carregando...</p></div>;
 
   // ── Resultado (Sucesso/Erro) ──
   if (etapa === "resultado") return (
@@ -245,14 +288,11 @@ export default function BarApp() {
         <div className="text-9xl mb-6">{resultado?.ok ? "✅" : "❌"}</div>
         <h1 className="text-5xl font-black text-white mb-3">{resultado?.ok ? "LIBERADO!" : "RECUSADO"}</h1>
         <p className="text-3xl text-white/90 font-bold mb-2">{cartao?.cliente?.nome}</p>
-        <p className="text-2xl text-white/95 font-black mb-4">{resultado?.produto || resultado?.motivo}</p>
+        <p className="text-2xl text-white/80 font-semibold mb-4">{resultado?.produto || resultado?.motivo}</p>
         {resultado?.ok && (
           <div className="bg-white/20 rounded-3xl px-8 py-4 inline-block">
-            <p className="text-white font-black text-4xl">- R$ {(resultado?.valorTotal ?? (produtoSel?.preco * quantidade) ?? 0).toFixed(2).replace(".",",")}</p>
-            <p className="text-white/90 font-bold text-sm mt-1">
-              {resultado?.quantidade || quantidade} {(resultado?.quantidade || quantidade) === 1 ? 'unidade' : 'unidades'} × R$ {(resultado?.precoUnitario ?? produtoSel?.preco ?? 0).toFixed(2).replace(".",",")}
-            </p>
-            <p className="text-white/95 font-black text-lg mt-2 pt-2 border-t border-white/20">Novo Saldo: R$ {resultado?.saldoAtual?.toFixed(2).replace(".",",")}</p>
+            <p className="text-white font-black text-3xl">- R$ {produtoSel?.preco?.toFixed(2).replace(".",",")}</p>
+            <p className="text-white/80 font-bold mt-1">Saldo: R$ {resultado?.saldoAtual?.toFixed(2).replace(".",",")}</p>
           </div>
         )}
       </div>
@@ -266,14 +306,21 @@ export default function BarApp() {
     const saldoInsuficiente = cartao?.saldo < totalDebito;
 
     return (
-      <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
-        <button onClick={() => setEtapa("produtos")} className="text-blue-200 text-xl font-bold mb-8">← Voltar</button>
-        <div className="flex-1 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-[#1D3461] flex flex-col">
+        <BarHeader 
+          evento={evento} 
+          session={session} 
+          voltarFn={() => setEtapa("produtos")} 
+          tituloExtra="Confirmar Pedido" 
+          onNavegar={navegarPara} 
+          onSair={sairDoSistema} 
+        />
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
           <p className="text-blue-200 text-xl font-bold mb-2">Confirmar débito para</p>
           <h2 className="text-4xl font-black text-white mb-1">{cartao?.cliente?.nome}</h2>
           <p className="text-blue-200 text-xl mb-8">Saldo: <span className="text-white font-black">R$ {cartao?.saldo?.toFixed(2).replace(".",",")}</span></p>
           
-          <div className="bg-white rounded-3xl p-8 w-full max-w-sm text-center mb-8">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-sm text-center mb-8 shadow-xl">
             <p className="text-gray-500 text-xl font-bold mb-2">{produtoSel.grupo}</p>
             <h3 className="text-3xl font-black text-gray-900 mb-2">{produtoSel.nome}</h3>
             {produtoSel.observacao && <p className="text-sm text-gray-400 font-semibold mb-3 italic">{produtoSel.observacao}</p>}
@@ -298,7 +345,7 @@ export default function BarApp() {
             <div className="flex items-center justify-center gap-6 mb-6">
               <button 
                 onClick={() => setQuantidade(prev => Math.max(1, prev - 1))}
-                className="w-12 h-12 rounded-full border-2 border-gray-300 text-gray-700 font-black text-2xl hover:bg-gray-100 transition-colors flex items-center justify-center"
+                className="w-12 h-12 rounded-full border-2 border-gray-300 text-gray-700 font-black text-2xl hover:bg-gray-100 transition-colors flex items-center justify-center cursor-pointer"
                 style={{minWidth: "48px", minHeight: "48px"}}
               >
                 -
@@ -306,7 +353,7 @@ export default function BarApp() {
               <span className="text-4xl font-black text-gray-900 w-16">{quantidade}</span>
               <button 
                 onClick={() => setQuantidade(prev => prev + 1)}
-                className="w-12 h-12 rounded-full border-2 border-gray-300 text-gray-700 font-black text-2xl hover:bg-gray-100 transition-colors flex items-center justify-center"
+                className="w-12 h-12 rounded-full border-2 border-gray-300 text-gray-700 font-black text-2xl hover:bg-gray-100 transition-colors flex items-center justify-center cursor-pointer"
                 style={{minWidth: "48px", minHeight: "48px"}}
               >
                 +
@@ -320,7 +367,7 @@ export default function BarApp() {
 
           {erro && <p className="text-red-300 font-bold mb-4">{erro}</p>}
           <button onClick={confirmarDebito} disabled={carregando || saldoInsuficiente}
-            className="w-full max-w-sm bg-green-500 text-white font-black text-2xl py-6 rounded-3xl shadow-2xl disabled:opacity-40" style={{minHeight:"72px"}}>
+            className="w-full max-w-sm bg-green-500 hover:bg-green-600 text-white font-black text-2xl py-6 rounded-3xl shadow-2xl disabled:opacity-40 cursor-pointer transition-all" style={{minHeight:"72px"}}>
             {carregando ? "Processando..." : "✅ CONFIRMAR E ENTREGAR"}
           </button>
         </div>
@@ -331,23 +378,36 @@ export default function BarApp() {
   // ── Produtos ──
   if (etapa === "produtos") return (
     <div className="min-h-screen bg-[#1D3461] flex flex-col">
-      <div className="p-5 bg-[#152849] flex items-center justify-between">
+      <BarHeader 
+        evento={evento} 
+        session={session} 
+        voltarFn={() => { setCartao(null); setEtapa("scanner"); setScannerAtivo(false); }}
+        tituloExtra={cartao?.cliente?.nome ? `Cliente: ${cartao.cliente.nome}` : null}
+        onNavegar={navegarPara}
+        onSair={sairDoSistema}
+      />
+      <div className="p-4 bg-[#152849]/60 flex items-center justify-between border-b border-white/5">
         <div>
-          <p className="text-blue-300 text-sm font-bold uppercase tracking-widest">Operador de Bar: {session?.user?.nome}</p>
-          <h1 className="text-2xl font-black text-white">{cartao?.cliente?.nome}</h1>
-          <p className="text-green-400 font-black text-xl">R$ {cartao?.saldo?.toFixed(2).replace(".",",")}</p>
+          <h2 className="text-xl font-black text-white">{cartao?.cliente?.nome}</h2>
+          <p className="text-green-400 font-black text-lg">Saldo: R$ {cartao?.saldo?.toFixed(2).replace(".",",")}</p>
         </div>
-        <button onClick={() => { setCartao(null); setEtapa("scanner"); setScannerAtivo(false); }} className="text-blue-300 font-bold">← Novo QR</button>
+        <button 
+          onClick={() => { setCartao(null); setEtapa("scanner"); setScannerAtivo(false); }} 
+          className="text-blue-300 hover:text-white font-bold bg-white/10 px-3 py-1.5 rounded-xl cursor-pointer text-sm"
+        >
+          ← Trocar Cliente
+        </button>
       </div>
+
       <div className="flex gap-3 px-4 mt-4 overflow-x-auto pb-2">
         {grupos.map(g => (
-          <button key={g} onClick={() => setGrupoSel(g)} className={`px-5 py-3 rounded-2xl font-black text-lg whitespace-nowrap ${grupoSel===g?"bg-white text-[#1D3461]":"bg-white/10 text-white"}`} style={{minHeight:"52px"}}>{g}</button>
+          <button key={g} onClick={() => setGrupoSel(g)} className={`px-5 py-3 rounded-2xl font-black text-lg whitespace-nowrap cursor-pointer transition-all ${grupoSel===g?"bg-white text-[#1D3461]":"bg-white/10 text-white hover:bg-white/20"}`} style={{minHeight:"52px"}}>{g}</button>
         ))}
       </div>
       <div className="flex-1 p-4 space-y-3 overflow-y-auto">
         {produtosFiltrados.map(p => (
           <button key={p.id} onClick={() => { setProdutoSel(p); setQuantidade(1); setEtapa("confirmar"); }}
-            className="w-full bg-white rounded-3xl p-5 flex items-center justify-between shadow-sm" style={{minHeight:"72px"}}>
+            className="w-full bg-white hover:bg-blue-50 rounded-3xl p-5 flex items-center justify-between shadow-sm cursor-pointer transition-all" style={{minHeight:"72px"}}>
             <span className="text-xl font-black text-gray-900">{p.nome}</span>
             <span className="text-2xl font-black text-[#1D3461]">R$ {p.preco.toFixed(2).replace(".",",")}</span>
           </button>
@@ -359,91 +419,91 @@ export default function BarApp() {
 
   // ── Busca de Cliente no Bar ──
   if (buscaAtiva) return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
-      <button onClick={() => { setBuscaAtiva(false); setTermoBusca(""); setResultadosBusca([]); }} className="text-blue-200 text-xl font-bold mb-8">← Voltar</button>
-      
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-3xl font-black text-white">Buscar Cliente</h2>
-          <p className="text-blue-200 text-sm mt-0.5 font-semibold">Pesquise por nome, CPF ou código</p>
+    <div className="min-h-screen bg-[#1D3461] flex flex-col">
+      <BarHeader 
+        evento={evento} 
+        session={session} 
+        voltarFn={() => { setBuscaAtiva(false); setTermoBusca(""); setResultadosBusca([]); }} 
+        tituloExtra="Buscar Cliente" 
+        onNavegar={navegarPara}
+        onSair={sairDoSistema}
+      />
+      <div className="p-6 flex-1 flex flex-col">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-3xl font-black text-white">Buscar Cliente</h2>
+            <p className="text-blue-200 text-sm mt-0.5 font-semibold">Pesquise por nome, CPF ou código do cartão</p>
+          </div>
+          {totalFesta > 0 && (
+            <div className="bg-white/10 px-4 py-2 rounded-2xl text-center border border-white/10">
+              <p className="text-[10px] text-blue-200 font-bold uppercase tracking-wider">Cadastrados Festa</p>
+              <p className="text-white text-lg font-black">{totalFesta}</p>
+            </div>
+          )}
         </div>
-        {totalFesta > 0 && (
-          <div className="bg-white/10 px-4 py-2 rounded-2xl text-center border border-white/10">
-            <p className="text-[10px] text-blue-200 font-bold uppercase tracking-wider">Cadastrados Festa</p>
-            <p className="text-white text-lg font-black">{totalFesta}</p>
-          </div>
-        )}
-      </div>
 
-      {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500 text-center">{erro}</p>}
-      
-      <div className="flex gap-2 mb-6">
-        <input 
-          value={termoBusca} 
-          onChange={e => setTermoBusca(e.target.value)} 
-          onKeyDown={e => e.key === "Enter" && buscarClientesNoBar()} 
-          placeholder="Nome, CPF ou em branco para todos..." 
-          className="flex-1 bg-white/10 border-2 border-white/20 text-white placeholder-blue-300/50 rounded-2xl px-5 py-4 text-lg font-semibold focus:outline-none focus:border-white transition-all uppercase" 
-        />
-        <button 
-          onClick={buscarClientesNoBar} 
-          disabled={buscando} 
-          className="bg-white text-[#1D3461] font-black px-6 py-4 rounded-2xl hover:bg-blue-50 transition-colors flex items-center justify-center cursor-pointer"
-          style={{ minHeight: "56px" }}
-        >
-          {buscando ? "..." : "Buscar"}
-        </button>
-      </div>
+        {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500 text-center">{erro}</p>}
+        
+        <div className="flex gap-2 mb-6">
+          <input 
+            value={termoBusca} 
+            onChange={e => setTermoBusca(e.target.value)} 
+            onKeyDown={e => e.key === "Enter" && buscarClientesNoBar()} 
+            placeholder="Nome, CPF ou em branco para todos..." 
+            className="flex-1 bg-white/10 border-2 border-white/20 text-white placeholder-blue-300/50 rounded-2xl px-5 py-4 text-lg font-semibold focus:outline-none focus:border-white transition-all uppercase" 
+          />
+          <button 
+            onClick={buscarClientesNoBar} 
+            disabled={buscando} 
+            className="bg-white text-[#1D3461] font-black px-6 py-4 rounded-2xl hover:bg-blue-50 transition-colors flex items-center justify-center cursor-pointer"
+            style={{ minHeight: "56px" }}
+          >
+            {buscando ? "..." : "Buscar"}
+          </button>
+        </div>
 
-      <div className="space-y-3 flex-1 overflow-y-auto max-h-[60vh] scrollbar-thin">
-        {buscando && <p className="text-blue-200 text-center py-8 font-semibold">Buscando clientes...</p>}
-        
-        {resultadosBusca.map(c => (
-          <div key={c.id} className="bg-white rounded-3xl p-5 shadow-md flex justify-between items-center gap-4">
-            <div className="min-w-0">
-              <h3 className="text-lg font-black text-gray-900 truncate">{c.cliente.nome}</h3>
-              <p className="text-gray-400 text-xs font-bold uppercase">Cód: {c.codigo} {c.cliente.cpf ? `· CPF: ${c.cliente.cpf}` : ""}</p>
+        <div className="space-y-3 flex-1 overflow-y-auto max-h-[60vh] scrollbar-thin">
+          {buscando && <p className="text-blue-200 text-center py-8 font-semibold">Buscando clientes...</p>}
+          
+          {resultadosBusca.map(c => (
+            <div key={c.id} className="bg-white rounded-3xl p-5 shadow-md flex justify-between items-center gap-4">
+              <div className="min-w-0">
+                <h3 className="text-lg font-black text-gray-900 truncate">{c.cliente.nome}</h3>
+                <p className="text-gray-400 text-xs font-bold uppercase">Cód: {c.codigo} {c.cliente.cpf ? `· CPF: ${c.cliente.cpf}` : ""}</p>
+              </div>
+              <div className="text-right shrink-0 flex flex-col items-end gap-2">
+                <span className="text-green-600 font-black text-xl">R$ {c.saldo.toFixed(2).replace(".",",")}</span>
+                <button 
+                  onClick={() => {
+                    setCartao(c);
+                    setBuscaAtiva(false);
+                    setEtapa("produtos");
+                  }} 
+                  className="bg-[#1D3461] hover:bg-blue-900 text-white font-black text-xs px-4 py-2 rounded-xl transition-all cursor-pointer"
+                >
+                  Selecionar
+                </button>
+              </div>
             </div>
-            <div className="text-right shrink-0 flex flex-col items-end gap-2">
-              <span className="text-green-600 font-black text-xl">R$ {c.saldo.toFixed(2).replace(".",",")}</span>
-              <button 
-                onClick={() => {
-                  setCartao(c);
-                  setBuscaAtiva(false);
-                  setEtapa("produtos");
-                }} 
-                className="bg-[#1D3461] hover:bg-blue-900 text-white font-black text-xs px-4 py-2 rounded-xl transition-all cursor-pointer"
-              >
-                Selecionar
-              </button>
-            </div>
-          </div>
-        ))}
-        
-        {!buscando && resultadosBusca.length === 0 && (
-          <p className="text-blue-300 text-center py-12">Digite um termo ou clique em Buscar para listar.</p>
-        )}
+          ))}
+          
+          {!buscando && resultadosBusca.length === 0 && (
+            <p className="text-blue-300 text-center py-12">Digite um termo ou clique em Buscar para listar.</p>
+          )}
+        </div>
       </div>
     </div>
   );
 
-  // ── Scanner ──
+  // ── Scanner (Tela Principal) ──
   return (
     <div className="min-h-screen bg-[#1D3461] flex flex-col">
-      <div className="p-5 bg-[#152849] flex items-center justify-between">
-        <div>
-          <p className="text-blue-300 text-sm font-bold uppercase tracking-widest">Operador de Bar: {session?.user?.nome}</p>
-          <h1 className="text-2xl font-black text-white">{evento?.nome || "La More Eventos"}</h1>
-        </div>
-        <button 
-          onClick={() => {
-            router.push("/acessos");
-          }} 
-          className="text-blue-300 text-sm font-bold cursor-pointer"
-        >
-          Voltar ao Portal
-        </button>
-      </div>
+      <BarHeader 
+        evento={evento} 
+        session={session} 
+        onNavegar={navegarPara}
+        onSair={sairDoSistema}
+      />
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         {scannerAtivo ? (
@@ -460,7 +520,7 @@ export default function BarApp() {
             <p className="text-white text-xl font-bold mb-4">Aponte para o QR Code do cliente</p>
             {carregando && <p className="text-blue-200">Verificando cartão...</p>}
             {erro && <p className="text-red-300 font-bold mb-4">{erro}</p>}
-            <button onClick={() => { pararScanner(); setScannerAtivo(false); }} className="bg-white/10 text-white font-bold px-8 py-4 rounded-2xl border-2 border-white/20">Cancelar</button>
+            <button onClick={() => { pararScanner(); setScannerAtivo(false); }} className="bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-2xl border-2 border-white/20 cursor-pointer">Cancelar Câmera</button>
           </>
         ) : (
           <>
@@ -477,11 +537,11 @@ export default function BarApp() {
             {carregando && <p className="text-blue-200 text-lg font-bold mb-4">Processando imagem...</p>}
             <div className="flex flex-col gap-2 w-full max-w-xs">
               <button onClick={() => { setErro(""); setScannerAtivo(true); }}
-                className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-3xl shadow-xl flex items-center justify-center gap-2 cursor-pointer" style={{minHeight:"52px"}}>
+                className="w-full bg-white hover:bg-blue-50 text-[#1D3461] font-black text-xl py-5 rounded-3xl shadow-xl flex items-center justify-center gap-2 cursor-pointer transition-all" style={{minHeight:"52px"}}>
                 📷 Ativar Câmera
               </button>
               <button onClick={() => { setErro(""); setBuscaAtiva(true); }}
-                className="w-full bg-teal-500 hover:bg-teal-600 text-white font-black text-lg py-4 rounded-3xl transition-all flex items-center justify-center gap-2 cursor-pointer" style={{minHeight:"52px"}}>
+                className="w-full bg-teal-500 hover:bg-teal-600 text-white font-black text-lg py-4 rounded-3xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md" style={{minHeight:"52px"}}>
                 🔍 Buscar por Nome / CPF
               </button>
             </div>
@@ -504,7 +564,7 @@ export default function BarApp() {
                   required
                   className="flex-1 bg-white/10 border-2 border-white/20 text-white placeholder-blue-300/50 rounded-2xl px-4 py-3 font-semibold focus:outline-none focus:border-white transition-all uppercase"
                 />
-                <button type="submit" className="bg-white text-[#1D3461] font-black px-5 rounded-2xl hover:bg-blue-50 transition-colors">
+                <button type="submit" className="bg-white hover:bg-blue-50 text-[#1D3461] font-black px-5 rounded-2xl transition-colors cursor-pointer">
                   Ir →
                 </button>
               </form>

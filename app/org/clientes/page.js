@@ -28,6 +28,7 @@ export default function ClientesPage({ isMasterView = false }) {
   const [busca, setBusca] = useState("");
   const [error, setError] = useState("");
   const [estornando, setEstornando] = useState(null);
+  const [excluindo, setExcluindo] = useState(null);
 
   const [eventoId, setEventoId] = useState(null);
   const [eventos, setEventos] = useState([]);
@@ -122,24 +123,7 @@ export default function ClientesPage({ isMasterView = false }) {
           })
           .catch(console.error);
       } else {
-        if (session.user.eventoId) {
-          setEventoId(session.user.eventoId);
-        } else {
-          const stored = localStorage.getItem("activeEventoId");
-          if (stored) {
-            setEventoId(stored);
-          } else {
-            fetch("/api/eventos")
-              .then((res) => res.json())
-              .then((data) => {
-                if (data && data.length > 0 && !data.error) {
-                  localStorage.setItem("activeEventoId", data[0].id);
-                  setEventoId(data[0].id);
-                }
-              })
-              .catch(console.error);
-          }
-        }
+        setEventoId(session.user.eventoId);
       }
     }
   }, [session]);
@@ -182,6 +166,31 @@ export default function ClientesPage({ isMasterView = false }) {
       alert("Erro: " + e.message);
     } finally {
       setEstornando(null);
+    }
+  };
+
+  const handleExcluirCartao = async (cartaoId, codigo, nomeCliente, saldo) => {
+    let confirmMsg = `Tem certeza que deseja EXCLUIR DEFINITIVAMENTE o cartão ${codigo} de "${nomeCliente || 'este cliente'}"?\n\nEsta ação apagará permanentemente o cartão e seu histórico do sistema.`;
+    if (saldo > 0) {
+      confirmMsg += `\n\nATENÇÃO: Este cartão possui R$ ${saldo.toFixed(2).replace('.', ',')} de saldo!`;
+    }
+    if (!confirm(confirmMsg)) return;
+
+    setExcluindo(cartaoId);
+    try {
+      const res = await fetch("/api/org/clientes/excluir", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cartaoId, codigo, eventoId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      alert(data.message || "Cartão excluído definitivamente com sucesso!");
+      carregarClientes();
+    } catch (e) {
+      alert("Erro ao excluir cartão: " + e.message);
+    } finally {
+      setExcluindo(null);
     }
   };
 
@@ -350,8 +359,8 @@ export default function ClientesPage({ isMasterView = false }) {
         <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-gray-50 border-b border-gray-100">
           <p className="col-span-8 md:col-span-4 text-xs font-black text-gray-400 uppercase tracking-widest">Cliente</p>
           <p className="hidden md:block md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">CPF</p>
-          <p className="hidden md:block md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">Celular</p>
-          <p className="col-span-4 md:col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Saldo / Ações</p>
+          <p className="hidden md:block md:col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest">Celular</p>
+          <p className="col-span-4 md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Saldo / Ações</p>
         </div>
 
         <div className="divide-y divide-gray-50">
@@ -379,12 +388,12 @@ export default function ClientesPage({ isMasterView = false }) {
                     ? (c.cliente.cpf || <span className="text-gray-300 italic">—</span>)
                     : <span>{maskCpf(c.cliente.cpf)}</span>}
                 </p>
-                <p className="hidden md:block md:col-span-3 text-gray-500 font-semibold text-base">
+                <p className="hidden md:block md:col-span-2 text-gray-500 font-semibold text-base">
                   {(isMasterView && session?.user?.role === 'MASTER')
                     ? (c.cliente.celular || <span className="text-gray-300 italic">—</span>)
                     : <span>{maskPhone(c.cliente.celular)}</span>}
                 </p>
-                <div className="col-span-4 md:col-span-2 flex flex-col items-end gap-1.5">
+                <div className="col-span-4 md:col-span-3 flex flex-col items-end gap-1.5">
                   <p className={`font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
                     R$ {c.saldo.toFixed(2).replace(".", ",")}
                   </p>
@@ -411,26 +420,34 @@ export default function ClientesPage({ isMasterView = false }) {
                       </button>
                     )}
 
-                    {/* Botão de Ação: Reativar ou Encerrar Individual (Apenas Master ou Organizador) */}
-                    {!(session?.user?.role === 'SUPORTE_OPERACIONAL' || session?.user?.role === 'CLIENTE' || session?.user?.role === 'SUPORTE') && (
-                      c.status === "ENCERRADO" ? (
-                        <button 
-                          onClick={() => alterarStatusCartao(c.id, "ATIVO", c.cliente.nome)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
-                          title="Reativar acesso e consumo deste cartão"
-                        >
-                          <span>🔓</span> Reativar
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={() => alterarStatusCartao(c.id, "ENCERRADO", c.cliente.nome)}
-                          className="bg-gray-700 hover:bg-black text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
-                          title="Encerrar/Bloquear acesso a este cartão"
-                        >
-                          <span>🔒</span> Encerrar
-                        </button>
-                      )
+                    {/* Botão de Ação: Reativar ou Encerrar Individual */}
+                    {c.status === "ENCERRADO" ? (
+                      <button 
+                        onClick={() => alterarStatusCartao(c.id, "ATIVO", c.cliente.nome)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                        title="Reativar acesso e consumo deste cartão"
+                      >
+                        <span>🔓</span> Reativar
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => alterarStatusCartao(c.id, "ENCERRADO", c.cliente.nome)}
+                        className="bg-gray-700 hover:bg-black text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                        title="Encerrar/Bloquear acesso a este cartão"
+                      >
+                        <span>🔒</span> Encerrar
+                      </button>
                     )}
+
+                    {/* Botão de Excluir Definitivamente */}
+                    <button 
+                      onClick={() => handleExcluirCartao(c.id, c.codigo, c.cliente.nome, c.saldo)}
+                      disabled={excluindo === c.id}
+                      className="bg-red-600 hover:bg-red-700 text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      title="Excluir definitivamente este cartão com dados incorretos"
+                    >
+                      <span>🗑️</span> {excluindo === c.id ? "..." : "Excluir"}
+                    </button>
                   </div>
                 </div>
               </div>
