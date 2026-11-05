@@ -95,6 +95,8 @@ export async function PATCH(req, { params }) {
       if (body.mercadoPagoUserId !== undefined) updateData.mercadoPagoUserId = body.mercadoPagoUserId;
       if (body.permiteDevolucao !== undefined) updateData.permiteDevolucao = body.permiteDevolucao;
       if (body.permitirEdicaoGateway !== undefined) updateData.permitirEdicaoGateway = body.permitirEdicaoGateway;
+      if (body.exibirAvisoSaldo !== undefined) updateData.exibirAvisoSaldo = Boolean(body.exibirAvisoSaldo);
+      if (body.textoAvisoSaldo !== undefined) updateData.textoAvisoSaldo = body.textoAvisoSaldo;
       if (body.modoOperacao !== undefined) updateData.modoOperacao = body.modoOperacao;
     }
 

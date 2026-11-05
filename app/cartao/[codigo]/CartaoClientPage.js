@@ -588,7 +588,39 @@ export default function CartaoClientPage() {
       <span className="text-8xl mb-4">🔒</span>
       <h1 className="text-3xl font-black text-white">Cartão Encerrado</h1>
       <p className="text-gray-400 mt-2 font-semibold text-lg">
-        A festa acabou e esse cartão não tem mais funcionalidade.
+        A festa ({cartao?.evento?.nome || 'evento anterior'}) acabou e esse cartão não tem mais funcionalidade.
+      </p>
+      {cartao?.cartoesAtivosCliente && cartao.cartoesAtivosCliente.length > 0 && (
+        <div className="mt-6 w-full max-w-sm bg-[#1D3461] border-2 border-teal-400/40 rounded-3xl p-5 text-left shadow-2xl">
+          <p className="text-teal-300 text-xs font-black uppercase tracking-wider mb-1">
+            🟢 Cartão Ativo Identificado
+          </p>
+          <p className="text-white text-sm font-bold mb-3">
+            Encontramos seu cartão ativo para a festa atual (com saldo independente):
+          </p>
+          <div className="space-y-2.5">
+            {cartao.cartoesAtivosCliente.map((cAtivo) => (
+              <a
+                key={cAtivo.id}
+                href={`/cartao/${cAtivo.codigo}`}
+                className="block w-full bg-[#0D9488] hover:bg-[#0F766E] text-white rounded-2xl p-3.5 transition-all shadow-lg"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-black text-sm truncate">🎪 {cAtivo.evento?.nome}</p>
+                    <p className="text-[11px] text-teal-100 font-mono">Cód: {cAtivo.codigo}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-black text-sm">R$ {(cAtivo.saldo || 0).toFixed(2).replace('.', ',')}</p>
+                    <p className="text-[10px] font-bold text-teal-100">Abrir Cartão →</p>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+      <p className="hidden">
       </p>
     </div>
   );
@@ -598,6 +630,9 @@ export default function CartaoClientPage() {
   const cardUrl = typeof window !== 'undefined' ? window.location.href : '';
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=2&data=${encodeURIComponent(cardUrl)}`;
   const qrCodeLargeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=2&data=${encodeURIComponent(cardUrl)}`;
+  const exibirAvisoSaldo = cartao?.evento?.exibirAvisoSaldo !== false;
+  const textoAvisoSaldo = (cartao?.evento?.textoAvisoSaldo || '').trim() || 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.';
+  const outrosCartoesAtivos = (cartao?.cartoesAtivosCliente || []).filter(c => c.codigo !== cartao.codigo);
 
   return (
     <div className="min-h-screen bg-[#0F1C3F] p-4 md:p-6 flex flex-col justify-between relative">
@@ -610,7 +645,43 @@ export default function CartaoClientPage() {
         </div>
 
         {/* AVISO DISCRETO NO TOPO: SALDO RESTANTE DESTINADO PARA DOAÇÃO */}
-        {!cartao.evento.permiteDevolucao && (
+        {/* TECNOLOGIA DE IDENTIFICAÇÃO DE CARTÃO ATIVO POR FESTA */}
+        {outrosCartoesAtivos.length > 0 && (
+          <div className="bg-teal-500/15 border-2 border-teal-400/40 rounded-2xl p-3.5 mb-3 text-left shadow-lg">
+            <p className="text-teal-300 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+              <span>🟢</span> Seus Cartões Ativos por Festa
+            </p>
+            <p className="text-[11px] text-blue-100 font-semibold mt-0.5 mb-2 leading-snug">
+              Você está visualizando o cartão da festa <strong>{cartao.evento.nome}</strong>. Os saldos de cada festa são independentes e nunca se misturam:
+            </p>
+            <div className="space-y-1.5">
+              {outrosCartoesAtivos.map((outro) => (
+                <a
+                  key={outro.id}
+                  href={`/cartao/${outro.codigo}`}
+                  className="flex items-center justify-between gap-2 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl px-3 py-2 text-white transition-all"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-black truncate">🎪 {outro.evento?.nome}</p>
+                    <p className="text-[10px] text-teal-200 font-mono">Cód: {outro.codigo}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-black text-emerald-300">R$ {(outro.saldo || 0).toFixed(2).replace('.', ',')}</p>
+                    <span className="text-[10px] font-bold text-teal-200 underline">Acessar →</span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* AVISO NO TOPO SOBRE REGRA DE USO DO SALDO */}
+        {exibirAvisoSaldo && (
+          <div className="bg-white/5 border border-white/10 text-blue-200/90 rounded-2xl py-2.5 px-4 mb-3 text-center text-xs font-semibold leading-relaxed">
+            ℹ️ {textoAvisoSaldo}
+          </div>
+        )}
+        {false && !cartao.evento.permiteDevolucao && (
           <div className="bg-white/5 border border-white/10 text-blue-200/90 rounded-2xl py-2.5 px-4 mb-3 text-center text-xs font-semibold">
             ℹ️ Em caso de saldo não consumido, o valor restante será destinado para doação.
           </div>
@@ -644,7 +715,15 @@ export default function CartaoClientPage() {
         <div className="relative w-full min-h-[280px] rounded-[2rem] p-6 text-white overflow-hidden shadow-2xl transition-transform hover:scale-[1.02] duration-300 border border-white/10 flex flex-col justify-between bg-gradient-to-br from-[#1E3A8A] via-[#0D9488] to-[#0F172A] mb-4">
           
           {/* Marca d'água */}
-          {isFestaBarco ? (
+          {/* Marca d'água Oficial da Marca La More */}
+          <div className="absolute right-[-4%] bottom-[-10%] pointer-events-none select-none z-0">
+            <img
+              src="/logo.png?v=3"
+              alt=""
+              className="w-48 h-48 sm:w-52 sm:h-52 object-contain opacity-[0.12] rotate-[-10deg] rounded-3xl"
+            />
+          </div>
+          {false ? (
             <div className="absolute right-[25%] bottom-[-15%] text-[14rem] opacity-5 select-none pointer-events-none font-bold italic rotate-[-12deg]">⚓</div>
           ) : (
             <div className="absolute right-[25%] bottom-[-15%] text-[14rem] opacity-5 select-none pointer-events-none font-bold italic rotate-[-12deg]">🎫</div>
@@ -660,6 +739,10 @@ export default function CartaoClientPage() {
             <div className="text-right">
               <h1 className="text-xl font-black tracking-wider leading-none">La More Eventos</h1>
               <p className="text-[9px] text-teal-200 font-bold tracking-widest mt-0.5 uppercase">Cartão Digital Oficial</p>
+              <div className="mt-1.5 inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm border border-white/25 px-2.5 py-1 rounded-xl max-w-[210px] sm:max-w-[240px]">
+                <span className="text-xs shrink-0">🎪</span>
+                <span className="text-xs font-black text-amber-200 truncate" title={cartao.evento.nome}>{cartao.evento.nome}</span>
+              </div>
             </div>
           </div>
 
@@ -980,7 +1063,12 @@ export default function CartaoClientPage() {
 
       {/* TERMOS DE USO OBRIGATÓRIOS (BOTTOM) */}
       <div className="max-w-md mx-auto w-full text-center py-4 border-t border-white/10">
-        {!cartao.evento.permiteDevolucao ? (
+        {exibirAvisoSaldo && (
+          <p className="text-[11px] text-blue-200/70 font-bold leading-relaxed px-2">
+            * {textoAvisoSaldo}
+          </p>
+        )}
+        {false ? (
           <p className="text-[11px] text-blue-200/60 font-bold leading-normal">
             * Em caso de saldo não consumido, não haverá devolução e o valor restante será doado.
           </p>

@@ -3,6 +3,19 @@ import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+const EVENTO_SELECT = {
+  id: true,
+  nome: true,
+  data: true,
+  status: true,
+  gatewayActive: true,
+  mercadoPagoPublicKey: true,
+  modoOperacao: true,
+  permiteDevolucao: true,
+  exibirAvisoSaldo: true,
+  textoAvisoSaldo: true,
+};
+
 export async function GET(req, { params }) {
   try {
     const { codigo } = await params;
@@ -27,7 +40,7 @@ export async function GET(req, { params }) {
       },
       include: {
         cliente: true,
-        evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+        evento: { select: EVENTO_SELECT },
         movimentacoes: {
           orderBy: { criadaEm: 'desc' },
           take: 10,
@@ -116,7 +129,7 @@ export async function GET(req, { params }) {
               where: { clienteId: cliente.id, eventoId: evento.id },
               include: {
                 cliente: true,
-                evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+                evento: { select: EVENTO_SELECT },
                 movimentacoes: {
                   orderBy: { criadaEm: 'desc' },
                   take: 10,
@@ -135,7 +148,7 @@ export async function GET(req, { params }) {
                     data: { codigo: codigoFinalDesejado },
                     include: {
                       cliente: true,
-                      evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+                      evento: { select: EVENTO_SELECT },
                       movimentacoes: {
                         orderBy: { criadaEm: 'desc' },
                         take: 10,
@@ -192,7 +205,7 @@ export async function GET(req, { params }) {
                 },
                 include: {
                   cliente: true,
-                  evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+                  evento: { select: EVENTO_SELECT },
                   movimentacoes: {
                     orderBy: { criadaEm: 'desc' },
                     take: 10,
@@ -216,7 +229,7 @@ export async function GET(req, { params }) {
         },
         include: {
           cliente: true,
-          evento: { select: { id: true, nome: true, status: true, gatewayActive: true, mercadoPagoPublicKey: true, modoOperacao: true, permiteDevolucao: true } },
+          evento: { select: EVENTO_SELECT },
           movimentacoes: {
             orderBy: { criadaEm: 'desc' },
             take: 10,
@@ -227,7 +240,41 @@ export async function GET(req, { params }) {
     }
 
     if (!cartao) return NextResponse.json({ error: 'Cartão não encontrado' }, { status: 404 });
-    return NextResponse.json(cartao);
+
+    // 4. Tecnologia de Identificação de Cartões Ativos do mesmo Cliente (saldos 100% independentes por festa)
+    let cartoesAtivosCliente = [];
+    if (cartao.clienteId) {
+      cartoesAtivosCliente = await prisma.cartao.findMany({
+        where: {
+          clienteId: cartao.clienteId,
+          status: 'ATIVO',
+          evento: {
+            status: { in: ['ATIVO', 'CONFIGURANDO'] },
+          },
+        },
+        select: {
+          id: true,
+          codigo: true,
+          saldo: true,
+          status: true,
+          eventoId: true,
+          evento: {
+            select: {
+              id: true,
+              nome: true,
+              data: true,
+              status: true,
+            },
+          },
+        },
+        orderBy: { criadoEm: 'desc' },
+      });
+    }
+
+    return NextResponse.json({
+      ...cartao,
+      cartoesAtivosCliente,
+    });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

@@ -68,6 +68,8 @@ export async function POST(req) {
         mercadoPagoAccessToken: body.mercadoPagoAccessToken || null,
         permiteDevolucao: body.permiteDevolucao || false,
         permitirEdicaoGateway: body.permitirEdicaoGateway || false,
+        exibirAvisoSaldo: body.exibirAvisoSaldo !== undefined ? Boolean(body.exibirAvisoSaldo) : true,
+        textoAvisoSaldo: body.textoAvisoSaldo !== undefined ? body.textoAvisoSaldo : 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.',
         bilheteriaEventoId: body.bilheteriaEventoId || null,
       },
     });
