@@ -3,6 +3,16 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+function parseEventDate(dateStr) {
+  if (!dateStr) return new Date();
+  const str = String(dateStr).trim();
+  const datePart = str.split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    return new Date(`${datePart}T12:00:00.000Z`);
+  }
+  return new Date(str);
+}
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -44,7 +54,7 @@ export async function POST(req) {
     const evento = await prisma.evento.create({
       data: {
         nome: body.nome,
-        data: new Date(body.data),
+        data: parseEventDate(body.data),
         local: body.local,
         taxaMasterPercent: parseFloat(body.taxaMasterPercent) || 5,
         status: 'CONFIGURANDO',

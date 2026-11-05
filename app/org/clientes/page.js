@@ -112,7 +112,7 @@ export default function ClientesPage({ isMasterView = false }) {
         fetch("/api/eventos")
           .then((res) => res.json())
           .then((data) => {
-            if (data && data.length > 0) {
+            if (data && data.length > 0 && !data.error) {
               setEventos(data);
               const stored = localStorage.getItem("activeEventoId");
               const existe = data.find(e => e.id === stored);
@@ -123,7 +123,24 @@ export default function ClientesPage({ isMasterView = false }) {
           })
           .catch(console.error);
       } else {
-        setEventoId(session.user.eventoId);
+        if (session.user.eventoId) {
+          setEventoId(session.user.eventoId);
+        } else {
+          const stored = localStorage.getItem("activeEventoId");
+          if (stored) {
+            setEventoId(stored);
+          } else {
+            fetch("/api/eventos")
+              .then((res) => res.json())
+              .then((data) => {
+                if (data && data.length > 0 && !data.error) {
+                  localStorage.setItem("activeEventoId", data[0].id);
+                  setEventoId(data[0].id);
+                }
+              })
+              .catch(console.error);
+          }
+        }
       }
     }
   }, [session]);
@@ -254,10 +271,10 @@ export default function ClientesPage({ isMasterView = false }) {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h2 className="text-4xl font-black text-[#1D3461]">Clientes</h2>
-          <p className="text-gray-500 text-lg font-semibold mt-1">
+          <h2 className="text-2xl sm:text-4xl font-black text-[#1D3461]">Clientes</h2>
+          <p className="text-gray-500 text-sm sm:text-lg font-semibold mt-1">
             {clientes.length} cartões ({totalAtivos} ativos, {totalEncerrados} encerrados)
           </p>
         </div>
@@ -266,24 +283,24 @@ export default function ClientesPage({ isMasterView = false }) {
             <>
               <button 
                 onClick={() => alterarStatusTodosCartoes("ATIVO")} 
-                className="bg-emerald-700 hover:bg-emerald-800 text-white font-black text-sm px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs sm:text-sm px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                 title="Reativar todos os cartões do evento"
               >
                 <span>🔓</span> Reativar Todos
               </button>
               <button 
                 onClick={() => alterarStatusTodosCartoes("ENCERRADO")} 
-                className="bg-gray-800 hover:bg-black text-white font-black text-sm px-4 py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                className="bg-gray-800 hover:bg-black text-white font-black text-xs sm:text-sm px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                 title="Encerrar todos os cartões do evento"
               >
                 <span>🔒</span> Encerrar Todos
               </button>
             </>
           )}
-          <button onClick={exportarClientesXLSX} className="bg-green-600 text-white font-black text-sm px-4 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
+          <button onClick={exportarClientesXLSX} className="bg-green-600 text-white font-black text-xs sm:text-sm px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
             <span>📊</span> Excel
           </button>
-          <button onClick={exportarClientesPDF} className="bg-red-600 text-white font-black text-sm px-4 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
+          <button onClick={exportarClientesPDF} className="bg-red-600 text-white font-black text-xs sm:text-sm px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer">
             <span>📄</span> PDF
           </button>
         </div>
@@ -291,7 +308,7 @@ export default function ClientesPage({ isMasterView = false }) {
 
       {/* SELETOR DE EVENTO PARA O PAINEL MASTER */}
       {(isMasterView || session?.user?.role === 'MASTER') && eventos.length > 0 && (
-        <div className="bg-white p-5 rounded-3xl border-2 border-gray-100 shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border-2 border-gray-100 shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="w-full md:w-auto flex-1">
             <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Filtrar Clientes por Evento</label>
             <select
@@ -300,46 +317,46 @@ export default function ClientesPage({ isMasterView = false }) {
                 setEventoId(e.target.value);
                 localStorage.setItem("activeEventoId", e.target.value);
               }}
-              className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-bold text-[#1D3461] outline-none transition-all"
+              className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-bold text-[#1D3461] outline-none transition-all text-sm sm:text-base"
             >
               {eventos.map(ev => (
                 <option key={ev.id} value={ev.id}>🎪 {ev.nome}</option>
               ))}
             </select>
           </div>
-          <div className="text-right text-xs font-bold text-gray-400">
+          <div className="text-right text-xs font-bold text-gray-400 hidden md:block">
             Alternando base de clientes em tempo real
           </div>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold">
+        <div className="bg-red-50 border-2 border-red-300 text-red-700 p-4 rounded-2xl mb-6 font-bold">
           ⚠️ {error}
         </div>
       )}
 
       {/* Resumo */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-5">
-          <span className="text-4xl">👤</span>
-          <p className="text-3xl font-black text-blue-700 mt-2">{clientes.length}</p>
-          <p className="text-blue-600 font-bold text-lg">Total de Cartões</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-4 sm:p-5">
+          <span className="text-3xl sm:text-4xl">👤</span>
+          <p className="text-2xl sm:text-3xl font-black text-blue-700 mt-1.5 sm:mt-2">{clientes.length}</p>
+          <p className="text-blue-600 font-bold text-xs sm:text-lg leading-tight">Total de Cartões</p>
         </div>
-        <div className="bg-yellow-50 border-2 border-yellow-100 rounded-3xl p-5">
-          <span className="text-4xl">⏳</span>
-          <p className="text-3xl font-black text-yellow-700 mt-2">R$ {totalSaldo.toFixed(2).replace(".", ",")}</p>
-          <p className="text-yellow-600 font-bold text-lg">Saldo em Aberto</p>
+        <div className="bg-yellow-50 border-2 border-yellow-100 rounded-3xl p-4 sm:p-5">
+          <span className="text-3xl sm:text-4xl">⏳</span>
+          <p className="text-xl sm:text-3xl font-black text-yellow-700 mt-1.5 sm:mt-2 break-all">R$ {totalSaldo.toFixed(2).replace(".", ",")}</p>
+          <p className="text-yellow-600 font-bold text-xs sm:text-lg leading-tight">Saldo em Aberto</p>
         </div>
-        <div className="bg-green-50 border-2 border-green-100 rounded-3xl p-5">
-          <span className="text-4xl">📱</span>
-          <p className="text-3xl font-black text-green-700 mt-2">{clientes.filter(c => c.cadastradoPor === "Sistema / Outro").length}</p>
-          <p className="text-green-600 font-bold text-lg">Auto-cadastro (QR)</p>
+        <div className="bg-green-50 border-2 border-green-100 rounded-3xl p-4 sm:p-5">
+          <span className="text-3xl sm:text-4xl">📱</span>
+          <p className="text-2xl sm:text-3xl font-black text-green-700 mt-1.5 sm:mt-2">{clientes.filter(c => c.cadastradoPor === "Sistema / Outro").length}</p>
+          <p className="text-green-600 font-bold text-xs sm:text-lg leading-tight">Auto-cadastro (QR)</p>
         </div>
-        <div className="bg-purple-50 border-2 border-purple-100 rounded-3xl p-5">
-          <span className="text-4xl">🏪</span>
-          <p className="text-3xl font-black text-purple-700 mt-2">{clientes.filter(c => c.cadastradoPor !== "Sistema / Outro").length}</p>
-          <p className="text-purple-600 font-bold text-lg">Cadastros no Caixa</p>
+        <div className="bg-purple-50 border-2 border-purple-100 rounded-3xl p-4 sm:p-5">
+          <span className="text-3xl sm:text-4xl">🏪</span>
+          <p className="text-2xl sm:text-3xl font-black text-purple-700 mt-1.5 sm:mt-2">{clientes.filter(c => c.cadastradoPor !== "Sistema / Outro").length}</p>
+          <p className="text-purple-600 font-bold text-xs sm:text-lg leading-tight">Cadastros no Caixa</p>
         </div>
       </div>
 
@@ -350,37 +367,48 @@ export default function ClientesPage({ isMasterView = false }) {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="🔍  Buscar por nome, CPF ou código..."
-          className="w-full border-2 border-gray-200 rounded-2xl px-5 py-4 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+          className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
         />
       </div>
 
       {/* Tabela */}
       <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
-        <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-gray-50 border-b border-gray-100">
-          <p className="col-span-8 md:col-span-4 text-xs font-black text-gray-400 uppercase tracking-widest">Cliente</p>
-          <p className="hidden md:block md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">CPF</p>
-          <p className="hidden md:block md:col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest">Celular</p>
-          <p className="col-span-4 md:col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Saldo / Ações</p>
+        <div className="hidden md:grid md:grid-cols-12 gap-4 px-6 py-4 bg-gray-50 border-b border-gray-100">
+          <p className="col-span-4 text-xs font-black text-gray-400 uppercase tracking-widest">Cliente</p>
+          <p className="col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest">CPF</p>
+          <p className="col-span-2 text-xs font-black text-gray-400 uppercase tracking-widest">Celular</p>
+          <p className="col-span-3 text-xs font-black text-gray-400 uppercase tracking-widest text-right">Saldo / Ações</p>
         </div>
 
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-gray-100">
           {loading ? (
             <p className="text-center text-gray-400 font-semibold text-lg py-12">Carregando lista...</p>
           ) : clientes.length === 0 ? (
             <p className="text-center text-gray-400 font-semibold text-lg py-12">Nenhum cliente cadastrado ainda.</p>
           ) : (
             clientes.map((c) => (
-              <div key={c.id} className="grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-gray-50 transition-colors">
-                <div className="col-span-8 md:col-span-4">
-                  <p className="font-black text-gray-900 text-lg">{c.cliente.nome}</p>
-                  <div className="flex flex-wrap gap-1 md:gap-2 items-center text-xs font-bold text-gray-400 mt-0.5">
+              <div key={c.id} className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 px-4 sm:px-6 py-4 md:items-center hover:bg-gray-50 transition-colors">
+                <div className="md:col-span-4 min-w-0">
+                  <div className="flex items-start justify-between gap-2 md:block">
+                    <p className="font-black text-gray-900 text-base sm:text-lg break-words">{c.cliente.nome}</p>
+                    <p className={`md:hidden font-black text-lg shrink-0 ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
+                      R$ {c.saldo.toFixed(2).replace(".", ",")}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 items-center text-xs font-bold text-gray-400 mt-1">
                     <span className="uppercase font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">Cód: {c.codigo}</span>
                     <span>•</span>
                     <span className="text-blue-500/80">Reg: {c.cadastradoPor}</span>
-                    {/* CPF mobile */}
-                    {c.cliente.cpf && <span className="md:hidden">• CPF: {
-                      (isMasterView && session?.user?.role === 'MASTER') ? c.cliente.cpf : maskCpf(c.cliente.cpf)
-                    }</span>}
+                    {c.cliente.cpf && (
+                      <span className="md:hidden">
+                        • CPF: {(isMasterView && session?.user?.role === 'MASTER') ? c.cliente.cpf : maskCpf(c.cliente.cpf)}
+                      </span>
+                    )}
+                    {c.cliente.celular && (
+                      <span className="md:hidden">
+                        • Tel: {(isMasterView && session?.user?.role === 'MASTER') ? c.cliente.celular : maskPhone(c.cliente.celular)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <p className="hidden md:block md:col-span-3 text-gray-500 font-semibold text-base">
@@ -393,12 +421,12 @@ export default function ClientesPage({ isMasterView = false }) {
                     ? (c.cliente.celular || <span className="text-gray-300 italic">—</span>)
                     : <span>{maskPhone(c.cliente.celular)}</span>}
                 </p>
-                <div className="col-span-4 md:col-span-3 flex flex-col items-end gap-1.5">
-                  <p className={`font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
+                <div className="md:col-span-3 flex flex-col md:items-end gap-2">
+                  <p className={`hidden md:block font-black text-xl text-right ${c.saldo > 0 ? "text-green-600" : "text-gray-400"}`}>
                     R$ {c.saldo.toFixed(2).replace(".", ",")}
                   </p>
                   
-                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  <div className="flex flex-wrap items-center justify-between md:justify-end gap-1.5">
                     {/* Badge de status */}
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${
                       c.status === "ENCERRADO" 
@@ -408,46 +436,48 @@ export default function ClientesPage({ isMasterView = false }) {
                       {c.status === "ENCERRADO" ? "🔒 Encerrado" : "● Ativo"}
                     </span>
 
-                    {/* Botão de Devolver (Master) */}
-                    {(isMasterView || session?.user?.role === 'MASTER') && c.saldo > 0 && (
-                      <button 
-                        onClick={() => handleEstornar(c.codigo, c.saldo)}
-                        disabled={estornando === c.codigo}
-                        className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm disabled:opacity-50 cursor-pointer"
-                        title="Devolver e zerar saldo"
-                      >
-                        {estornando === c.codigo ? "..." : "Devolver"}
-                      </button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {/* Botão de Devolver (Master) */}
+                      {(isMasterView || session?.user?.role === 'MASTER') && c.saldo > 0 && (
+                        <button 
+                          onClick={() => handleEstornar(c.codigo, c.saldo)}
+                          disabled={estornando === c.codigo}
+                          className="bg-rose-500 hover:bg-rose-600 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                          title="Devolver e zerar saldo"
+                        >
+                          {estornando === c.codigo ? "..." : "Devolver"}
+                        </button>
+                      )}
 
-                    {/* Botão de Ação: Reativar ou Encerrar Individual */}
-                    {c.status === "ENCERRADO" ? (
-                      <button 
-                        onClick={() => alterarStatusCartao(c.id, "ATIVO", c.cliente.nome)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
-                        title="Reativar acesso e consumo deste cartão"
-                      >
-                        <span>🔓</span> Reativar
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => alterarStatusCartao(c.id, "ENCERRADO", c.cliente.nome)}
-                        className="bg-gray-700 hover:bg-black text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
-                        title="Encerrar/Bloquear acesso a este cartão"
-                      >
-                        <span>🔒</span> Encerrar
-                      </button>
-                    )}
+                      {/* Botão de Ação: Reativar ou Encerrar Individual */}
+                      {c.status === "ENCERRADO" ? (
+                        <button 
+                          onClick={() => alterarStatusCartao(c.id, "ATIVO", c.cliente.nome)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[11px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                          title="Reativar acesso e consumo deste cartão"
+                        >
+                          <span>🔓</span> Reativar
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => alterarStatusCartao(c.id, "ENCERRADO", c.cliente.nome)}
+                          className="bg-gray-700 hover:bg-black text-white font-black text-[11px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer"
+                          title="Encerrar/Bloquear acesso a este cartão"
+                        >
+                          <span>🔒</span> Encerrar
+                        </button>
+                      )}
 
-                    {/* Botão de Excluir Definitivamente */}
-                    <button 
-                      onClick={() => handleExcluirCartao(c.id, c.codigo, c.cliente.nome, c.saldo)}
-                      disabled={excluindo === c.id}
-                      className="bg-red-600 hover:bg-red-700 text-white font-black text-[10px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                      title="Excluir definitivamente este cartão com dados incorretos"
-                    >
-                      <span>🗑️</span> {excluindo === c.id ? "..." : "Excluir"}
-                    </button>
+                      {/* Botão de Excluir Definitivamente */}
+                      <button 
+                        onClick={() => handleExcluirCartao(c.id, c.codigo, c.cliente.nome, c.saldo)}
+                        disabled={excluindo === c.id}
+                        className="bg-red-600 hover:bg-red-700 text-white font-black text-[11px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                        title="Excluir definitivamente este cartão com dados incorretos"
+                      >
+                        <span>🗑️</span> {excluindo === c.id ? "..." : "Excluir"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

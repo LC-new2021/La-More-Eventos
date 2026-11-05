@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 
 const labels = {
   CAIXA: { label: "Caixa Entrada", cor: "bg-green-100 text-green-700", emoji: "💳" },
+  CAIXA_VOLANTE: { label: "Caixa Volante", cor: "bg-green-100 text-green-700", emoji: "💳" },
   OPERADOR_BAR: { label: "Operador Bar/Food", cor: "bg-blue-100 text-blue-700", emoji: "🍺" },
   TESOURARIA: { label: "Tesouraria (Acesso Multi)", cor: "bg-purple-100 text-purple-700", emoji: "💵" },
   SUPORTE_OPERACIONAL: { label: "Suporte Operacional", cor: "bg-teal-100 text-teal-700", emoji: "🛠️" },
@@ -88,6 +89,7 @@ export default function OperadoresPage() {
   };
 
   const abrirCriar = () => {
+    setError("");
     setOperadorEditando(null);
     setNome("");
     setEmail("");
@@ -97,11 +99,14 @@ export default function OperadoresPage() {
   };
 
   const abrirEditar = (op) => {
+    setError("");
     setOperadorEditando(op);
     setNome(op.nome);
     setEmail(op.email);
     setSenha(""); // Leave empty unless modifying password
-    setRole(op.role);
+    let userRole = op.role;
+    if (userRole === 'CLIENTE' || userRole === 'SUPORTE') userRole = 'SUPORTE_OPERACIONAL';
+    setRole(userRole);
     setModalAberto(true);
   };
 
@@ -127,8 +132,8 @@ export default function OperadoresPage() {
         })
       });
       const data = await res.json();
-      if (data.error) {
-        setError(data.error);
+      if (!res.ok || data.error) {
+        setError(data.error || "Erro ao salvar operador.");
       } else {
         setModalAberto(false);
         carregarOperadores();
@@ -165,43 +170,43 @@ export default function OperadoresPage() {
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h2 className="text-4xl font-black text-[#1D3461]">Operadores</h2>
-          <p className="text-gray-500 text-lg font-semibold mt-1">
+          <h2 className="text-2xl sm:text-4xl font-black text-[#1D3461]">Operadores</h2>
+          <p className="text-gray-500 text-sm sm:text-lg font-semibold mt-1">
             {ativos} operadores ativos neste evento
           </p>
         </div>
         <button
           onClick={abrirCriar}
-          className="bg-[#1D3461] text-white font-black text-lg px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all"
-          style={{ minHeight: "52px" }}
+          className="w-full sm:w-auto bg-[#1D3461] text-white font-black text-base sm:text-lg px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all"
+          style={{ minHeight: "48px" }}
         >
           + Novo Operador
         </button>
       </div>
 
-      {error && (
-        <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold">
+      {error && !modalAberto && (
+        <div className="bg-red-50 border-2 border-red-300 text-red-700 p-4 rounded-2xl mb-6 font-bold">
           ⚠️ {error}
         </div>
       )}
 
       {/* Cards por tipo */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-green-50 border-2 border-green-100 rounded-3xl p-5">
-          <span className="text-4xl">💳</span>
-          <p className="text-3xl font-black text-green-700 mt-2">
-            {operadores.filter((o) => o.role === "CAIXA" && o.ativo).length}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="bg-green-50 border-2 border-green-100 rounded-3xl p-4 sm:p-5">
+          <span className="text-3xl sm:text-4xl">💳</span>
+          <p className="text-2xl sm:text-3xl font-black text-green-700 mt-1.5 sm:mt-2">
+            {operadores.filter((o) => (o.role === "CAIXA" || o.role === "CAIXA_VOLANTE") && o.ativo).length}
           </p>
-          <p className="text-green-600 font-bold text-lg">Caixas de Entrada</p>
+          <p className="text-green-600 font-bold text-sm sm:text-lg leading-tight">Caixas de Entrada</p>
         </div>
-        <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-5">
-          <span className="text-4xl">🍺</span>
-          <p className="text-3xl font-black text-blue-700 mt-2">
+        <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-4 sm:p-5">
+          <span className="text-3xl sm:text-4xl">🍺</span>
+          <p className="text-2xl sm:text-3xl font-black text-blue-700 mt-1.5 sm:mt-2">
             {operadores.filter((o) => o.role === "OPERADOR_BAR" && o.ativo).length}
           </p>
-          <p className="text-blue-600 font-bold text-lg">Operadores de Bar/Food</p>
+          <p className="text-blue-600 font-bold text-sm sm:text-lg leading-tight">Operadores de Bar/Food</p>
         </div>
       </div>
 
@@ -216,31 +221,31 @@ export default function OperadoresPage() {
             operadores.map((op) => {
               const tipo = labels[op.role] || { label: "Outro", cor: "bg-gray-100 text-gray-700", emoji: "👤" };
               return (
-                <div key={op.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-5 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${!op.ativo ? "opacity-50" : ""}`}>
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${tipo.cor} shrink-0`}>
+                <div key={op.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-4 sm:py-5 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${!op.ativo ? "opacity-50" : ""}`}>
+                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                    <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center text-xl sm:text-2xl ${tipo.cor} shrink-0`}>
                       {tipo.emoji}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-black text-gray-900 text-xl truncate">{op.nome}</p>
-                      <p className="text-gray-500 font-semibold text-base truncate">{op.email}</p>
+                      <p className="font-black text-gray-900 text-base sm:text-xl truncate">{op.nome}</p>
+                      <p className="text-gray-500 font-semibold text-xs sm:text-base truncate">{op.email}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs font-black px-3 py-1 rounded-full ${tipo.cor}`}>
+                        <span className={`text-[11px] sm:text-xs font-black px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full ${tipo.cor}`}>
                           {tipo.label}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-end gap-3">
+                  <div className="flex items-center justify-end gap-2 sm:gap-3 shrink-0">
                     <button
                       onClick={() => abrirEditar(op)}
-                      className="font-bold text-sm px-4 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                      className="font-bold text-xs sm:text-sm px-3.5 sm:px-4 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
                     >
                       ✏️ Editar
                     </button>
                     <button
                       onClick={() => handleExcluir(op.id)}
-                      className="font-bold text-sm px-4 py-2 rounded-xl transition-all border-2 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                      className="font-bold text-xs sm:text-sm px-3.5 sm:px-4 py-2 rounded-xl transition-all border-2 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
                     >
                       🗑️ Excluir
                     </button>
@@ -255,25 +260,32 @@ export default function OperadoresPage() {
       {/* Modal: Novo/Editar Operador */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in fade-in duration-200">
-            <h3 className="text-3xl font-black text-[#1D3461] mb-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in duration-200 scrollbar-thin">
+            <h3 className="text-2xl sm:text-3xl font-black text-[#1D3461] mb-4 sticky top-0 bg-white pb-2 z-10">
               {operadorEditando ? "✏️ Editar Operador" : "➕ Novo Operador"}
             </h3>
 
+            {error && (
+              <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl mb-4 font-bold text-sm flex items-start gap-2 animate-in fade-in duration-150">
+                <span className="shrink-0">⚠️</span>
+                <span>{error}</span>
+              </div>
+            )}
+
             <form onSubmit={salvar} className="space-y-4">
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Nome *</label>
+                <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">Nome *</label>
                 <input
                   type="text"
                   required
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
                   placeholder="Nome completo"
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
               </div>
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">E-mail *</label>
+                <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">E-mail *</label>
                 <input
                   type="email"
                   required
@@ -281,11 +293,11 @@ export default function OperadoresPage() {
                   autoComplete="off"
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="email@exemplo.com"
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
               </div>
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">
+                <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">
                   Senha {operadorEditando && "(deixe em branco para não alterar)"} *
                 </label>
                 <input
@@ -295,17 +307,17 @@ export default function OperadoresPage() {
                   autoComplete="new-password"
                   onChange={(e) => setSenha(e.target.value)}
                   placeholder="Senha de acesso"
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
               </div>
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Função</label>
+                <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">Função</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   disabled={operadorEditando && session?.user?.id === operadorEditando.id}
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white disabled:bg-gray-100 disabled:text-gray-500"
-                  style={{ minHeight: "52px" }}
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white disabled:bg-gray-100 disabled:text-gray-500"
+                  style={{ minHeight: "48px" }}
                 >
                   {operadorEditando?.role === 'ORGANIZADOR' && (
                     <option value="ORGANIZADOR">👑 Organizador</option>
@@ -317,20 +329,25 @@ export default function OperadoresPage() {
                 </select>
               </div>
 
-              <div className="flex gap-3 mt-8 pt-4">
+              {error && (
+                <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl font-bold text-sm flex items-start gap-2">
+                  <span className="shrink-0">⚠️</span>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-6 pt-2">
                 <button
                   type="button"
-                  onClick={() => setModalAberto(false)}
-                  className="flex-1 bg-gray-100 text-gray-700 font-black text-base py-4 rounded-2xl"
-                  style={{ minHeight: "52px" }}
+                  onClick={() => { setError(""); setModalAberto(false); }}
+                  className="flex-1 bg-gray-100 text-gray-700 font-black text-base py-3.5 rounded-2xl"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 bg-[#1D3461] text-white font-black text-base py-4 rounded-2xl disabled:opacity-40"
-                  style={{ minHeight: "52px" }}
+                  className="flex-1 bg-[#1D3461] text-white font-black text-base py-3.5 rounded-2xl disabled:opacity-40"
                 >
                   {salvando ? "Salvando..." : "✅ Salvar"}
                 </button>

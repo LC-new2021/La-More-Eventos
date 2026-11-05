@@ -28,36 +28,36 @@ export default function LoginPage() {
     // Aguarda um curto tempo para garantir a gravação do cookie
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Busca a sessão e redireciona diretamente
+    // Busca a sessão e redireciona diretamente no domínio atual
     try {
       const sessaoRes = await fetch("/api/auth/session");
       const sessao = sessaoRes.ok ? await sessaoRes.json() : null;
       const role = sessao?.user?.role;
 
       if (role === "MASTER") {
-        window.location.href = "/master";
-      } else if (role === "CAIXA" || role === "TESOURARIA") {
-        window.location.href = "/pos";
+        window.location.replace("/master");
+      } else if (role === "CAIXA" || role === "CAIXA_VOLANTE" || role === "TESOURARIA") {
+        window.location.replace("/pos");
       } else if (role === "OPERADOR_BAR") {
-        window.location.href = "/bar";
+        window.location.replace("/bar");
       } else {
-        window.location.href = "/org";
+        window.location.replace("/org");
       }
     } catch {
-      window.location.href = "/org";
+      window.location.replace("/org");
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-[#1D3461] flex flex-col items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8 sm:mb-10">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl mb-4 shadow-xl overflow-hidden p-1">
             <img src="/logo.png?v=3" alt="La More Automação Logo" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-4xl font-black text-white">La More</h1>
-          <p className="text-blue-300 text-lg font-semibold mt-1">Sistema de Eventos</p>
+          <h1 className="text-3xl sm:text-4xl font-black text-white">La More</h1>
+          <p className="text-blue-300 text-base sm:text-lg font-semibold mt-1">Sistema de Eventos</p>
         </div>
 
         {/* Formulário */}
@@ -72,7 +72,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               required
-              className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300/50 rounded-2xl px-5 py-4 text-lg font-semibold focus:outline-none focus:border-white transition-all"
+              className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300/50 rounded-2xl px-5 py-4 text-base sm:text-lg font-semibold focus:outline-none focus:border-white transition-all"
             />
           </div>
 
@@ -86,12 +86,12 @@ export default function LoginPage() {
               onChange={(e) => setSenha(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300/50 rounded-2xl px-5 py-4 text-lg font-semibold focus:outline-none focus:border-white transition-all"
+              className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300/50 rounded-2xl px-5 py-4 text-base sm:text-lg font-semibold focus:outline-none focus:border-white transition-all"
             />
           </div>
 
           {erro && (
-            <div className="bg-red-500/20 border-2 border-red-400/40 rounded-2xl p-4 text-red-200 font-bold text-center">
+            <div className="bg-red-500/20 border-2 border-red-400/40 rounded-2xl p-4 text-red-200 font-bold text-center text-sm sm:text-base">
               ❌ {erro}
             </div>
           )}
@@ -99,8 +99,8 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={carregando}
-            className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-2xl shadow-2xl hover:bg-blue-50 transition-all disabled:opacity-60 mt-2"
-            style={{ minHeight: "60px" }}
+            className="w-full bg-white text-[#1D3461] font-black text-lg sm:text-xl py-4 sm:py-5 rounded-2xl shadow-2xl hover:bg-blue-50 transition-all disabled:opacity-60 mt-2 cursor-pointer"
+            style={{ minHeight: "56px" }}
           >
             {carregando ? "Entrando..." : "Entrar →"}
           </button>

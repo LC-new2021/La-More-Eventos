@@ -13,66 +13,68 @@ function formatarTel(v) {
   return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
 }
 
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/\-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
 function PosHeader({ evento, session, voltarFn = null, tituloExtra = null, onNavegar, onSair }) {
+  const role = session?.user?.role;
+  const isMaster = role === "MASTER";
+  const isSupport = role === "SUPORTE_OPERACIONAL" || role === "CLIENTE" || role === "SUPORTE";
+  const canSwitchSectors = isMaster || isSupport;
+
   return (
-    <div className="p-4 bg-[#152849] border-b border-white/10 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20 shadow-md mb-6 -mx-6 -mt-6">
-      <div className="flex items-center gap-3">
+    <div className="p-3 sm:p-4 bg-[#152849] border-b border-white/10 flex flex-wrap items-center justify-between gap-2.5 sticky top-0 z-20 shadow-md mb-6 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6">
+      <div className="flex items-center gap-2.5 min-w-0">
         {voltarFn && (
           <button 
             onClick={voltarFn}
-            className="text-white font-bold text-sm bg-white/10 hover:bg-white/20 px-3.5 py-2 rounded-xl border border-white/10 transition-all cursor-pointer"
+            className="text-white font-bold text-xs sm:text-sm bg-white/10 hover:bg-white/20 px-3 py-2 rounded-xl border border-white/10 transition-all cursor-pointer shrink-0"
           >
             ← Voltar
           </button>
         )}
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">💳</span>
-            <h1 className="text-base sm:text-lg font-black text-white leading-tight">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-lg sm:text-xl shrink-0">💳</span>
+            <h1 className="text-sm sm:text-lg font-black text-white leading-tight truncate">
               {evento?.nome || "Caixa de Entrada (POS)"}
             </h1>
           </div>
-          <p className="text-blue-300 text-xs font-semibold">
+          <p className="text-blue-300 text-[11px] sm:text-xs font-semibold truncate">
             {session?.user?.nome ? `Operador: ${session.user.nome}` : "Caixa"} {tituloExtra ? `• ${tituloExtra}` : ""}
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => onNavegar("/bar")}
-          className="bg-orange-600 hover:bg-orange-500 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-          title="Alternar diretamente para o Bar"
-        >
-          <span>🍺</span> <span className="hidden sm:inline">Ir para</span> Bar
-        </button>
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
+        {canSwitchSectors && (
+          <>
+            <button
+              onClick={() => onNavegar(isMaster ? "/master" : "/org")}
+              className="bg-teal-600 hover:bg-teal-500 text-white text-xs font-black px-2.5 sm:px-3 py-2 rounded-xl transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+              title="Ir para o Painel Principal"
+            >
+              <span>{isMaster ? "👑" : "🛠️"}</span> <span className="hidden md:inline">{isMaster ? "Master" : "Retaguarda"}</span>
+            </button>
 
-        <button
-          onClick={() => onNavegar("/acessos")}
-          className="bg-white/10 hover:bg-white/20 text-blue-200 hover:text-white text-xs font-bold px-3 py-2 rounded-xl border border-white/10 transition-all flex items-center gap-1 cursor-pointer"
-          title="Voltar ao Portal de Acessos"
-        >
-          <span>🏠</span> <span className="hidden sm:inline">Portal</span>
-        </button>
+            <button
+              onClick={() => onNavegar("/bar")}
+              className="bg-orange-600 hover:bg-orange-500 text-white text-xs font-black px-2.5 sm:px-3 py-2 rounded-xl transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+              title="Alternar para o Bar"
+            >
+              <span>🍺</span> <span className="hidden sm:inline">Bar</span>
+            </button>
+
+            <button
+              onClick={() => onNavegar("/acessos")}
+              className="bg-white/10 hover:bg-white/20 text-blue-200 hover:text-white text-xs font-bold px-2.5 sm:px-3 py-2 rounded-xl border border-white/10 transition-all flex items-center gap-1 cursor-pointer"
+              title="Portal de Acessos"
+            >
+              <span>🏠</span> <span className="hidden md:inline">Acessos</span>
+            </button>
+          </>
+        )}
 
         <button
           onClick={onSair}
-          className="bg-red-600 hover:bg-red-700 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+          className="bg-red-600 hover:bg-red-700 text-white text-xs font-black px-3 sm:px-3.5 py-2 rounded-xl transition-all flex items-center gap-1 shadow-sm cursor-pointer"
           title="Sair do sistema e encerrar sessão"
         >
           <span>🚪</span> Sair
@@ -132,6 +134,7 @@ export default function PosApp() {
   // Master Test support
   const [eventosMaster, setEventosMaster] = useState([]);
   const [selectedEventoId, setSelectedEventoId] = useState("");
+  const [fallbackEventoId, setFallbackEventoId] = useState("");
 
   // Estado do evento completo
   const [evento, setEvento] = useState(null);
@@ -142,13 +145,10 @@ export default function PosApp() {
 
   const sairDoSistema = async () => {
     try {
-      await signOut({ callbackUrl: "/login", redirect: true });
-    } catch {
-      window.location.href = "/login";
-    }
+      await signOut({ redirect: false });
+    } catch {}
+    window.location.replace("/login");
   };
-
-
 
   // Cartão Online (Asaas)
   const [cardName, setCardName] = useState("");
@@ -160,100 +160,10 @@ export default function PosApp() {
   const [tipoCartaoPos, setTipoCartaoPos] = useState("CREDITO"); // "CREDITO" | "DEBITO"
   const [copiadoPixPos, setCopiadoPixPos] = useState(false);
 
-  // Estados para Notificações Push do Caixa
-  const [pushPermission, setPushPermission] = useState('default');
-  const [isSubscribing, setIsSubscribing] = useState(false);
-  const [testLoading, setTestLoading] = useState(false);
-  const [testSuccess, setTestSuccess] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPushPermission(Notification.permission);
-    }
-  }, []);
-
-  const inscreverPushUsuario = async (userId) => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !userId) return;
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      let subscription = await registration.pushManager.getSubscription();
-      
-      if (!subscription) {
-        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || 'BPmym8empnSw5k2J13oHm-EACbUZen3HxKv0tQAPmsQDranlb5Y_YLraQvlRkJYvL77wfFkmldw1gEnMXIqx4lE';
-        const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: convertedVapidKey
-        });
-      }
-      
-      if (subscription) {
-        await fetch('/api/usuarios/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            subscription: subscription.toJSON ? subscription.toJSON() : subscription
-          })
-        });
-        console.log('Operador de caixa inscrito para push notifications com sucesso!');
-      }
-    } catch (error) {
-      console.warn('Erro ao inscrever operador em Web Push:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (session?.user?.id && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      inscreverPushUsuario(session.user.id);
-    }
-  }, [session]);
-
-  const solicitarPermissaoPushUsuario = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      alert('Seu navegador não oferece suporte para notificações Web Push ou não está sob conexão segura (HTTPS).');
-      return;
-    }
-    setIsSubscribing(true);
-    try {
-      const permission = await Notification.requestPermission();
-      setPushPermission(permission);
-      if (permission === 'granted' && session?.user?.id) {
-        await inscreverPushUsuario(session.user.id);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsSubscribing(false);
-    }
-  };
-
-  const testarNotificacaoUsuario = async () => {
-    if (!session?.user?.id) return;
-    setTestLoading(true);
-    setTestSuccess(false);
-    try {
-      const res = await fetch('/api/clientes/test-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usuarioId: session.user.id })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTestSuccess(true);
-        setTimeout(() => setTestSuccess(false), 5000);
-      } else {
-        alert('Erro ao enviar notificação de teste: ' + (data.error || 'Erro desconhecido'));
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Erro ao processar envio de teste.');
-    } finally {
-      setTestLoading(false);
-    }
-  };
-
-  const isMaster = session?.user?.role === 'MASTER';
-  const eventoId = isMaster ? (selectedEventoId || session?.user?.eventoId) : session?.user?.eventoId;
+  const isMaster = session?.user?.role === "MASTER";
+  const eventoId = isMaster
+    ? (selectedEventoId || session?.user?.eventoId || fallbackEventoId)
+    : (session?.user?.eventoId || fallbackEventoId);
   const valorRestante = parseFloat(valorTotal || 0) - pagamentos.reduce((a, p) => a + p.valor, 0);
 
   const handleCardNumberChange = (val) => {
@@ -270,20 +180,33 @@ export default function PosApp() {
     }
   };
 
-// useEffect(() => {
-  //   if (status === "unauthenticated") router.push("/login");
-  // }, [status]);
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      window.location.replace("/login");
+    }
+  }, [status]);
 
   useEffect(() => {
-    if (isMaster) {
-      fetch("/api/eventos")
-        .then(r => r.json())
-        .then(data => {
-          if (!data.error) setEventosMaster(data);
-        })
-        .catch(console.error);
+    if (session) {
+      const stored = typeof window !== "undefined" ? localStorage.getItem("activeEventoId") : null;
+      if (stored && !selectedEventoId) {
+        setFallbackEventoId(stored);
+      }
+      if (isMaster || !session.user?.eventoId) {
+        fetch("/api/eventos")
+          .then(r => r.json())
+          .then(data => {
+            if (Array.isArray(data) && !data.error) {
+              setEventosMaster(data);
+              if (data.length > 0 && !stored && !session.user?.eventoId) {
+                setFallbackEventoId(data[0].id);
+              }
+            }
+          })
+          .catch(console.error);
+      }
     }
-  }, [isMaster]);
+  }, [session, isMaster]);
 
   useEffect(() => {
     if (eventoId) {
@@ -317,14 +240,14 @@ export default function PosApp() {
             
             // Restrição Rigorosa de Dinheiro e Cortesia
             const role = session?.user?.role;
-            const canAcceptCash = role === 'MASTER' || role === 'TESOURARIA';
+            const canAcceptCash = role === "MASTER" || role === "TESOURARIA";
             if (!canAcceptCash) {
-              metodos = metodos.filter(m => m.id !== 'dinheiro' && m.id !== 'cortesia');
+              metodos = metodos.filter(m => m.id !== "dinheiro" && m.id !== "cortesia");
             }
 
             // Modo Gerencial - Remove os métodos Online (API)
-            if (data.modoOperacao === 'GERENCIAL') {
-              metodos = metodos.filter(m => m.id !== 'pix' && m.id !== 'cartao' && m.id !== 'wallet');
+            if (data.modoOperacao === "GERENCIAL") {
+              metodos = metodos.filter(m => m.id !== "pix" && m.id !== "cartao" && m.id !== "wallet");
             }
             
             setMetodosPagamento(metodos);
@@ -332,7 +255,7 @@ export default function PosApp() {
         })
         .catch(console.error);
     }
-  }, [eventoId]);
+  }, [eventoId, session?.user?.role]);
 
   useEffect(() => {
     if (codigoCartao && typeof window !== "undefined") {
@@ -415,7 +338,7 @@ export default function PosApp() {
     try {
       const res = await fetch(`/api/clientes?q=${encodeURIComponent(termoBusca)}&eventoId=${eventoId}`);
       const data = await res.json();
-      setResultadosBusca(data);
+      setResultadosBusca(Array.isArray(data) ? data : []);
     } catch { setErro("Erro ao buscar cliente"); }
     finally { setBuscando(false); }
   }
@@ -680,7 +603,7 @@ export default function PosApp() {
               ...data.cartaoExistente,
               cliente: data.cliente
             });
-            setErro(`⚠️ Cliente já possui o cartão ${data.cartaoExistente.codigo} neste evento (Saldo: R$ ${data.cartaoExistente.saldo.toFixed(2).replace('.',',')}). A recarga será creditada neste cartão para não gerar duplicidade.`);
+            setErro(`⚠️ Cliente já possui o cartão ${data.cartaoExistente.codigo} neste evento (Saldo: R$ ${data.cartaoExistente.saldo.toFixed(2).replace(".",",")}). A recarga será creditada neste cartão para não gerar duplicidade.`);
           } else {
             setCartaoEncontrado(null);
             setErro("✨ Cliente localizado no cadastro! Dados preenchidos.");
@@ -713,23 +636,23 @@ export default function PosApp() {
 
   // ── QR Code ──
   if (etapa === "qrcode") return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-[#1D3461] flex flex-col items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-sm text-center">
-        <p className="text-blue-200 text-xl font-bold mb-1">Cartão emitido para</p>
-        <h2 className="text-4xl font-black text-white mb-2">{nome || cartaoEncontrado?.cliente?.nome}</h2>
-        <p className="text-green-400 text-5xl font-black mb-8">R$ {parseFloat(valorTotal).toFixed(2).replace(".",",")}</p>
-        <div className="bg-white rounded-3xl p-8 mb-6 shadow-2xl inline-block">
-          {qrCodeDataUrl ? <img src={qrCodeDataUrl} alt="QR Code" className="w-56 h-56 mx-auto" /> : <div className="w-56 h-56 flex items-center justify-center text-8xl">📱</div>}
-          <p className="text-gray-500 font-bold mt-3 text-lg">QR Code do Cartão</p>
-          <p className="text-gray-900 font-black text-xl">{codigoCartao}</p>
+        <p className="text-blue-200 text-lg sm:text-xl font-bold mb-1">Cartão emitido para</p>
+        <h2 className="text-3xl sm:text-4xl font-black text-white mb-2">{nome || cartaoEncontrado?.cliente?.nome}</h2>
+        <p className="text-green-400 text-4xl sm:text-5xl font-black mb-6 sm:mb-8">R$ {parseFloat(valorTotal || cartaoEncontrado?.saldo || 0).toFixed(2).replace(".",",")}</p>
+        <div className="bg-white rounded-3xl p-6 sm:p-8 mb-6 shadow-2xl inline-block">
+          {qrCodeDataUrl ? <img src={qrCodeDataUrl} alt="QR Code" className="w-52 h-52 sm:w-56 sm:h-56 mx-auto" /> : <div className="w-52 h-52 sm:w-56 sm:h-56 flex items-center justify-center text-8xl">📱</div>}
+          <p className="text-gray-500 font-bold mt-3 text-base sm:text-lg">QR Code do Cartão</p>
+          <p className="text-gray-900 font-black text-lg sm:text-xl">{codigoCartao}</p>
         </div>
-        <p className="text-blue-200 text-lg font-semibold mb-6">Peça para o cliente fotografar</p>
-        <div className="bg-white/10 rounded-2xl p-4 mb-6 text-sm text-blue-200 leading-normal">
+        <p className="text-blue-200 text-base sm:text-lg font-semibold mb-4">Peça para o cliente fotografar</p>
+        <div className="bg-white/10 rounded-2xl p-4 mb-6 text-xs sm:text-sm text-blue-200 leading-normal">
           💡 <strong>Notificações no Celular:</strong> Oriente o cliente a escanear o QR Code e clicar no botão <strong>Ativar Notificações</strong> no celular para receber avisos de saldo na tela.
         </div>
         <div className="space-y-3">
-          <a href={`/cartao/${codigoCartao}`} target="_blank" rel="noopener noreferrer" className="w-full bg-teal-500 text-white font-black text-xl py-5 rounded-3xl shadow-xl flex items-center justify-center gap-2" style={{minHeight:"52px"}}>🔗 Visualizar Cartão Virtual</a>
-          <button onClick={novoAtendimento} className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-3xl shadow-xl" style={{minHeight:"52px"}}>✅ Novo Atendimento</button>
+          <a href={`/cartao/${codigoCartao}`} target="_blank" rel="noopener noreferrer" className="w-full bg-teal-500 text-white font-black text-lg sm:text-xl py-4 sm:py-5 rounded-3xl shadow-xl flex items-center justify-center gap-2" style={{minHeight:"52px"}}>🔗 Visualizar Cartão Virtual</a>
+          <button onClick={novoAtendimento} className="w-full bg-white text-[#1D3461] font-black text-lg sm:text-xl py-4 sm:py-5 rounded-3xl shadow-xl cursor-pointer" style={{minHeight:"52px"}}>✅ Novo Atendimento</button>
         </div>
       </div>
     </div>
@@ -739,8 +662,8 @@ export default function PosApp() {
   if (etapa === "cupom") {
     const dataHora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
     return (
-      <div className="min-h-screen bg-gray-100 flex flex-col items-center py-10 px-4">
-        <div className="bg-white p-8 rounded-none w-full max-w-[350px] shadow-lg font-mono text-sm leading-tight border-t-8 border-[#1D3461] text-gray-900" id="cupom-print">
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center py-8 sm:py-10 px-4">
+        <div className="bg-white p-6 sm:p-8 rounded-none w-full max-w-[350px] shadow-lg font-mono text-sm leading-tight border-t-8 border-[#1D3461] text-gray-900" id="cupom-print">
           <div className="text-center mb-4">
             <h1 className="font-black text-xl">LA MORE EVENTOS</h1>
             <p>RECIBO DE RECARGA — NÃO FISCAL</p>
@@ -771,12 +694,12 @@ export default function PosApp() {
           </div>
           <p className="text-center text-xs mt-4">Obrigado pela preferência!</p>
         </div>
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-800 leading-normal w-full max-w-[350px] mb-2 font-sans font-semibold">
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-xs sm:text-sm text-blue-800 leading-normal w-full max-w-[350px] mb-2 font-sans font-semibold mt-4">
           💡 <strong>Notificações no Celular:</strong> Oriente o cliente a escanear o QR Code e clicar no botão <strong>Ativar Notificações</strong> no celular para receber avisos de saldo na tela.
         </div>
-        <div className="w-full max-w-[350px] mt-4 space-y-3">
-          <a href={`/cartao/${codigoCartao}`} target="_blank" rel="noopener noreferrer" className="w-full bg-teal-600 text-white font-black text-xl py-5 rounded-2xl shadow-xl flex items-center justify-center gap-2" style={{minHeight:"52px"}}>🔗 Visualizar Cartão Virtual</a>
-          <button onClick={novoAtendimento} className="w-full bg-white text-[#1D3461] font-black text-xl py-5 rounded-2xl shadow-xl border-2 border-[#1D3461]/10" style={{minHeight:"52px"}}>✅ Novo Atendimento</button>
+        <div className="w-full max-w-[350px] mt-3 space-y-3">
+          <a href={`/cartao/${codigoCartao}`} target="_blank" rel="noopener noreferrer" className="w-full bg-teal-600 text-white font-black text-lg sm:text-xl py-4 sm:py-5 rounded-2xl shadow-xl flex items-center justify-center gap-2" style={{minHeight:"52px"}}>🔗 Visualizar Cartão Virtual</a>
+          <button onClick={novoAtendimento} className="w-full bg-white text-[#1D3461] font-black text-lg sm:text-xl py-4 sm:py-5 rounded-2xl shadow-xl border-2 border-[#1D3461]/10 cursor-pointer" style={{minHeight:"52px"}}>✅ Novo Atendimento</button>
         </div>
       </div>
     );
@@ -784,40 +707,40 @@ export default function PosApp() {
 
   // ── Pagamento ──
   if (etapa === "pagamento") return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
-      <button onClick={voltarParaValor} className="text-blue-200 text-xl font-bold mb-6">← Voltar</button>
-      <h2 className="text-3xl font-black text-white mb-2">Pagamento</h2>
-      <div className="bg-white/10 rounded-3xl p-5 mb-5 flex justify-between">
-        <div><p className="text-blue-200 text-sm font-bold uppercase">Total</p><p className="text-white text-3xl font-black">R$ {parseFloat(valorTotal).toFixed(2).replace(".",",")}</p></div>
-        <div className="text-right"><p className="text-blue-200 text-sm font-bold uppercase">Falta</p><p className={`text-3xl font-black ${valorRestante > 0 ? "text-yellow-400" : "text-green-400"}`}>R$ {Math.max(0, valorRestante).toFixed(2).replace(".",",")}</p></div>
+    <div className="min-h-screen bg-[#1D3461] flex flex-col p-4 sm:p-6">
+      <PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} voltarFn={voltarParaValor} tituloExtra="Pagamento" />
+      <h2 className="text-2xl sm:text-3xl font-black text-white mb-2">Pagamento</h2>
+      <div className="bg-white/10 rounded-3xl p-4 sm:p-5 mb-5 flex justify-between">
+        <div><p className="text-blue-200 text-xs sm:text-sm font-bold uppercase">Total</p><p className="text-white text-2xl sm:text-3xl font-black">R$ {parseFloat(valorTotal).toFixed(2).replace(".",",")}</p></div>
+        <div className="text-right"><p className="text-blue-200 text-xs sm:text-sm font-bold uppercase">Falta</p><p className={`text-2xl sm:text-3xl font-black ${valorRestante > 0 ? "text-yellow-400" : "text-green-400"}`}>R$ {Math.max(0, valorRestante).toFixed(2).replace(".",",")}</p></div>
       </div>
       {pagamentos.length > 0 && (
         <div className="mb-4 space-y-2">
           {pagamentos.map((p,i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 flex justify-between items-center">
-              <span className="font-black text-gray-900 text-lg capitalize">{metodosPagamento.find(m=>m.id===p.metodo)?.emoji || "💳"} {metodosPagamento.find(m=>m.id===p.metodo)?.label || p.metodo}</span>
+            <div key={i} className="bg-white rounded-2xl p-3.5 sm:p-4 flex justify-between items-center">
+              <span className="font-black text-gray-900 text-base sm:text-lg capitalize">{metodosPagamento.find(m=>m.id===p.metodo)?.emoji || "💳"} {metodosPagamento.find(m=>m.id===p.metodo)?.label || p.metodo}</span>
               <div className="flex items-center gap-3">
                 <span className="font-black text-gray-900">R$ {p.valor.toFixed(2).replace(".",",")}</span>
-                <button onClick={() => setPagamentos(pagamentos.filter((_,j)=>j!==i))} className="text-red-500 bg-red-50 p-2 rounded-xl">❌</button>
+                <button onClick={() => setPagamentos(pagamentos.filter((_,j)=>j!==i))} className="text-red-500 bg-red-50 p-2 rounded-xl cursor-pointer">❌</button>
               </div>
             </div>
           ))}
         </div>
       )}
       {valorRestante > 0.01 ? (
-        <div className="bg-white rounded-3xl p-6">
-          <p className="font-black text-xl text-gray-900 mb-4">Como pagar o restante?</p>
-          <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="bg-white rounded-3xl p-4 sm:p-6">
+          <p className="font-black text-lg sm:text-xl text-gray-900 mb-4">Como pagar o restante?</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
             {metodosPagamento.map(m => (
-              <button key={m.id} onClick={() => {setMetodoAtual(m.id); setValorRecebido("");}} className={`py-3 rounded-2xl font-black border-2 flex flex-col items-center ${metodoAtual===m.id?"bg-[#1D3461] text-white border-[#1D3461]":"bg-gray-50 text-gray-700 border-gray-200"}`}>
-                <span className="text-3xl mb-1">{m.emoji}</span><span className="text-sm">{m.label}</span>
+              <button key={m.id} onClick={() => {setMetodoAtual(m.id); setValorRecebido("");}} className={`py-3 px-2 rounded-2xl font-black border-2 flex flex-col items-center cursor-pointer ${metodoAtual===m.id?"bg-[#1D3461] text-white border-[#1D3461]":"bg-gray-50 text-gray-700 border-gray-200"}`}>
+                <span className="text-2xl sm:text-3xl mb-1">{m.emoji}</span><span className="text-xs sm:text-sm text-center leading-tight">{m.label}</span>
               </button>
             ))}
           </div>
           {metodoAtual && metodosPagamento.find(m => m.id === metodoAtual)?.troco && (
             <div className="mb-4 p-4 bg-gray-50 rounded-2xl">
               <label className="font-black text-gray-900 block mb-2">Valor recebido (R$)</label>
-              <input type="number" value={valorRecebido} onChange={e=>setValorRecebido(e.target.value)} placeholder="0,00" className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-3xl font-black focus:outline-none focus:border-[#1D3461] text-gray-900" />
+              <input type="number" value={valorRecebido} onChange={e=>setValorRecebido(e.target.value)} placeholder="0,00" className="w-full border-2 border-gray-300 rounded-xl px-4 py-3 text-2xl sm:text-3xl font-black focus:outline-none focus:border-[#1D3461] text-gray-900" />
               {parseFloat(valorRecebido||0) > valorRestante && (
                 <div className="mt-3 p-3 bg-green-100 rounded-xl flex justify-between">
                   <span className="text-green-800 font-black">Troco:</span>
@@ -829,7 +752,7 @@ export default function PosApp() {
 
           {metodoAtual === "pix" && !pixGerado && (
             <div className="mb-4 text-center">
-              <p className="text-gray-500 font-bold mb-3">
+              <p className="text-gray-500 font-bold mb-3 text-sm sm:text-base">
                 {evento?.gatewayActive === "ASAAS"
                   ? "Cobrança Pix Oficial integrada com Asaas"
                   : evento?.gatewayActive === "MERCADO_PAGO"
@@ -847,7 +770,7 @@ export default function PosApp() {
                 type="button"
                 onClick={iniciarPixDinamico}
                 disabled={gerandoPix}
-                className="w-full bg-teal-500 text-white font-black text-lg py-4 rounded-2xl hover:bg-teal-600 transition-colors cursor-pointer"
+                className="w-full bg-teal-500 text-white font-black text-base sm:text-lg py-4 rounded-2xl hover:bg-teal-600 transition-colors cursor-pointer"
                 style={{minHeight: "52px"}}
               >
                 {gerandoPix
@@ -866,12 +789,12 @@ export default function PosApp() {
           )}
 
           {metodoAtual === "pix" && pixGerado && (
-            <div className="mb-4 p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-teal-200">
+            <div className="mb-4 p-4 sm:p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-teal-200">
               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">Peça para o cliente escanear o QR Code abaixo</p>
               <img 
                 src={pixQrCode} 
                 alt="QR Code Pix" 
-                className="w-56 h-56 mx-auto mb-3 border border-gray-200 rounded-xl bg-white p-2" 
+                className="w-48 h-48 sm:w-56 sm:h-56 mx-auto mb-3 border border-gray-200 rounded-xl bg-white p-2" 
               />
               <div className="mb-4">
                 <div className="flex gap-2">
@@ -883,13 +806,13 @@ export default function PosApp() {
                       e.target.select();
                       copiarTextoPos(pixCopiaCola);
                     }}
-                    className="flex-1 bg-white text-teal-800 border border-teal-200 rounded-xl px-3 py-2 text-xs font-mono cursor-pointer truncate"
+                    className="flex-1 min-w-0 bg-white text-teal-800 border border-teal-200 rounded-xl px-3 py-2 text-xs font-mono cursor-pointer truncate"
                     title="Clique para copiar"
                   />
                   <button
                     type="button"
                     onClick={() => copiarTextoPos(pixCopiaCola)}
-                    className={`px-4 py-2 rounded-xl font-black text-xs transition-all cursor-pointer ${
+                    className={`px-3 sm:px-4 py-2 rounded-xl font-black text-xs transition-all cursor-pointer shrink-0 ${
                       copiadoPixPos ? "bg-emerald-600 text-white" : "bg-[#1D3461] text-white hover:bg-[#152A66]"
                     }`}
                   >
@@ -899,8 +822,8 @@ export default function PosApp() {
                 <p className="text-gray-400 text-[10px] mt-1">Código Pix Copia e Cola (Padrão Banco Central)</p>
               </div>
 
-              <div className="flex items-center justify-center gap-2 mt-4 text-teal-600 font-bold animate-pulse">
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              <div className="flex items-center justify-center gap-2 mt-4 text-teal-600 font-bold text-sm animate-pulse">
+                <svg className="w-5 h-5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 Aguardando confirmação automática do banco...
               </div>
             </div>
@@ -908,11 +831,11 @@ export default function PosApp() {
 
           {metodoAtual === "cartao" && !pixGerado && (
             <div className="mb-4 text-left bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-gray-800 font-black text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-gray-800 font-black text-xs sm:text-sm">
                   💳 Cartão Integrado ({evento?.gatewayActive === "MERCADO_PAGO" ? "Mercado Pago" : "Asaas"})
                 </p>
-                <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full">
+                <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full shrink-0">
                   Chave API Ativa
                 </span>
               </div>
@@ -958,7 +881,7 @@ export default function PosApp() {
                   <button
                     type="button"
                     onClick={() => setUsarCartaoSalvo(false)}
-                    className="text-xs text-blue-600 font-bold underline"
+                    className="text-xs text-blue-600 font-bold underline cursor-pointer"
                   >
                     Usar outro
                   </button>
@@ -1016,7 +939,7 @@ export default function PosApp() {
                 type="button"
                 onClick={processarCartaoAsaas}
                 disabled={processandoCartao}
-                className="w-full bg-emerald-600 text-white font-black text-base py-3.5 rounded-2xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-emerald-600 text-white font-black text-sm sm:text-base py-3.5 rounded-2xl hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 style={{minHeight: "48px"}}
               >
                 {processandoCartao
@@ -1038,7 +961,7 @@ export default function PosApp() {
           )}
 
           {metodoAtual === "cartao" && pixGerado && (
-            <div className="mb-4 p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-blue-200">
+            <div className="mb-4 p-4 sm:p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-blue-200">
               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">Checkout Gerado com Sucesso</p>
               
               <div className="mb-4">
@@ -1061,14 +984,14 @@ export default function PosApp() {
                 <button
                   type="button"
                   onClick={() => window.open(pixCopiaCola, "_blank")}
-                  className="w-full bg-gray-800 text-white font-black text-lg py-4 rounded-2xl hover:bg-gray-900 transition-colors"
+                  className="w-full bg-gray-800 text-white font-black text-base sm:text-lg py-4 rounded-2xl hover:bg-gray-900 transition-colors cursor-pointer"
                   style={{minHeight: "52px"}}
                 >
                   🔗 Abrir Link de Pagamento
                 </button>
               </div>
-              <div className="flex items-center justify-center gap-2 mt-4 text-blue-600 font-bold animate-pulse">
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              <div className="flex items-center justify-center gap-2 mt-4 text-blue-600 font-bold text-sm animate-pulse">
+                <svg className="w-5 h-5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 Aguardando confirmação do cartão...
               </div>
             </div>
@@ -1082,7 +1005,7 @@ export default function PosApp() {
                 type="button"
                 onClick={iniciarCheckoutOnline}
                 disabled={processandoCartao}
-                className="w-full bg-purple-600 text-white font-black text-lg py-4 rounded-2xl hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-purple-600 text-white font-black text-base sm:text-lg py-4 rounded-2xl hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 style={{minHeight: "52px"}}
               >
                 {processandoCartao ? "Gerando QR Code..." : "📱 Gerar QR Code para o Cliente"}
@@ -1091,17 +1014,17 @@ export default function PosApp() {
           )}
 
           {metodoAtual === "wallet" && pixGerado && (
-            <div className="mb-4 p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-purple-200">
+            <div className="mb-4 p-4 sm:p-5 bg-gray-50 rounded-3xl text-center border-2 border-dashed border-purple-200">
               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-2">Peça para o cliente escanear o QR Code abaixo</p>
               <img 
                 src={pixQrCode} 
                 alt="QR Code Carteira Digital" 
-                className="w-56 h-56 mx-auto mb-3 border border-gray-200 rounded-xl" 
+                className="w-48 h-48 sm:w-56 sm:h-56 mx-auto mb-3 border border-gray-200 rounded-xl" 
               />
               <p className="text-gray-400 text-[10px] mt-1 mb-4">O cliente será direcionado para o Apple Pay / Google Pay / Mercado Pago no celular dele.</p>
 
-              <div className="flex items-center justify-center gap-2 mt-4 text-purple-600 font-bold animate-pulse">
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              <div className="flex items-center justify-center gap-2 mt-4 text-purple-600 font-bold text-sm animate-pulse">
+                <svg className="w-5 h-5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 Aguardando pagamento no celular...
               </div>
             </div>
@@ -1112,7 +1035,7 @@ export default function PosApp() {
               <button 
                 onClick={adicionarPagamento} 
                 disabled={metodosPagamento.find(m => m.id === metodoAtual)?.troco && parseFloat(valorRecebido||0)<=0}
-                className="w-full bg-blue-600 text-white font-black text-xl py-4 rounded-2xl disabled:opacity-40 flex items-center justify-center gap-2"
+                className="w-full bg-blue-600 text-white font-black text-lg sm:text-xl py-4 rounded-2xl disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
                 style={{minHeight: "52px"}}
               >
                 {metodoAtual === "dinheiro" ? "💰 Receber Dinheiro" : "✅ Confirmar Pagamento"}
@@ -1121,11 +1044,11 @@ export default function PosApp() {
           )}
         </div>
       ) : (
-        <div className="mt-auto bg-green-500 rounded-3xl p-6 text-center text-white">
-          <span className="text-6xl block mb-2">✅</span>
-          <h3 className="text-3xl font-black mb-4">Pagamento Completo!</h3>
-          {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500">{erro}</p>}
-          <button onClick={cartaoEncontrado ? fazerRecarga : finalizarCadastro} disabled={carregando} className="w-full bg-white text-green-700 font-black text-2xl py-5 rounded-2xl disabled:opacity-50">
+        <div className="mt-auto bg-green-500 rounded-3xl p-5 sm:p-6 text-center text-white">
+          <span className="text-5xl sm:text-6xl block mb-2">✅</span>
+          <h3 className="text-2xl sm:text-3xl font-black mb-4">Pagamento Completo!</h3>
+          {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500 text-sm">{erro}</p>}
+          <button onClick={cartaoEncontrado ? fazerRecarga : finalizarCadastro} disabled={carregando} className="w-full bg-white text-green-700 font-black text-xl sm:text-2xl py-4 sm:py-5 rounded-2xl disabled:opacity-50 cursor-pointer">
             {carregando ? "Salvando..." : "✅ Confirmar e Emitir Cartão"}
           </button>
         </div>
@@ -1135,17 +1058,17 @@ export default function PosApp() {
 
   // ── Valor ──
   if (etapa === "valor") return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6"><PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} voltarFn={() => { setValorTotal(""); setEtapa(cartaoEncontrado ? "busca" : "novo_cliente"); }} tituloExtra="Valor da Recarga" />
-      
-      <h2 className="text-3xl font-black text-white mb-2">Valor da Recarga</h2>
-      <p className="text-blue-200 text-xl font-semibold mb-6">Cliente: <span className="text-white font-black">{nome || cartaoEncontrado?.cliente?.nome}</span></p>
-      <div className="bg-white/10 rounded-3xl p-6 mb-6">
+    <div className="min-h-screen bg-[#1D3461] flex flex-col p-4 sm:p-6">
+      <PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} voltarFn={() => { setValorTotal(""); setEtapa(cartaoEncontrado ? "busca" : "novo_cliente"); }} tituloExtra="Valor da Recarga" />
+      <h2 className="text-2xl sm:text-3xl font-black text-white mb-2">Valor da Recarga</h2>
+      <p className="text-blue-200 text-lg sm:text-xl font-semibold mb-6">Cliente: <span className="text-white font-black">{nome || cartaoEncontrado?.cliente?.nome}</span></p>
+      <div className="bg-white/10 rounded-3xl p-5 sm:p-6 mb-6">
         <p className="text-blue-200 font-bold mb-2">Valor (R$)</p>
-        <input type="number" value={valorTotal} onChange={e=>setValorTotal(e.target.value)} placeholder="0,00" className="w-full bg-transparent text-white text-5xl font-black focus:outline-none placeholder-white/30 text-center" />
+        <input type="number" value={valorTotal} onChange={e=>setValorTotal(e.target.value)} placeholder="0,00" className="w-full bg-transparent text-white text-4xl sm:text-5xl font-black focus:outline-none placeholder-white/30 text-center" />
       </div>
-      <div className="grid grid-cols-3 gap-3 mb-8">
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3 mb-8">
         {["30","50","80","100","150","200"].map(v => (
-          <button key={v} onClick={() => setValorTotal(v)} className={`py-4 rounded-2xl font-black text-xl ${valorTotal===v?"bg-white text-[#1D3461]":"bg-white/10 text-white"}`} style={{minHeight:"52px"}}>R$ {v}</button>
+          <button key={v} onClick={() => setValorTotal(v)} className={`py-3.5 sm:py-4 rounded-2xl font-black text-lg sm:text-xl cursor-pointer ${valorTotal===v?"bg-white text-[#1D3461]":"bg-white/10 text-white"}`} style={{minHeight:"52px"}}>R$ {v}</button>
         ))}
       </div>
       <button onClick={() => {
@@ -1167,55 +1090,55 @@ export default function PosApp() {
         setUsarCartaoSalvo(false);
         setErro("");
         setEtapa("pagamento");
-      }} disabled={!valorTotal||parseFloat(valorTotal)<=0} className="w-full bg-green-500 text-white font-black text-2xl py-6 rounded-3xl shadow-2xl disabled:opacity-40 mt-auto" style={{minHeight:"72px"}}>Avançar p/ Pagamento →</button>
+      }} disabled={!valorTotal||parseFloat(valorTotal)<=0} className="w-full bg-green-500 text-white font-black text-xl sm:text-2xl py-5 sm:py-6 rounded-3xl shadow-2xl disabled:opacity-40 mt-auto cursor-pointer" style={{minHeight:"68px"}}>Avançar p/ Pagamento →</button>
     </div>
   );
 
   // ── Novo Cliente ──
   if (etapa === "novo_cliente") return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6"><PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} voltarFn={() => setEtapa("inicio")} tituloExtra="Novo Cliente" />
-      
-      <h2 className="text-3xl font-black text-white mb-8">Novo Cliente</h2>
-      {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500">{erro}</p>}
-      <div className="space-y-5 flex-1">
+    <div className="min-h-screen bg-[#1D3461] flex flex-col p-4 sm:p-6">
+      <PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} voltarFn={() => setEtapa("inicio")} tituloExtra="Novo Cliente" />
+      <h2 className="text-2xl sm:text-3xl font-black text-white mb-6">Novo Cliente</h2>
+      {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500 text-sm">{erro}</p>}
+      <div className="space-y-4 sm:space-y-5 flex-1">
         <div>
-          <label className="text-white font-black text-xl mb-2 block">Nome completo <span className="text-red-400">*</span></label>
-          <input type="text" value={nome} onChange={e=>setNome(e.target.value)} placeholder="Ex: João Silva" className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300 rounded-2xl px-5 py-4 text-xl font-semibold focus:outline-none focus:border-white" />
+          <label className="text-white font-black text-lg sm:text-xl mb-2 block">Nome completo <span className="text-red-400">*</span></label>
+          <input type="text" value={nome} onChange={e=>setNome(e.target.value)} placeholder="Ex: João Silva" className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300 rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 text-lg sm:text-xl font-semibold focus:outline-none focus:border-white" />
         </div>
         <div>
-          <label className="text-white font-black text-xl mb-2 block">CPF <span className="text-blue-300 text-base font-semibold">(opcional)</span></label>
-          <input type="text" value={cpf} onChange={e=>handleCpfChange(e.target.value)} placeholder="000.000.000-00" className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300 rounded-2xl px-5 py-4 text-xl font-semibold focus:outline-none focus:border-white" />
+          <label className="text-white font-black text-lg sm:text-xl mb-2 block">CPF <span className="text-blue-300 text-sm sm:text-base font-semibold">(opcional)</span></label>
+          <input type="text" value={cpf} onChange={e=>handleCpfChange(e.target.value)} placeholder="000.000.000-00" className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300 rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 text-lg sm:text-xl font-semibold focus:outline-none focus:border-white" />
         </div>
         <div>
-          <label className="text-white font-black text-xl mb-2 block">Celular <span className="text-blue-300 text-base font-semibold">(opcional)</span></label>
-          <input type="tel" value={celular} onChange={e=>handleCelularChange(e.target.value)} placeholder="(11) 99999-9999" className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300 rounded-2xl px-5 py-4 text-xl font-semibold focus:outline-none focus:border-white" />
+          <label className="text-white font-black text-lg sm:text-xl mb-2 block">Celular <span className="text-blue-300 text-sm sm:text-base font-semibold">(opcional)</span></label>
+          <input type="tel" value={celular} onChange={e=>handleCelularChange(e.target.value)} placeholder="(11) 99999-9999" className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300 rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 text-lg sm:text-xl font-semibold focus:outline-none focus:border-white" />
         </div>
       </div>
-      <button onClick={() => setEtapa("valor")} disabled={!nome.trim()} className="w-full bg-white text-[#1D3461] font-black text-2xl py-6 rounded-3xl shadow-2xl disabled:opacity-40 mt-8" style={{minHeight:"72px"}}>Avançar →</button>
+      <button onClick={() => setEtapa("valor")} disabled={!nome.trim()} className="w-full bg-white text-[#1D3461] font-black text-xl sm:text-2xl py-5 sm:py-6 rounded-3xl shadow-2xl disabled:opacity-40 mt-8 cursor-pointer" style={{minHeight:"68px"}}>Avançar →</button>
     </div>
   );
 
   // ── Busca de Cliente ──
   if (etapa === "busca") return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6"><PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} voltarFn={() => setEtapa("inicio")} tituloExtra="Buscar Cliente" />
-      
-      <h2 className="text-3xl font-black text-white mb-2">Buscar Cliente</h2>
-      <p className="text-blue-200 text-lg mb-6">Para recarga ou reemissão de QR</p>
-      {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500">{erro}</p>}
-      <div className="flex gap-3 mb-6">
-        <input value={termoBusca} onChange={e=>setTermoBusca(e.target.value)} onKeyDown={e=>e.key==="Enter"&&buscarCliente()} placeholder="Nome, CPF ou Celular..." className="flex-1 bg-white/10 border-2 border-white/20 text-white placeholder-blue-300 rounded-2xl px-5 py-4 text-xl font-semibold focus:outline-none focus:border-white" />
-        <button onClick={buscarCliente} disabled={buscando} className="bg-white text-[#1D3461] font-black px-6 py-4 rounded-2xl">🔍</button>
+    <div className="min-h-screen bg-[#1D3461] flex flex-col p-4 sm:p-6">
+      <PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} voltarFn={() => setEtapa("inicio")} tituloExtra="Buscar Cliente" />
+      <h2 className="text-2xl sm:text-3xl font-black text-white mb-1">Buscar Cliente</h2>
+      <p className="text-blue-200 text-base sm:text-lg mb-5">Para recarga ou reemissão de QR</p>
+      {erro && <p className="bg-red-600 text-white p-3 rounded-xl mb-4 font-bold border border-red-500 text-sm">{erro}</p>}
+      <div className="flex gap-2.5 mb-6">
+        <input value={termoBusca} onChange={e=>setTermoBusca(e.target.value)} onKeyDown={e=>e.key==="Enter"&&buscarCliente()} placeholder="Nome, CPF ou Celular..." className="flex-1 min-w-0 bg-white/10 border-2 border-white/20 text-white placeholder-blue-300 rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 text-base sm:text-xl font-semibold focus:outline-none focus:border-white" />
+        <button onClick={buscarCliente} disabled={buscando} className="bg-white text-[#1D3461] font-black px-5 sm:px-6 py-3.5 sm:py-4 rounded-2xl cursor-pointer shrink-0">🔍</button>
       </div>
       <div className="space-y-3">
         {buscando && <p className="text-blue-200 text-center">Buscando...</p>}
         {resultadosBusca.map(c => (
-          <div key={c.id} className="bg-white rounded-3xl p-5">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="text-xl font-black text-gray-900">{c.cliente.nome}</h3>
-                {c.cliente.cpf && <p className="text-gray-400 text-sm">{c.cliente.cpf}</p>}
+          <div key={c.id} className="bg-white rounded-3xl p-4 sm:p-5">
+            <div className="flex justify-between items-start mb-3 gap-2">
+              <div className="min-w-0">
+                <h3 className="text-lg sm:text-xl font-black text-gray-900 truncate">{c.cliente.nome}</h3>
+                {c.cliente.cpf && <p className="text-gray-400 text-xs sm:text-sm">{c.cliente.cpf}</p>}
               </div>
-              <p className="text-green-600 font-black text-2xl">R$ {c.saldo.toFixed(2).replace(".",",")}</p>
+              <p className="text-green-600 font-black text-xl sm:text-2xl shrink-0">R$ {c.saldo.toFixed(2).replace(".",",")}</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => {
@@ -1235,8 +1158,8 @@ export default function PosApp() {
                 }
                 setPagamentos([]);
                 setEtapa("valor");
-              }} className="bg-[#1D3461] text-white font-black py-3 rounded-2xl" style={{minHeight:"48px"}}>💳 Recarregar</button>
-              <button onClick={() => { setCartaoEncontrado(c); setCodigoCartao(c.codigo); setEtapa("qrcode"); }} className="bg-gray-100 text-gray-900 font-black py-3 rounded-2xl" style={{minHeight:"48px"}}>📱 Ver QR</button>
+              }} className="bg-[#1D3461] text-white font-black py-3 rounded-2xl text-sm sm:text-base cursor-pointer" style={{minHeight:"48px"}}>💳 Recarregar</button>
+              <button onClick={() => { setCartaoEncontrado(c); setCodigoCartao(c.codigo); setEtapa("qrcode"); }} className="bg-gray-100 text-gray-900 font-black py-3 rounded-2xl text-sm sm:text-base cursor-pointer" style={{minHeight:"48px"}}>📱 Ver QR</button>
             </div>
           </div>
         ))}
@@ -1247,52 +1170,8 @@ export default function PosApp() {
 
   // ── Início ──
   return (
-    <div className="min-h-screen bg-[#1D3461] flex flex-col p-6">
+    <div className="min-h-screen bg-[#1D3461] flex flex-col p-4 sm:p-6">
       <PosHeader evento={evento} session={session} onNavegar={navegarPara} onSair={sairDoSistema} />
-
-      {/* NOTIFICATION TOGGLE / CONTROLS FOR CASHIER */}
-      <div className="bg-white/5 p-4 rounded-2xl mb-6 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-left relative">
-        <div className="flex-1">
-          <p className="text-white font-bold text-sm flex items-center gap-1.5">
-            <span>🔔</span> Notificações no Caixa
-          </p>
-          <p className="text-[11px] text-blue-200/60 mt-0.5 leading-normal">
-            Receba alertas imediatos na tela deste dispositivo quando houver novas recargas online ou consumos de bar.
-          </p>
-        </div>
-        
-        {pushPermission === 'granted' ? (
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <span className="text-[11px] text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
-              ● Ativas
-            </span>
-            <button
-              onClick={testarNotificacaoUsuario}
-              disabled={testLoading}
-              className="bg-teal-500 hover:bg-teal-600 text-white font-black text-xs px-3.5 py-1.5 rounded-lg transition-all cursor-pointer"
-            >
-              {testLoading ? "Testando..." : "Testar"}
-            </button>
-            {testSuccess && (
-              <span className="absolute bottom-[-16px] right-4 text-[9px] text-emerald-400 font-bold animate-pulse">
-                Notificação enviada!
-              </span>
-            )}
-          </div>
-        ) : pushPermission === 'denied' ? (
-          <span className="text-[11px] text-rose-400 font-bold bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/20 text-center sm:text-right w-full sm:w-auto">
-            🚫 Bloqueadas no Navegador
-          </span>
-        ) : (
-          <button
-            onClick={solicitarPermissaoPushUsuario}
-            disabled={isSubscribing}
-            className="w-full sm:w-auto bg-teal-500 hover:bg-teal-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all shadow text-center cursor-pointer"
-          >
-            {isSubscribing ? "Ativando..." : "Ativar Notificações"}
-          </button>
-        )}
-      </div>
 
       {/* Master Event Selector */}
       {isMaster && (
@@ -1300,7 +1179,10 @@ export default function PosApp() {
           <label className="block text-blue-200 text-xs font-bold uppercase tracking-widest mb-1.5">Operando como MASTER. Selecione o Evento para Testes:</label>
           <select
             value={selectedEventoId}
-            onChange={(e) => setSelectedEventoId(e.target.value)}
+            onChange={(e) => {
+              setSelectedEventoId(e.target.value);
+              if (e.target.value) localStorage.setItem("activeEventoId", e.target.value);
+            }}
             className="w-full max-w-xs bg-white text-gray-900 font-bold px-3 py-2 rounded-xl outline-none"
           >
             <option value="">Selecione o Evento...</option>
@@ -1313,20 +1195,20 @@ export default function PosApp() {
 
       {/* Warning banner for regular operators without an event */}
       {!eventoId && !isMaster && (
-        <div className="bg-red-500/20 border-2 border-red-400/40 text-red-200 p-4 rounded-2xl mb-6 font-bold text-center">
+        <div className="bg-red-500/20 border-2 border-red-400/40 text-red-200 p-4 rounded-2xl mb-6 font-bold text-center text-sm">
           ⚠️ Alerta: Este operador não possui nenhum evento vinculado. Vincule-o a um evento no painel Master para realizar transações.
         </div>
       )}
 
       <div className="flex-1 flex flex-col justify-center space-y-4">
-        <button onClick={() => { novoAtendimento(); setEtapa("novo_cliente"); }} disabled={!eventoId} className="w-full bg-white text-[#1D3461] font-black text-2xl py-8 rounded-3xl shadow-2xl flex items-center justify-center gap-4 disabled:opacity-50" style={{minHeight:"80px"}}>
-          <span className="text-4xl">👤</span> Novo Cliente
+        <button onClick={() => { novoAtendimento(); setEtapa("novo_cliente"); }} disabled={!eventoId} className="w-full bg-white text-[#1D3461] font-black text-xl sm:text-2xl py-7 sm:py-8 rounded-3xl shadow-2xl flex items-center justify-center gap-4 disabled:opacity-50 cursor-pointer" style={{minHeight:"76px"}}>
+          <span className="text-3xl sm:text-4xl">👤</span> Novo Cliente
         </button>
-        <button onClick={() => { novoAtendimento(); setEtapa("busca"); }} disabled={!eventoId} className="w-full bg-white/10 text-white border-2 border-white/20 font-black text-2xl py-8 rounded-3xl flex items-center justify-center gap-4 disabled:opacity-50" style={{minHeight:"80px"}}>
-          <span className="text-4xl">🔍</span> Buscar Cliente
+        <button onClick={() => { novoAtendimento(); setEtapa("busca"); }} disabled={!eventoId} className="w-full bg-white/10 text-white border-2 border-white/20 font-black text-xl sm:text-2xl py-7 sm:py-8 rounded-3xl flex items-center justify-center gap-4 disabled:opacity-50 cursor-pointer" style={{minHeight:"76px"}}>
+          <span className="text-3xl sm:text-4xl">🔍</span> Buscar Cliente
         </button>
       </div>
-      <p className="text-blue-300 text-center text-base font-semibold mt-8">La More Eventos • Caixa</p>
+      <p className="text-blue-300 text-center text-sm sm:text-base font-semibold mt-8">La More Eventos • Caixa</p>
     </div>
   );
 }

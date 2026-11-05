@@ -16,8 +16,8 @@ export async function GET(req) {
     let eventoId = searchParams.get('eventoId');
 
     // Enforce scoping for ORGANIZADOR and SUPORTE_OPERACIONAL
-    if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
-      eventoId = session.user.eventoId;
+    if (['ORGANIZADOR', 'ORG', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
+      eventoId = session.user.eventoId || eventoId;
     } else if (session.user.role !== 'MASTER') {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
@@ -63,10 +63,10 @@ export async function POST(req) {
     if (role === 'CLIENTE' || role === 'SUPORTE') role = 'SUPORTE_OPERACIONAL';
 
     // Enforce scoping for ORGANIZADOR and SUPORTE_OPERACIONAL
-    if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
-      eventoId = session.user.eventoId;
+    if (['ORGANIZADOR', 'ORG', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
+      eventoId = session.user.eventoId || eventoId;
       // Organizers and support can create POS/Caixa, Bar, Tesouraria, and Support operators
-      if (!['CAIXA', 'OPERADOR_BAR', 'TESOURARIA', 'SUPORTE_OPERACIONAL'].includes(role)) {
+      if (!['CAIXA', 'CAIXA_VOLANTE', 'OPERADOR_BAR', 'TESOURARIA', 'SUPORTE_OPERACIONAL'].includes(role)) {
         return NextResponse.json({ error: 'Função não permitida para este perfil' }, { status: 403 });
       }
     } else if (session.user.role !== 'MASTER') {
@@ -75,7 +75,7 @@ export async function POST(req) {
 
     const existing = await prisma.usuario.findUnique({ where: { email } });
     if (existing) {
-      return NextResponse.json({ error: 'E-mail já cadastrado' }, { status: 400 });
+      return NextResponse.json({ error: 'Este e-mail já está sendo utilizado por outro usuário no sistema.' }, { status: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(senha.trim(), 10);
@@ -108,7 +108,7 @@ export async function POST(req) {
     return NextResponse.json(safeUsuario, { status: 201 });
   } catch (e) {
     if (e.code === 'P2002' && e.meta?.target?.includes('email')) {
-      return NextResponse.json({ error: 'Este e-mail já está em uso por outro usuário.' }, { status: 400 });
+      return NextResponse.json({ error: 'Este e-mail já está sendo utilizado por outro usuário no sistema.' }, { status: 400 });
     }
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

@@ -7,9 +7,10 @@ export async function DELETE(req) {
   try {
     const session = await getServerSession(authOptions);
     const role = session?.user?.role;
+    const allowedRoles = ['MASTER', 'ORGANIZADOR', 'ORG', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'];
 
-    if (!session || !role || (role !== 'MASTER' && role !== 'ORGANIZADOR' && role !== 'ORG')) {
-      return NextResponse.json({ error: 'Não autorizado. Apenas Administrador Master ou Produtor pode excluir cartões.' }, { status: 403 });
+    if (!session || !role || !allowedRoles.includes(role)) {
+      return NextResponse.json({ error: 'Não autorizado.' }, { status: 403 });
     }
 
     const { cartaoId, codigo, eventoId } = await req.json();
@@ -35,8 +36,8 @@ export async function DELETE(req) {
       return NextResponse.json({ error: 'Cartão não encontrado.' }, { status: 404 });
     }
 
-    // Se for Organizador, validar se o cartão pertence ao evento do organizador
-    if (role === 'ORGANIZADOR' || role === 'ORG') {
+    // Se não for Master, validar se o cartão pertence ao evento do usuário
+    if (role !== 'MASTER') {
       if (session.user.eventoId && cartao.eventoId !== session.user.eventoId) {
         return NextResponse.json({ error: 'Acesso negado: Este cartão pertence a outro evento.' }, { status: 403 });
       }

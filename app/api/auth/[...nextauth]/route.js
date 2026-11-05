@@ -93,6 +93,15 @@ export const authOptions = {
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return url;
+      try {
+        const parsed = new URL(url);
+        return (parsed.pathname || "/login") + (parsed.search || "");
+      } catch {
+        return "/login";
+      }
+    },
   },
   pages: {
     signIn: "/login",
@@ -102,4 +111,3 @@ export const authOptions = {
 
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
-

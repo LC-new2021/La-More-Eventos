@@ -60,6 +60,7 @@ export default function MasterUsuarios() {
   };
  
   const abrirCriar = () => {
+    setError('');
     setUsuarioParaEditar(null);
     setNome('');
     setEmail('');
@@ -81,6 +82,7 @@ export default function MasterUsuarios() {
   };
  
   const abrirEditar = (user) => {
+    setError('');
     setUsuarioParaEditar(user);
     setNome(user.nome || '');
     setEmail(user.email || '');
@@ -200,25 +202,25 @@ export default function MasterUsuarios() {
     <div className="w-full max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-4xl font-black text-[#1D3461] mb-2">Usuários e Operadores</h2>
-          <p className="text-gray-500 text-lg font-semibold">Gerencie os acessos de organizadores, caixas e operadores</p>
+          <h2 className="text-2xl sm:text-4xl font-black text-[#1D3461] mb-1 sm:mb-2">Usuários e Operadores</h2>
+          <p className="text-gray-500 text-sm sm:text-lg font-semibold">Gerencie os acessos de organizadores, caixas e operadores</p>
         </div>
         <button
           onClick={abrirCriar}
-          className="bg-[#1D3461] hover:bg-[#112244] text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg text-lg flex items-center justify-center gap-2 cursor-pointer shrink-0"
+          className="bg-[#1D3461] hover:bg-[#112244] text-white font-black px-5 sm:px-6 py-3 rounded-2xl transition-all shadow-lg text-base sm:text-lg flex items-center justify-center gap-2 cursor-pointer shrink-0"
         >
           <span>➕</span> Novo Usuário
         </button>
       </div>
 
       {/* BARRA DE FILTROS: POR EVENTO E BUSCA */}
-      <div className="bg-white p-5 rounded-3xl border-2 border-gray-100 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center">
+      <div className="bg-white p-4 sm:p-5 rounded-3xl border-2 border-gray-100 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center">
         <div className="flex-1 w-full">
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Filtrar por Evento</label>
           <select
             value={filtroEvento}
             onChange={(e) => setFiltroEvento(e.target.value)}
-            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-bold text-[#1D3461] outline-none transition-all"
+            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-bold text-[#1D3461] outline-none transition-all text-sm sm:text-base"
           >
             <option value="">🎪 Todos os Eventos ({usuarios.length} usuários)</option>
             {eventos.map(ev => (
@@ -235,13 +237,13 @@ export default function MasterUsuarios() {
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="🔍 Buscar usuário..."
-            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-semibold text-gray-900 outline-none transition-all"
+            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-semibold text-gray-900 outline-none transition-all text-sm sm:text-base"
           />
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold flex items-center gap-3">
+      {error && !mostrarModal && (
+        <div className="bg-red-50 border-2 border-red-300 text-red-700 p-4 rounded-2xl mb-6 font-bold flex items-center gap-3">
           <span>⚠️</span> {error}
         </div>
       )}
@@ -253,15 +255,15 @@ export default function MasterUsuarios() {
       ) : (
         <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[750px]">
+            <table className="w-full text-left border-collapse min-w-[680px]">
               <thead>
-                <tr className="bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold text-sm">
-                  <th className="p-4">Nome</th>
-                  <th className="p-4">E-mail</th>
-                  <th className="p-4">Função</th>
-                  <th className="p-4">Criado Por</th>
-                  <th className="p-4">Evento Vinculado</th>
-                  <th className="p-4 text-center min-w-[180px]">Ações</th>
+                <tr className="bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold text-xs sm:text-sm">
+                  <th className="p-3.5 sm:p-4">Nome</th>
+                  <th className="p-3.5 sm:p-4">E-mail</th>
+                  <th className="p-3.5 sm:p-4">Função</th>
+                  <th className="p-3.5 sm:p-4">Criado Por</th>
+                  <th className="p-3.5 sm:p-4">Evento Vinculado</th>
+                  <th className="p-3.5 sm:p-4 text-center min-w-[170px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -272,10 +274,10 @@ export default function MasterUsuarios() {
                 ) : (
                   usuariosFiltrados.map((u) => (
                     <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="p-4 font-bold text-gray-900">{u.nome}</td>
-                      <td className="p-4 font-semibold text-gray-500">{u.email}</td>
-                      <td className="p-4">
-                        <span className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider ${
+                      <td className="p-3.5 sm:p-4 font-bold text-gray-900 text-sm sm:text-base">{u.nome}</td>
+                      <td className="p-3.5 sm:p-4 font-semibold text-gray-500 text-xs sm:text-sm break-all">{u.email}</td>
+                      <td className="p-3.5 sm:p-4">
+                        <span className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider inline-block whitespace-nowrap ${
                           u.role === 'MASTER' ? 'bg-purple-100 text-purple-700' :
                           u.role === 'ORGANIZADOR' ? 'bg-blue-100 text-blue-700' :
                           (u.role === 'SUPORTE_OPERACIONAL' || u.role === 'CLIENTE' || u.role === 'SUPORTE') ? 'bg-teal-100 text-teal-700' :
@@ -286,25 +288,25 @@ export default function MasterUsuarios() {
                           {u.role === 'SUPORTE_OPERACIONAL' || u.role === 'CLIENTE' || u.role === 'SUPORTE' ? 'Suporte Operacional' : u.role.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="p-4 font-bold text-gray-700">
+                      <td className="p-3.5 sm:p-4 font-bold text-gray-700 text-xs sm:text-sm">
                         {u.criadoPorNome || <span className="text-gray-400 font-semibold text-xs">Sistema</span>}
                       </td>
-                      <td className="p-4 font-bold text-gray-700">
+                      <td className="p-3.5 sm:p-4 font-bold text-gray-700 text-xs sm:text-sm">
                         {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}
                       </td>
-                      <td className="p-4 text-center">
+                      <td className="p-3.5 sm:p-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => abrirEditar(u)}
-                            className="font-black text-xs px-3.5 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-200 hover:bg-gray-100 text-center cursor-pointer shadow-sm"
+                            className="font-black text-xs px-3 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-200 hover:bg-gray-100 text-center cursor-pointer shadow-sm"
                           >
                             ✏️ Editar
                           </button>
                           <button
                             type="button"
                             onClick={() => handleExcluir(u.id)}
-                            className="font-black text-xs px-3.5 py-2 rounded-xl transition-all border-2 text-red-600 border-red-200 hover:bg-red-50 text-center cursor-pointer shadow-sm"
+                            className="font-black text-xs px-3 py-2 rounded-xl transition-all border-2 text-red-600 border-red-200 hover:bg-red-50 text-center cursor-pointer shadow-sm"
                           >
                             🗑️ Excluir
                           </button>
@@ -319,14 +321,21 @@ export default function MasterUsuarios() {
         </div>
       )}
 
-
       {/* Modal Criar/Editar Usuário */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200 scrollbar-thin">
-            <h3 className="text-2xl font-black text-[#1D3461] mb-6 flex items-center gap-2 sticky top-0 bg-white pb-2 z-10">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200 scrollbar-thin">
+            <h3 className="text-xl sm:text-2xl font-black text-[#1D3461] mb-4 flex items-center gap-2 sticky top-0 bg-white pb-2 z-10">
               <span>👥</span> {usuarioParaEditar ? 'Editar Usuário' : 'Novo Usuário'}
             </h3>
+
+            {error && (
+              <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl mb-4 font-bold text-sm flex items-start gap-2 animate-in fade-in duration-150">
+                <span className="shrink-0">⚠️</span>
+                <span>{error}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-gray-500 font-bold mb-1 text-sm">Nome Completo</label>
@@ -368,7 +377,7 @@ export default function MasterUsuarios() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-500 font-bold mb-1 text-sm">Função</label>
                   <select
@@ -406,7 +415,7 @@ export default function MasterUsuarios() {
               {role === 'ORGANIZADOR' && (
                 <div className="border-t border-gray-100 pt-4 mt-4 space-y-4">
                   <p className="font-black text-[#1D3461] text-base flex items-center gap-1.5">🏢 Dados Comerciais / Empresa</p>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-gray-500 font-bold mb-1 text-sm">Razão Social</label>
                       <input
@@ -428,7 +437,7 @@ export default function MasterUsuarios() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-gray-500 font-bold mb-1 text-sm">Insc. Estadual</label>
                       <input
@@ -549,10 +558,17 @@ export default function MasterUsuarios() {
                 </div>
               )}
 
+              {error && (
+                <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl font-bold text-sm flex items-start gap-2">
+                  <span className="shrink-0">⚠️</span>
+                  <span>{error}</span>
+                </div>
+              )}
+
               <div className="flex gap-4 pt-4">
                 <button
                   type="button"
-                  onClick={() => setMostrarModal(false)}
+                  onClick={() => { setError(''); setMostrarModal(false); }}
                   className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black py-3 rounded-2xl transition-all"
                 >
                   Cancelar

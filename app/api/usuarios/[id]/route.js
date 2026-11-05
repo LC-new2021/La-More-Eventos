@@ -19,8 +19,8 @@ export async function GET(req, { params }) {
     }
 
     if (session.user.role !== 'MASTER' && targetUser.id !== session.user.id) {
-      if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
-        if (targetUser.eventoId !== session.user.eventoId) {
+      if (['ORGANIZADOR', 'ORG', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
+        if (session.user.eventoId && targetUser.eventoId !== session.user.eventoId) {
           return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
         }
       } else {
@@ -53,7 +53,7 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
-    const isOrgOrSupport = ['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role);
+    const isOrgOrSupport = ['ORGANIZADOR', 'ORG', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role);
 
     if (isOrgOrSupport) {
       if (targetUser.id === session.user.id) {
@@ -61,18 +61,18 @@ export async function PATCH(req, { params }) {
         if (role && role !== session.user.role) {
           return NextResponse.json({ error: 'Função não permitida' }, { status: 403 });
         }
-        if (eventoId && eventoId !== session.user.eventoId) {
+        if (session.user.eventoId && eventoId && eventoId !== session.user.eventoId) {
           return NextResponse.json({ error: 'Não autorizado a alterar o evento' }, { status: 403 });
         }
       } else {
         // Editing other users
-        if (targetUser.eventoId !== session.user.eventoId) {
+        if (session.user.eventoId && targetUser.eventoId !== session.user.eventoId) {
           return NextResponse.json({ error: 'Acesso negado a este usuário' }, { status: 403 });
         }
-        if (role && !['CAIXA', 'OPERADOR_BAR', 'TESOURARIA', 'SUPORTE_OPERACIONAL'].includes(role)) {
+        if (role && !['CAIXA', 'CAIXA_VOLANTE', 'OPERADOR_BAR', 'TESOURARIA', 'SUPORTE_OPERACIONAL'].includes(role)) {
           return NextResponse.json({ error: 'Função não permitida' }, { status: 403 });
         }
-        if (eventoId && eventoId !== session.user.eventoId) {
+        if (session.user.eventoId && eventoId && eventoId !== session.user.eventoId) {
           return NextResponse.json({ error: 'Não autorizado a alterar o evento' }, { status: 403 });
         }
       }
@@ -84,13 +84,14 @@ export async function PATCH(req, { params }) {
 
     if (email) {
       const emailLower = email.trim().toLowerCase();
-      if (emailLower !== targetUser.email.toLowerCase()) {
+      const currentEmailLower = (targetUser.email || '').trim().toLowerCase();
+      if (emailLower !== currentEmailLower) {
         const existing = await prisma.usuario.findUnique({ where: { email: emailLower } });
         if (existing && existing.id !== id) {
-          return NextResponse.json({ error: 'Este e-mail já está em uso por outro usuário.' }, { status: 400 });
+          return NextResponse.json({ error: 'Este e-mail já está sendo utilizado por outro usuário no sistema.' }, { status: 400 });
         }
+        updateData.email = emailLower;
       }
-      updateData.email = emailLower;
     }
 
     if (nome) updateData.nome = nome.trim();
@@ -119,7 +120,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json(safeUsuario);
   } catch (e) {
     if (e.code === 'P2002' && e.meta?.target?.includes('email')) {
-      return NextResponse.json({ error: 'Este e-mail já está em uso por outro usuário.' }, { status: 400 });
+      return NextResponse.json({ error: 'Este e-mail já está sendo utilizado por outro usuário no sistema.' }, { status: 400 });
     }
     return NextResponse.json({ error: e.message || 'Erro ao atualizar usuário' }, { status: 500 });
   }
@@ -143,8 +144,8 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
-    if (['ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
-      if (targetUser.eventoId !== session.user.eventoId) {
+    if (['ORGANIZADOR', 'ORG', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
+      if (session.user.eventoId && targetUser.eventoId !== session.user.eventoId) {
         return NextResponse.json({ error: 'Acesso negado' }, { status: 403 });
       }
     } else if (session.user.role !== 'MASTER') {

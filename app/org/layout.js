@@ -22,6 +22,7 @@ export default function OrgLayout({ children }) {
   const role = session?.user?.role;
   const isMaster = role === 'MASTER';
   const isSupport = role === 'SUPORTE_OPERACIONAL' || role === 'CLIENTE' || role === 'SUPORTE';
+  const canSwitchSectors = isMaster || isSupport;
   const [eventoId, setEventoId] = useState(null);
 
   const menuItens = isSupport 
@@ -48,6 +49,7 @@ export default function OrgLayout({ children }) {
           });
       } else {
         if (session.user.eventoId) {
+          localStorage.setItem("activeEventoId", session.user.eventoId);
           setEventoId(session.user.eventoId);
         } else {
           const stored = localStorage.getItem("activeEventoId");
@@ -58,6 +60,7 @@ export default function OrgLayout({ children }) {
               .then(res => res.json())
               .then(data => {
                 if (data && data.length > 0 && !data.error) {
+                  setEventos(data);
                   localStorage.setItem("activeEventoId", data[0].id);
                   setEventoId(data[0].id);
                 }
@@ -83,6 +86,15 @@ export default function OrgLayout({ children }) {
       setLoading(false);
     }
   }, [eventoId]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ redirect: false });
+    } catch (e) {
+      console.error("Erro ao encerrar sessão:", e);
+    }
+    window.location.replace("/login");
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -161,6 +173,37 @@ export default function OrgLayout({ children }) {
               </Link>
             );
           })}
+
+          {canSwitchSectors && (
+            <div className="pt-4 mt-4 border-t border-white/10 space-y-1">
+              <p className="px-4 text-[10px] font-black uppercase tracking-widest text-blue-300 mb-1">
+                Troca Rápida de Setor
+              </p>
+              <Link
+                href="/pos"
+                className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-sm text-blue-100 hover:bg-white/10 hover:text-white transition-all"
+              >
+                <span className="text-lg">💳</span>
+                Caixa / Vendas (POS)
+              </Link>
+              <Link
+                href="/bar"
+                className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-sm text-blue-100 hover:bg-white/10 hover:text-white transition-all"
+              >
+                <span className="text-lg">🍺</span>
+                Terminal do Bar
+              </Link>
+              {isMaster && (
+                <Link
+                  href="/master"
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold text-sm text-blue-100 hover:bg-white/10 hover:text-white transition-all"
+                >
+                  <span className="text-lg">👑</span>
+                  Painel Master
+                </Link>
+              )}
+            </div>
+          )}
         </nav>
 
         <div className="p-4 border-t border-white/10 space-y-2">
@@ -171,15 +214,12 @@ export default function OrgLayout({ children }) {
             </p>
           </div>
           <button
-            onClick={async () => {
-              await signOut({ redirect: false });
-              window.location.href = "/login";
-            }}
+            onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-200 hover:text-white rounded-2xl font-bold text-sm transition-all cursor-pointer"
           >
             Sair do Sistema →
           </button>
-          {isMaster && (
+          {canSwitchSectors && (
             <Link
               href="/acessos"
               className="flex items-center justify-center gap-2 px-4 py-1.5 text-blue-200 hover:text-white transition-colors font-semibold text-sm"
@@ -191,32 +231,58 @@ export default function OrgLayout({ children }) {
       </aside>
 
       {/* Conteúdo */}
-      <main className="ml-0 lg:ml-64 flex-1 p-4 md:p-8 pb-28 lg:pb-8 min-w-0 w-full overflow-x-hidden">
+      <main className="ml-0 lg:ml-64 flex-1 p-3 sm:p-4 md:p-8 pb-28 lg:pb-8 min-w-0 w-full overflow-x-hidden">
         {/* Mobile Header indicator */}
-        <div className="flex items-center justify-between bg-[#1D3461] text-white p-4 rounded-2xl mb-6 lg:hidden shadow-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🎪</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-[#1D3461] text-white p-3.5 sm:p-4 rounded-2xl mb-5 lg:hidden shadow-sm">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="text-xl sm:text-2xl shrink-0">🎪</span>
             <div className="min-w-0">
-              <p className="text-xs font-bold text-blue-200 uppercase tracking-wider">Evento Ativo</p>
-              <p className="font-black text-base truncate">{loading ? "..." : (evento ? evento.nome : "Sem evento")}</p>
+              <p className="text-[10px] font-bold text-blue-200 uppercase tracking-wider">
+                {isSupport ? "Suporte Operacional" : "Evento Ativo"}
+              </p>
+              <p className="font-black text-sm sm:text-base truncate">{loading ? "..." : (evento ? evento.nome : "Sem evento")}</p>
             </div>
           </div>
-          <button 
-            onClick={async () => {
-              await signOut({ redirect: false });
-              window.location.href = "/login";
-            }}
-            className="text-xs font-black bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 text-white cursor-pointer"
-          >
-            Sair
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {canSwitchSectors && (
+              <>
+                <Link
+                  href="/pos"
+                  className="text-[11px] font-black bg-white/10 hover:bg-white/20 px-2.5 py-1.5 rounded-xl border border-white/10 text-white"
+                  title="Ir para Caixa (POS)"
+                >
+                  💳 Caixa
+                </Link>
+                <Link
+                  href="/bar"
+                  className="text-[11px] font-black bg-white/10 hover:bg-white/20 px-2.5 py-1.5 rounded-xl border border-white/10 text-white"
+                  title="Ir para Bar"
+                >
+                  🍺 Bar
+                </Link>
+                <Link
+                  href="/acessos"
+                  className="text-[11px] font-black bg-white/10 hover:bg-white/20 px-2.5 py-1.5 rounded-xl border border-white/10 text-white"
+                  title="Portal de Acessos"
+                >
+                  🏠
+                </Link>
+              </>
+            )}
+            <button 
+              onClick={handleLogout}
+              className="text-xs font-black bg-red-500/80 hover:bg-red-600 px-3 py-1.5 rounded-xl border border-red-400/30 text-white cursor-pointer"
+            >
+              Sair
+            </button>
+          </div>
         </div>
 
         {children}
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#1D3461] border-t border-white/10 flex flex-nowrap overflow-x-auto gap-2 p-2 z-20 lg:hidden text-white shadow-xl custom-scrollbar items-center justify-start">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#1D3461] border-t border-white/10 flex flex-nowrap overflow-x-auto gap-1.5 p-2 z-20 lg:hidden text-white shadow-xl custom-scrollbar items-center justify-around">
         {menuItens.map((item) => {
           const ativo = item.exact
             ? pathname === item.href
@@ -226,12 +292,12 @@ export default function OrgLayout({ children }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center p-2 rounded-xl transition-all shrink-0 min-w-[70px] ${
-                isAtivo ? "text-yellow-400 font-black bg-white/5" : "text-blue-200"
+              className={`flex flex-col items-center p-2 rounded-xl transition-all shrink-0 min-w-[64px] ${
+                isAtivo ? "text-yellow-400 font-black bg-white/10" : "text-blue-200"
               }`}
             >
-              <span className="text-2xl">{item.emoji}</span>
-              <span className="text-[10px] font-bold mt-1 text-center" title={item.titulo}>{item.titulo}</span>
+              <span className="text-xl sm:text-2xl">{item.emoji}</span>
+              <span className="text-[10px] font-bold mt-0.5 text-center" title={item.titulo}>{item.titulo}</span>
             </Link>
           );
         })}

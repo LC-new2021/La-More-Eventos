@@ -220,6 +220,7 @@ export default function ProdutosPage() {
           return;
         }
 
+        setError("");
         setProdutosParaImportar(importedProducts);
         setModalImportar(true);
       } catch (err) {
@@ -261,6 +262,7 @@ export default function ProdutosPage() {
   };
 
   const abrirNovoProduto = () => {
+    setError("");
     setProdutoEditando(null);
     setNome("");
     setPreco("");
@@ -274,6 +276,7 @@ export default function ProdutosPage() {
   };
 
   const abrirEditarProduto = (p) => {
+    setError("");
     setProdutoEditando(p);
     setNome(p.nome);
     setPreco(p.preco.toString());
@@ -313,8 +316,8 @@ export default function ProdutosPage() {
         })
       });
       const data = await res.json();
-      if (data.error) {
-        setError(data.error);
+      if (!res.ok || data.error) {
+        setError(data.error || "Erro ao salvar produto");
       } else {
         setModalProduto(false);
         carregarProdutos();
@@ -378,8 +381,8 @@ export default function ProdutosPage() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-4xl font-black text-[#1D3461]">Cardápio {isSupport ? "" : "& Pagamentos"}</h2>
-          <p className="text-gray-500 text-lg font-semibold mt-1">
+          <h2 className="text-2xl sm:text-4xl font-black text-[#1D3461]">Cardápio {isSupport ? "" : "& Pagamentos"}</h2>
+          <p className="text-gray-500 text-sm sm:text-lg font-semibold mt-1">
             {!eventoId 
               ? "Gerencie o cardápio do evento"
               : (aba === "produtos" 
@@ -396,15 +399,15 @@ export default function ProdutosPage() {
           <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
             <button
               onClick={baixarTemplateExcel}
-              className="w-full sm:w-auto justify-center bg-gray-100 text-gray-700 font-bold text-base px-4 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-1.5"
-              style={{ minHeight: "52px" }}
+              className="w-full sm:w-auto justify-center bg-gray-100 text-gray-700 font-bold text-sm sm:text-base px-4 py-3 rounded-2xl hover:bg-gray-200 transition-all flex items-center gap-1.5"
+              style={{ minHeight: "48px" }}
               title="Baixar planilha modelo de importação"
             >
               <span>📥</span> Modelo XLSX
             </button>
             <label
-              className="w-full sm:w-auto justify-center bg-green-600 text-white font-bold text-base px-5 py-3 rounded-2xl hover:bg-green-700 transition-all flex items-center gap-1.5 cursor-pointer"
-              style={{ minHeight: "52px" }}
+              className="w-full sm:w-auto justify-center bg-green-600 text-white font-bold text-sm sm:text-base px-5 py-3 rounded-2xl hover:bg-green-700 transition-all flex items-center gap-1.5 cursor-pointer"
+              style={{ minHeight: "48px" }}
             >
               <span>🟢</span> Importar XLSX
               <input
@@ -416,8 +419,8 @@ export default function ProdutosPage() {
             </label>
             <button
               onClick={abrirNovoProduto}
-              className="w-full sm:w-auto justify-center bg-[#1D3461] text-white font-black text-base px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all"
-              style={{ minHeight: "52px" }}
+              className="w-full sm:w-auto justify-center bg-[#1D3461] text-white font-black text-sm sm:text-base px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all"
+              style={{ minHeight: "48px" }}
             >
               + Novo Produto
             </button>
@@ -425,12 +428,13 @@ export default function ProdutosPage() {
         )}
         {aba === "pagamentos" && eventoId && !isSupport && (
           <button onClick={() => {
+            setError("");
             setPgLabel("");
             setPgEmoji("💳");
             setPgDesc("");
             setPgTroco(false);
             setModalPagamento(true);
-          }} className="bg-[#1D3461] text-white font-black text-lg px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all" style={{ minHeight: "52px" }}>
+          }} className="bg-[#1D3461] text-white font-black text-base sm:text-lg px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all" style={{ minHeight: "48px" }}>
             + Novo Método
           </button>
         )}
@@ -446,10 +450,10 @@ export default function ProdutosPage() {
             <button
               key={a.id}
               onClick={() => setAba(a.id)}
-              className={`px-5 py-3 rounded-xl font-black text-base transition-all shrink-0 ${
+              className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl font-black text-sm sm:text-base transition-all shrink-0 ${
                 aba === a.id ? "bg-white text-[#1D3461] shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
-              style={{ minHeight: "52px" }}
+              style={{ minHeight: "48px" }}
             >
               {a.label}
             </button>
@@ -457,8 +461,8 @@ export default function ProdutosPage() {
         </div>
       )}
 
-      {error && (
-        <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold">
+      {error && !modalProduto && !modalImportar && !modalPagamento && (
+        <div className="bg-red-50 border-2 border-red-300 text-red-700 p-4 rounded-2xl mb-6 font-bold">
           ⚠️ {error}
         </div>
       )}
@@ -466,7 +470,7 @@ export default function ProdutosPage() {
       {/* ABA: PRODUTOS */}
       {aba === "produtos" && (
         !eventoId ? (
-          <div className="bg-white rounded-3xl p-12 text-center border-2 border-gray-100 shadow-sm mt-6">
+          <div className="bg-white rounded-3xl p-8 sm:p-12 text-center border-2 border-gray-100 shadow-sm mt-6">
             <span className="text-6xl block mb-4">🎪</span>
             <p className="text-red-500 text-xl font-bold">Este usuário organizador não está vinculado a um evento.</p>
             <p className="text-gray-500 mt-2 font-medium">Vincule este usuário a um evento no Painel Master para gerenciar o cardápio de produtos.</p>
@@ -474,11 +478,11 @@ export default function ProdutosPage() {
         ) : (
           <>
             {/* Filtro por grupo */}
-            <div className="flex gap-3 mb-5 overflow-x-auto pb-1">
+            <div className="flex gap-2 sm:gap-3 mb-5 overflow-x-auto pb-1">
               <button
                 onClick={() => setGrupoFiltro("todos")}
-                className={`px-5 py-3 rounded-2xl font-black text-base whitespace-nowrap transition-all ${grupoFiltro === "todos" ? "bg-[#1D3461] text-white" : "bg-white text-gray-600 border-2 border-gray-100"}`}
-                style={{ minHeight: "52px" }}
+                className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl font-black text-sm sm:text-base whitespace-nowrap transition-all ${grupoFiltro === "todos" ? "bg-[#1D3461] text-white" : "bg-white text-gray-600 border-2 border-gray-100"}`}
+                style={{ minHeight: "44px" }}
               >
                 Todos
               </button>
@@ -486,8 +490,8 @@ export default function ProdutosPage() {
                 <button
                   key={g}
                   onClick={() => setGrupoFiltro(g)}
-                  className={`px-5 py-3 rounded-2xl font-black text-base whitespace-nowrap transition-all ${grupoFiltro === g ? "bg-[#1D3461] text-white" : "bg-white text-gray-600 border-2 border-gray-100"}`}
-                  style={{ minHeight: "52px" }}
+                  className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl font-black text-sm sm:text-base whitespace-nowrap transition-all ${grupoFiltro === g ? "bg-[#1D3461] text-white" : "bg-white text-gray-600 border-2 border-gray-100"}`}
+                  style={{ minHeight: "44px" }}
                 >
                   {g}
                 </button>
@@ -503,50 +507,52 @@ export default function ProdutosPage() {
                   <p className="text-center text-gray-400 font-semibold text-lg py-12">Nenhum produto cadastrado.</p>
                 ) : (
                   produtosFiltrados.map((p) => (
-                    <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
-                      <div className="flex items-center gap-4 flex-1">
-                        <span className="text-3xl shrink-0">{p.imagem || "📦"}</span>
+                    <div key={p.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-4 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                        <span className="text-2xl sm:text-3xl shrink-0">{p.imagem || "📦"}</span>
                         <div className="min-w-0 flex-1">
-                          <p className="font-black text-gray-900 text-xl truncate">{p.nome}</p>
-                          <span className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-0.5 rounded-full inline-block mt-0.5">
-                            {p.grupo}
-                          </span>
-                          {p.criadoPorNome && (
-                            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full inline-block mt-0.5 ml-2">
-                              👤 {p.criadoPorNome}
+                          <p className="font-black text-gray-900 text-base sm:text-xl truncate">{p.nome}</p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            <span className="text-xs sm:text-sm font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full inline-block">
+                              {p.grupo}
                             </span>
-                          )}
-                          {p.atualizadoPorNome && p.atualizadoPorNome !== p.criadoPorNome && (
-                            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full inline-block mt-0.5 ml-2" title="Última edição">
-                              ✏️ {p.atualizadoPorNome}
-                            </span>
-                          )}
+                            {p.criadoPorNome && (
+                              <span className="text-[11px] sm:text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full inline-block">
+                                👤 {p.criadoPorNome}
+                              </span>
+                            )}
+                            {p.atualizadoPorNome && p.atualizadoPorNome !== p.criadoPorNome && (
+                              <span className="text-[11px] sm:text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full inline-block" title="Última edição">
+                                ✏️ {p.atualizadoPorNome}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <p className="font-black text-[#1D3461] text-2xl shrink-0 text-right sm:w-32">
+                        <p className="font-black text-[#1D3461] text-lg sm:text-2xl shrink-0 text-right sm:w-32">
                           R$ {p.preco.toFixed(2).replace(".", ",")}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                         <button
                           onClick={() => toggleAtivoProduto(p)}
-                          className={`px-4 py-2 rounded-2xl font-black text-base transition-all ${p.ativo ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-500 hover:bg-red-100"}`}
-                          style={{ minHeight: "44px" }}
+                          className={`px-3.5 sm:px-4 py-2 rounded-2xl font-black text-sm sm:text-base transition-all ${p.ativo ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-500 hover:bg-red-100"}`}
+                          style={{ minHeight: "42px" }}
                         >
                           <span>{p.ativo ? "✅" : "❌"}</span>
                           <span className="hidden sm:inline ml-1">{p.ativo ? "Ativo" : "Inativo"}</span>
                         </button>
                         <button
                           onClick={() => abrirEditarProduto(p)}
-                          className="px-4 py-2 rounded-2xl font-black text-base bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all flex items-center gap-1"
-                          style={{ minHeight: "44px" }}
+                          className="px-3.5 sm:px-4 py-2 rounded-2xl font-black text-sm sm:text-base bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all flex items-center gap-1"
+                          style={{ minHeight: "42px" }}
                         >
                           <span>✏️</span>
                           <span className="hidden sm:inline">Editar</span>
                         </button>
                         <button
                           onClick={() => excluirProduto(p.id)}
-                          className="px-4 py-2 rounded-2xl font-black text-base bg-red-50 text-red-500 hover:bg-red-100 transition-all flex items-center gap-1"
-                          style={{ minHeight: "44px" }}
+                          className="px-3.5 sm:px-4 py-2 rounded-2xl font-black text-sm sm:text-base bg-red-50 text-red-500 hover:bg-red-100 transition-all flex items-center gap-1"
+                          style={{ minHeight: "42px" }}
                         >
                           <span>🗑️</span>
                           <span className="hidden sm:inline">Excluir</span>
@@ -564,39 +570,41 @@ export default function ProdutosPage() {
       {/* ABA: PAGAMENTOS */}
       {aba === "pagamentos" && (
         !eventoId ? (
-          <div className="bg-white rounded-3xl p-12 text-center border-2 border-gray-100 shadow-sm mt-6">
+          <div className="bg-white rounded-3xl p-8 sm:p-12 text-center border-2 border-gray-100 shadow-sm mt-6">
             <span className="text-6xl block mb-4">💳</span>
             <p className="text-red-500 text-xl font-bold">Este usuário organizador não está vinculado a um evento.</p>
             <p className="text-gray-500 mt-2 font-medium">Vincule este usuário a um evento no Painel Master para gerenciar métodos de pagamento.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-5 mb-6 font-semibold">
-              <p className="font-black text-blue-800 text-lg">ℹ️ Métodos de Pagamento do Evento</p>
-              <p className="text-blue-700 text-base mt-1">
+            <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-4 sm:p-5 mb-6 font-semibold">
+              <p className="font-black text-blue-800 text-base sm:text-lg">ℹ️ Métodos de Pagamento do Evento</p>
+              <p className="text-blue-700 text-sm sm:text-base mt-1">
                 Configure as formas de pagamento aceitas na bilheteria para emissão de cartões. Todas as alterações serão espelhadas automaticamente nos caixas (POS).
               </p>
             </div>
 
             {pagamentosConfig.map((pg) => (
-              <div key={pg.id} className={`bg-white rounded-3xl border-2 p-6 flex items-start gap-5 transition-all ${pg.ativo ? "border-gray-100" : "border-gray-100 opacity-50 bg-gray-50"}`}>
-                <span className="text-5xl">{pg.emoji}</span>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-black text-gray-900 text-2xl">{pg.label}</p>
-                    {pg.troco && <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">💵 Admite Troco</span>}
+              <div key={pg.id} className={`bg-white rounded-3xl border-2 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-start gap-4 sm:gap-5 transition-all ${pg.ativo ? "border-gray-100" : "border-gray-100 opacity-50 bg-gray-50"}`}>
+                <div className="flex items-start gap-4 flex-1">
+                  <span className="text-3xl sm:text-5xl shrink-0">{pg.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-black text-gray-900 text-lg sm:text-2xl">{pg.label}</p>
+                      {pg.troco && <span className="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">💵 Admite Troco</span>}
+                    </div>
+                    <p className="text-gray-500 font-semibold text-sm sm:text-base mt-1">{pg.descricao}</p>
                   </div>
-                  <p className="text-gray-500 font-semibold text-base mt-1">{pg.descricao}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-2 shrink-0">
                   <button
                     onClick={() => {
                       const novos = pagamentosConfig.map(p => p.id === pg.id ? { ...p, ativo: !p.ativo } : p);
                       salvarMetodosPagamento(novos);
                     }}
                     disabled={salvandoPg}
-                    className={`px-4 py-2 rounded-2xl font-black text-base transition-all ${pg.ativo ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-500 hover:bg-red-100"}`}
-                    style={{ minHeight: "44px" }}
+                    className={`px-4 py-2 rounded-2xl font-black text-sm sm:text-base transition-all ${pg.ativo ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-50 text-red-500 hover:bg-red-100"}`}
+                    style={{ minHeight: "42px" }}
                   >
                     {pg.ativo ? "✅ Ativo" : "❌ Inativo"}
                   </button>
@@ -609,8 +617,8 @@ export default function ProdutosPage() {
                         }
                       }}
                       disabled={salvandoPg}
-                      className="px-4 py-2 rounded-2xl font-black text-base bg-red-50 text-red-500 hover:bg-red-100 transition-all"
-                      style={{ minHeight: "44px" }}
+                      className="px-4 py-2 rounded-2xl font-black text-sm sm:text-base bg-red-50 text-red-500 hover:bg-red-100 transition-all"
+                      style={{ minHeight: "42px" }}
                     >
                       🗑️ Excluir
                     </button>
@@ -624,25 +632,33 @@ export default function ProdutosPage() {
 
       {/* MODAL: PRODUTO */}
       {modalProduto && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in duration-200 scrollbar-thin">
-            <h3 className="text-3xl font-black text-[#1D3461] mb-6">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in duration-200 scrollbar-thin">
+            <h3 className="text-2xl sm:text-3xl font-black text-[#1D3461] mb-4 sticky top-0 bg-white pb-2 z-10">
               {produtoEditando ? "✏️ Editar Produto" : "➕ Novo Produto"}
             </h3>
+
+            {error && (
+              <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl mb-4 font-bold text-sm flex items-start gap-2 animate-in fade-in duration-150">
+                <span className="shrink-0">⚠️</span>
+                <span>{error}</span>
+              </div>
+            )}
+
             <form onSubmit={salvarProduto} className="space-y-4">
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Nome do Produto *</label>
+                <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">Nome do Produto *</label>
                 <input
                   type="text"
                   required
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
                   placeholder="Ex: Heineken 600ml"
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
               </div>
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Preço (R$) *</label>
+                <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">Preço (R$) *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -651,7 +667,7 @@ export default function ProdutosPage() {
                   value={preco}
                   onChange={(e) => setPreco(e.target.value)}
                   placeholder="0,00"
-                  className={`w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold ${
+                  className={`w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold ${
                     isSupport && !!produtoEditando 
                       ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
                       : 'text-gray-900 focus:outline-none focus:border-[#1D3461]'
@@ -664,8 +680,8 @@ export default function ProdutosPage() {
                 )}
               </div>
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block font-black text-gray-700 text-base">Grupo/Categoria *</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block font-black text-gray-700 text-sm sm:text-base">Grupo/Categoria *</label>
                   {(!mostrarNovoGrupoInput && grupo !== "Outros" && grupo) && (
                     <button type="button" onClick={() => excluirGrupo(grupo)} className="text-red-500 text-xs font-bold hover:underline bg-red-50 px-2 py-1 rounded-md transition-colors hover:bg-red-100">
                       Excluir "{grupo}"
@@ -682,8 +698,8 @@ export default function ProdutosPage() {
                       setGrupo(e.target.value);
                     }
                   }}
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
-                  style={{ minHeight: "52px" }}
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white"
+                  style={{ minHeight: "48px" }}
                 >
                   {grupos.map((g) => (
                     <option key={g} value={g}>{g}</option>
@@ -698,13 +714,13 @@ export default function ProdutosPage() {
                     value={novoGrupo}
                     onChange={(e) => setNovoGrupo(e.target.value)}
                     placeholder="Nome do novo grupo (ex: Doses)"
-                    className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461] mt-3"
+                    className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461] mt-3"
                   />
                 )}
               </div>
 
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Ícone (Emoji) *</label>
+                <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">Ícone (Emoji) *</label>
                 <div className="flex flex-wrap gap-2 mb-3 bg-gray-50 p-3 rounded-2xl border border-gray-100">
                   {["🍺", "🍹", "🥤", "🍔", "🍕", "🍟", "🍿", "🍦", "🍰", "📦", "🎫", "👕"].map((emojiItem) => (
                     <button
@@ -725,24 +741,24 @@ export default function ProdutosPage() {
                   value={imagem}
                   onChange={(e) => setImagem(e.target.value)}
                   placeholder="Ou digite outro emoji/ícone..."
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
               </div>
 
               {/* Observação */}
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Observação <span className="font-normal text-gray-400">(opcional)</span></label>
+                <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">Observação <span className="font-normal text-gray-400">(opcional)</span></label>
                 <input
                   type="text"
                   value={observacao}
                   onChange={(e) => setObservacao(e.target.value)}
                   placeholder="Ex: Serve 2 pessoas, disponível até meia-noite..."
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-base font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-sm sm:text-base font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
               </div>
 
               {/* Preço Variável */}
-              <div className="flex items-center justify-between bg-amber-50 border-2 border-amber-200 rounded-2xl px-5 py-4">
+              <div className="flex items-center justify-between bg-amber-50 border-2 border-amber-200 rounded-2xl px-4 sm:px-5 py-3.5">
                 <div>
                   <p className="font-black text-gray-800 text-sm">💲 Preço Variável</p>
                   <p className="text-xs text-gray-500 mt-0.5">Operador digita o valor na hora da venda</p>
@@ -750,17 +766,24 @@ export default function ProdutosPage() {
                 <button
                   type="button"
                   onClick={() => setPrecoVariavel(!precoVariavel)}
-                  className={`relative w-14 h-7 rounded-full transition-colors ${precoVariavel ? 'bg-amber-500' : 'bg-gray-300'}`}
+                  className={`relative w-14 h-7 rounded-full transition-colors shrink-0 ${precoVariavel ? 'bg-amber-500' : 'bg-gray-300'}`}
                 >
                   <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${precoVariavel ? 'translate-x-7' : 'translate-x-0'}`} />
                 </button>
               </div>
 
-              <div className="flex gap-3 mt-8 pt-4">
-                <button type="button" onClick={() => setModalProduto(false)} className="flex-1 bg-gray-100 text-gray-700 font-black text-base py-4 rounded-2xl" style={{ minHeight: "52px" }}>
+              {error && (
+                <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl font-bold text-sm flex items-start gap-2">
+                  <span className="shrink-0">⚠️</span>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3 mt-6 pt-2">
+                <button type="button" onClick={() => { setError(""); setModalProduto(false); }} className="flex-1 bg-gray-100 text-gray-700 font-black text-base py-3.5 rounded-2xl">
                   Cancelar
                 </button>
-                <button type="submit" disabled={salvando} className="flex-1 bg-[#1D3461] text-white font-black text-base py-4 rounded-2xl disabled:opacity-40" style={{ minHeight: "52px" }}>
+                <button type="submit" disabled={salvando} className="flex-1 bg-[#1D3461] text-white font-black text-base py-3.5 rounded-2xl disabled:opacity-40">
                   {salvando ? "Salvando..." : "✅ Salvar"}
                 </button>
               </div>
@@ -770,9 +793,9 @@ export default function ProdutosPage() {
       )}
       {/* MODAL: PAGAMENTO */}
       {modalPagamento && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in duration-200 scrollbar-thin">
-            <h3 className="text-3xl font-black text-[#1D3461] mb-6">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 sm:p-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in duration-200 scrollbar-thin">
+            <h3 className="text-2xl sm:text-3xl font-black text-[#1D3461] mb-4">
               ➕ Novo Método de Pagamento
             </h3>
             <form onSubmit={(e) => {
@@ -787,28 +810,28 @@ export default function ProdutosPage() {
               setModalPagamento(false);
             }} className="space-y-4">
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Nome do Método *</label>
+                <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">Nome do Método *</label>
                 <input
                   type="text"
                   required
                   value={pgLabel}
                   onChange={(e) => setPgLabel(e.target.value)}
                   placeholder="Ex: PicPay, Vale Refeição"
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-black text-gray-700 text-base mb-2">Emoji/Ícone</label>
+                  <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">Emoji/Ícone</label>
                   <input
                     type="text"
                     value={pgEmoji}
                     onChange={(e) => setPgEmoji(e.target.value)}
                     placeholder="Ex: 💵, 📱, 🟢"
-                    className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                    className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base sm:text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                   />
                 </div>
-                <div className="flex items-center justify-center pt-8">
+                <div className="flex items-center justify-center pt-6">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
@@ -816,27 +839,27 @@ export default function ProdutosPage() {
                       onChange={(e) => setPgTroco(e.target.checked)}
                       className="w-5 h-5 rounded border-gray-300 text-[#1D3461] focus:ring-[#1D3461]"
                     />
-                    <span className="font-bold text-gray-700 text-base">Admite Troco</span>
+                    <span className="font-bold text-gray-700 text-sm sm:text-base">Admite Troco</span>
                   </label>
                 </div>
               </div>
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Descrição *</label>
+                <label className="block font-black text-gray-700 text-sm sm:text-base mb-1.5">Descrição *</label>
                 <textarea
                   required
                   value={pgDesc}
                   onChange={(e) => setPgDesc(e.target.value)}
                   placeholder="Instruções para o operador de caixa..."
                   rows={3}
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  className="w-full border-2 border-gray-200 rounded-2xl px-4 sm:px-5 py-3 text-base font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
               </div>
 
-              <div className="flex gap-3 mt-8 pt-4">
-                <button type="button" onClick={() => setModalPagamento(false)} className="flex-1 bg-gray-100 text-gray-700 font-black text-base py-4 rounded-2xl" style={{ minHeight: "52px" }}>
+              <div className="flex gap-3 mt-6 pt-2">
+                <button type="button" onClick={() => setModalPagamento(false)} className="flex-1 bg-gray-100 text-gray-700 font-black text-base py-3.5 rounded-2xl">
                   Cancelar
                 </button>
-                <button type="submit" disabled={salvandoPg} className="flex-1 bg-[#1D3461] text-white font-black text-base py-4 rounded-2xl disabled:opacity-40" style={{ minHeight: "52px" }}>
+                <button type="submit" disabled={salvandoPg} className="flex-1 bg-[#1D3461] text-white font-black text-base py-3.5 rounded-2xl disabled:opacity-40">
                   {salvandoPg ? "Salvando..." : "✅ Adicionar"}
                 </button>
               </div>
@@ -848,13 +871,20 @@ export default function ProdutosPage() {
       {/* MODAL: IMPORTAÇÃO PLANILHA */}
       {modalImportar && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl animate-in fade-in duration-200">
-            <h3 className="text-3xl font-black text-[#1D3461] mb-2 flex items-center gap-2">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl animate-in fade-in duration-200">
+            <h3 className="text-2xl sm:text-3xl font-black text-[#1D3461] mb-2 flex items-center gap-2">
               <span>📋</span> Confirmar Importação de Produtos
             </h3>
-            <p className="text-gray-500 font-semibold mb-6">
+            <p className="text-gray-500 font-semibold mb-4 text-sm sm:text-base">
               Encontramos {produtosParaImportar.length} produtos válidos na sua planilha. Deseja importá-los para este evento?
             </p>
+
+            {error && (
+              <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl mb-4 font-bold text-sm flex items-start gap-2">
+                <span className="shrink-0">⚠️</span>
+                <span>{error}</span>
+              </div>
+            )}
 
             <div className="border-2 border-gray-100 rounded-2xl overflow-hidden mb-6 max-h-60 overflow-y-auto">
               <table className="w-full text-left border-collapse">
@@ -883,12 +913,12 @@ export default function ProdutosPage() {
               <button
                 type="button"
                 onClick={() => {
+                  setError("");
                   setModalImportar(false);
                   setProdutosParaImportar([]);
                 }}
                 disabled={importando}
                 className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-black px-6 py-3 rounded-2xl transition-all"
-                style={{ minHeight: "52px" }}
               >
                 Cancelar
               </button>
@@ -896,7 +926,6 @@ export default function ProdutosPage() {
                 onClick={confirmarImportacao}
                 disabled={importando}
                 className="bg-[#1D3461] hover:bg-blue-900 text-white font-black px-6 py-3 rounded-2xl transition-all disabled:opacity-50"
-                style={{ minHeight: "52px" }}
               >
                 {importando ? "Importando..." : "✅ Confirmar e Importar"}
               </button>

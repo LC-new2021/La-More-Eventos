@@ -7,7 +7,9 @@ export async function PATCH(req) {
   try {
     const session = await getServerSession(authOptions);
     const role = session?.user?.role;
-    if (!session || (role !== 'ORG' && role !== 'ORGANIZADOR' && role !== 'MASTER')) {
+    const allowedRoles = ['MASTER', 'ORGANIZADOR', 'ORG', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'];
+
+    if (!session || !role || !allowedRoles.includes(role)) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
 
@@ -17,9 +19,9 @@ export async function PATCH(req) {
       return NextResponse.json({ error: 'eventoId e status são obrigatórios' }, { status: 400 });
     }
 
-    // Segurança: se for ORG/ORGANIZADOR, verificar se ele tem acesso a esse evento
-    if (role === 'ORG' || role === 'ORGANIZADOR') {
-      if (session.user.eventoId !== eventoId) {
+    // Segurança: se não for MASTER, verificar se ele tem acesso a esse evento
+    if (role !== 'MASTER') {
+      if (session.user.eventoId && session.user.eventoId !== eventoId) {
         return NextResponse.json({ error: 'Acesso negado a este evento' }, { status: 403 });
       }
     }
