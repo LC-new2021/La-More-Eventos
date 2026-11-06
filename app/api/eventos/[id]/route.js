@@ -3,6 +3,23 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+const DEFAULT_TEXTO_AVISO_SALDO = 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.';
+
+function extractAvisoSaldo(evento) {
+  let exibirAvisoSaldo = true;
+  let textoAvisoSaldo = DEFAULT_TEXTO_AVISO_SALDO;
+  if (evento?.pagbankKey) {
+    try {
+      const parsed = JSON.parse(evento.pagbankKey);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.exibirAvisoSaldo !== undefined) exibirAvisoSaldo = Boolean(parsed.exibirAvisoSaldo);
+        if (typeof parsed.textoAvisoSaldo === 'string') textoAvisoSaldo = parsed.textoAvisoSaldo;
+      }
+    } catch {}
+  }
+  return { exibirAvisoSaldo, textoAvisoSaldo };
+}
+
 function parseEventDate(dateStr) {
   if (!dateStr) return new Date();
   const str = String(dateStr).trim();
@@ -25,9 +42,11 @@ export async function GET(req, { params }) {
 
     // Se o usuário logado for MASTER ou ORGANIZADOR, envia os tokens confidenciais
     const isAuthorized = session && ['MASTER', 'ORGANIZADOR'].includes(session.user.role);
+    const aviso = extractAvisoSaldo(evento);
 
     const safeResponse = {
       ...evento,
+      ...aviso,
       gatewayActive: evento.gatewayActive || "NENHUM"
     };
 
@@ -95,8 +114,12 @@ export async function PATCH(req, { params }) {
       if (body.mercadoPagoUserId !== undefined) updateData.mercadoPagoUserId = body.mercadoPagoUserId;
       if (body.permiteDevolucao !== undefined) updateData.permiteDevolucao = body.permiteDevolucao;
       if (body.permitirEdicaoGateway !== undefined) updateData.permitirEdicaoGateway = body.permitirEdicaoGateway;
-      if (body.exibirAvisoSaldo !== undefined) updateData.exibirAvisoSaldo = Boolean(body.exibirAvisoSaldo);
-      if (body.textoAvisoSaldo !== undefined) updateData.textoAvisoSaldo = body.textoAvisoSaldo;
+      if (body.exibirAvisoSaldo !== undefined || body.textoAvisoSaldo !== undefined) {
+        updateData.pagbankKey = JSON.stringify({
+          exibirAvisoSaldo: body.exibirAvisoSaldo !== undefined ? Boolean(body.exibirAvisoSaldo) : true,
+          textoAvisoSaldo: body.textoAvisoSaldo !== undefined ? body.textoAvisoSaldo : DEFAULT_TEXTO_AVISO_SALDO,
+        });
+      }
       if (body.modoOperacao !== undefined) updateData.modoOperacao = body.modoOperacao;
     }
 
@@ -104,7 +127,7 @@ export async function PATCH(req, { params }) {
       where: { id },
       data: updateData,
     });
-    return NextResponse.json(evento);
+    return NextResponse.json({ ...evento, ...extractAvisoSaldo(evento) });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

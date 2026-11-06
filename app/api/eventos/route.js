@@ -3,6 +3,23 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+const DEFAULT_TEXTO_AVISO_SALDO = 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.';
+
+function extractAvisoSaldo(evento) {
+  let exibirAvisoSaldo = true;
+  let textoAvisoSaldo = DEFAULT_TEXTO_AVISO_SALDO;
+  if (evento?.pagbankKey) {
+    try {
+      const parsed = JSON.parse(evento.pagbankKey);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.exibirAvisoSaldo !== undefined) exibirAvisoSaldo = Boolean(parsed.exibirAvisoSaldo);
+        if (typeof parsed.textoAvisoSaldo === 'string') textoAvisoSaldo = parsed.textoAvisoSaldo;
+      }
+    } catch {}
+  }
+  return { exibirAvisoSaldo, textoAvisoSaldo };
+}
+
 function parseEventDate(dateStr) {
   if (!dateStr) return new Date();
   const str = String(dateStr).trim();
@@ -26,7 +43,8 @@ export async function GET() {
     const isAuthorized = session && ['MASTER', 'ORGANIZADOR'].includes(session.user.role);
 
     const safeEventos = eventos.map(evento => {
-      const safe = { ...evento };
+      const aviso = extractAvisoSaldo(evento);
+      const safe = { ...evento, ...aviso };
       if (!isAuthorized) {
         delete safe.asaasToken;
         delete safe.asaasUrl;
@@ -51,6 +69,10 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
     const body = await req.json();
+    const avisoConfig = {
+      exibirAvisoSaldo: body.exibirAvisoSaldo !== undefined ? Boolean(body.exibirAvisoSaldo) : true,
+      textoAvisoSaldo: body.textoAvisoSaldo !== undefined ? body.textoAvisoSaldo : DEFAULT_TEXTO_AVISO_SALDO,
+    };
     const evento = await prisma.evento.create({
       data: {
         nome: body.nome,
@@ -68,12 +90,11 @@ export async function POST(req) {
         mercadoPagoAccessToken: body.mercadoPagoAccessToken || null,
         permiteDevolucao: body.permiteDevolucao || false,
         permitirEdicaoGateway: body.permitirEdicaoGateway || false,
-        exibirAvisoSaldo: body.exibirAvisoSaldo !== undefined ? Boolean(body.exibirAvisoSaldo) : true,
-        textoAvisoSaldo: body.textoAvisoSaldo !== undefined ? body.textoAvisoSaldo : 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.',
+        pagbankKey: JSON.stringify(avisoConfig),
         bilheteriaEventoId: body.bilheteriaEventoId || null,
       },
     });
-    return NextResponse.json(evento, { status: 201 });
+    return NextResponse.json({ ...evento, ...avisoConfig }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

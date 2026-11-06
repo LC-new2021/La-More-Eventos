@@ -13,11 +13,16 @@ export default function LoginPage() {
     setErro("");
     setCarregando(true);
 
-    const res = await signIn("credentials", {
-      email,
-      password: senha,
-      redirect: false,
-    });
+    let res = null;
+    try {
+      res = await signIn("credentials", {
+        email,
+        password: senha,
+        redirect: false,
+      });
+    } catch (err) {
+      console.error("Erro no signIn:", err);
+    }
 
     if (res?.error) {
       setErro("Email ou senha incorretos.");
@@ -30,21 +35,27 @@ export default function LoginPage() {
 
     // Busca a sessão e redireciona diretamente no domínio atual
     try {
-      const sessaoRes = await fetch("/api/auth/session");
+      const sessaoRes = await fetch("/api/auth/session", { cache: "no-store" });
       const sessao = sessaoRes.ok ? await sessaoRes.json() : null;
       const role = sessao?.user?.role;
 
+      if (!role) {
+        setErro("Email ou senha incorretos.");
+        setCarregando(false);
+        return;
+      }
+
       if (role === "MASTER") {
-        window.location.replace("/master");
+        window.location.href = "/master";
       } else if (role === "CAIXA" || role === "CAIXA_VOLANTE" || role === "TESOURARIA") {
-        window.location.replace("/pos");
+        window.location.href = "/pos";
       } else if (role === "OPERADOR_BAR") {
-        window.location.replace("/bar");
+        window.location.href = "/bar";
       } else {
-        window.location.replace("/org");
+        window.location.href = "/org";
       }
     } catch {
-      window.location.replace("/org");
+      window.location.href = "/org";
     }
   }
 

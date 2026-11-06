@@ -61,8 +61,6 @@ model Evento {
   cidadePix               String?  @default("BRASILIA")
   permiteDevolucao        Boolean  @default(false)
   permitirEdicaoGateway   Boolean  @default(false)
-  exibirAvisoSaldo        Boolean  @default(true)
-  textoAvisoSaldo         String?  @default("Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.")
   modoOperacao            String   @default("INTEGRADO")
   cartoes       Cartao[]
   produtos      Produto[]

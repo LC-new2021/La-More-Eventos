@@ -3,6 +3,23 @@ import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+const DEFAULT_TEXTO_AVISO_SALDO = 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.';
+
+function extractAvisoSaldo(evento) {
+  let exibirAvisoSaldo = true;
+  let textoAvisoSaldo = DEFAULT_TEXTO_AVISO_SALDO;
+  if (evento?.pagbankKey) {
+    try {
+      const parsed = JSON.parse(evento.pagbankKey);
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.exibirAvisoSaldo !== undefined) exibirAvisoSaldo = Boolean(parsed.exibirAvisoSaldo);
+        if (typeof parsed.textoAvisoSaldo === 'string') textoAvisoSaldo = parsed.textoAvisoSaldo;
+      }
+    } catch {}
+  }
+  return { exibirAvisoSaldo, textoAvisoSaldo };
+}
+
 const EVENTO_SELECT = {
   id: true,
   nome: true,
@@ -12,8 +29,7 @@ const EVENTO_SELECT = {
   mercadoPagoPublicKey: true,
   modoOperacao: true,
   permiteDevolucao: true,
-  exibirAvisoSaldo: true,
-  textoAvisoSaldo: true,
+  pagbankKey: true,
 };
 
 export async function GET(req, { params }) {
@@ -240,6 +256,16 @@ export async function GET(req, { params }) {
     }
 
     if (!cartao) return NextResponse.json({ error: 'Cartão não encontrado' }, { status: 404 });
+
+    // Aplica configuração de aviso de saldo salva no evento
+    if (cartao.evento) {
+      const aviso = extractAvisoSaldo(cartao.evento);
+      cartao.evento = {
+        ...cartao.evento,
+        ...aviso,
+      };
+      delete cartao.evento.pagbankKey;
+    }
 
     // 4. Tecnologia de Identificação de Cartões Ativos do mesmo Cliente (saldos 100% independentes por festa)
     let cartoesAtivosCliente = [];
