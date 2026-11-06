@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-const DEFAULT_TEXTO_AVISO_SALDO = 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.';
+const DEFAULT_TEXTO_AVISO_SALDO = 'O saldo não será devolvido, o mesmo deverá ser consumido até o final da festa ou ficará para doação.';
 
 function extractAvisoSaldo(evento) {
   let exibirAvisoSaldo = true;

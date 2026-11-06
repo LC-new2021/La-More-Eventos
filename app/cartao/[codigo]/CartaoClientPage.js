@@ -631,7 +631,10 @@ export default function CartaoClientPage() {
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=2&data=${encodeURIComponent(cardUrl)}`;
   const qrCodeLargeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=2&data=${encodeURIComponent(cardUrl)}`;
   const exibirAvisoSaldo = cartao?.evento?.exibirAvisoSaldo !== false;
-  const textoAvisoSaldo = (cartao?.evento?.textoAvisoSaldo || '').trim() || 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.';
+  const rawTextoAviso = (cartao?.evento?.textoAvisoSaldo || '').trim();
+  const textoAvisoSaldo = (!rawTextoAviso || rawTextoAviso.includes('utilizado durante todos os dias da festa'))
+    ? 'O saldo não será devolvido, o mesmo deverá ser consumido até o final da festa ou ficará para doação.'
+    : rawTextoAviso;
   const outrosCartoesAtivos = (cartao?.cartoesAtivosCliente || []).filter(c => c.codigo !== cartao.codigo);
 
   return (
@@ -678,7 +681,7 @@ export default function CartaoClientPage() {
         {/* AVISO NO TOPO SOBRE REGRA DE USO DO SALDO */}
         {exibirAvisoSaldo && (
           <div className="bg-white/5 border border-white/10 text-blue-200/90 rounded-2xl py-2.5 px-4 mb-3 text-center text-xs font-semibold leading-relaxed">
-            ℹ️ {textoAvisoSaldo}
+            ℹ️ Não há devolução de saldo ao final da festa, porém o saldo positivo deve ser utilizado durante todos os dias da festa.
           </div>
         )}
         {false && !cartao.evento.permiteDevolucao && (
@@ -724,9 +727,9 @@ export default function CartaoClientPage() {
             />
           </div>
           {false ? (
-            <div className="absolute right-[25%] bottom-[-15%] text-[14rem] opacity-5 select-none pointer-events-none font-bold italic rotate-[-12deg]">⚓</div>
+            <div className="hidden"></div>
           ) : (
-            <div className="absolute right-[25%] bottom-[-15%] text-[14rem] opacity-5 select-none pointer-events-none font-bold italic rotate-[-12deg]">🎫</div>
+            <div className="hidden"></div>
           )}
 
           {/* Top: Chip (left) and Brand Header (right) */}
@@ -1069,12 +1072,12 @@ export default function CartaoClientPage() {
           </p>
         )}
         {false ? (
-          <p className="text-[11px] text-blue-200/60 font-bold leading-normal">
-            * Em caso de saldo não consumido, não haverá devolução e o valor restante será doado.
+          <p className="hidden">
+            {null}
           </p>
         ) : (
-          <p className="text-[11px] text-blue-200/60 font-bold leading-normal">
-            * Este evento permite reembolso. Solicite a devolução do seu saldo na opção acima antes de sair do local.
+          <p className="hidden">
+            {null}
           </p>
         )}
         <p className="text-[10px] text-blue-300/40 mt-1">

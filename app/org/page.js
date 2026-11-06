@@ -118,7 +118,7 @@ export default function OrgDashboard() {
             <p className="text-gray-500 text-sm font-semibold">
               {carregando ? "Carregando..." : <span className="text-green-600 font-black">● AO VIVO</span>}
             </p>
-            {eventoId && (
+            {session?.user?.role === 'MASTER' && eventoId && (
               <span className="text-xs bg-gray-100 border border-gray-200 text-gray-700 font-mono px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 shadow-sm">
                 ID: <strong>{eventoId}</strong>
                 <button
@@ -141,7 +141,7 @@ export default function OrgDashboard() {
             type="button"
             onClick={sincronizarBilheteria}
             disabled={sincronizando}
-            className="w-full sm:w-auto bg-[#ff5500] hover:bg-[#e04b00] text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className={`w-full sm:w-auto bg-[#ff5500] hover:bg-[#e04b00] text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-md items-center justify-center gap-2 cursor-pointer disabled:opacity-50 ${session?.user?.role === 'MASTER' ? 'flex' : 'hidden'}`}
           >
             {sincronizando ? (
               <>
@@ -168,7 +168,7 @@ export default function OrgDashboard() {
         </div>
       </div>
 
-      {msgSincronizacao && (
+      {session?.user?.role === 'MASTER' && msgSincronizacao && (
         <div className={`mb-6 p-4 rounded-2xl text-sm font-bold animate-in fade-in duration-200 flex items-center justify-between ${
           msgSincronizacao.tipo === 'sucesso' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
         }`}>
@@ -177,7 +177,7 @@ export default function OrgDashboard() {
         </div>
       )}
       {/* CARD DE IDENTIFICAÇÃO E INTEGRAÇÃO DO EVENTO */}
-      {eventoId && (
+      {session?.user?.role === 'MASTER' && eventoId && (
         <div className="mb-6 p-4.5 rounded-3xl bg-white border-2 border-orange-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-orange-100 text-[#ff5500] flex items-center justify-center text-xl font-black shrink-0 border border-orange-200">

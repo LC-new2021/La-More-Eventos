@@ -15,7 +15,7 @@ export default function MasterEventos() {
   const [permiteDevolucao, setPermiteDevolucao] = useState(false);
   const [permitirEdicaoGateway, setPermitirEdicaoGateway] = useState(false);
   const [exibirAvisoSaldo, setExibirAvisoSaldo] = useState(true);
-  const [textoAvisoSaldo, setTextoAvisoSaldo] = useState('Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.');
+  const [textoAvisoSaldo, setTextoAvisoSaldo] = useState('O saldo não será devolvido, o mesmo deverá ser consumido até o final da festa ou ficará para doação.');
   const [gatewayActive, setGatewayActive] = useState('PIX_DIRETO');
   const [chavePix, setChavePix] = useState('');
   const [tipoChavePix, setTipoChavePix] = useState('CPF');
@@ -87,7 +87,7 @@ export default function MasterEventos() {
     setPermiteDevolucao(false);
     setPermitirEdicaoGateway(false);
     setExibirAvisoSaldo(true);
-    setTextoAvisoSaldo('Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.');
+    setTextoAvisoSaldo('O saldo não será devolvido, o mesmo deverá ser consumido até o final da festa ou ficará para doação.');
     setGatewayActive('PIX_DIRETO');
     setChavePix('');
     setTipoChavePix('CPF');
@@ -110,7 +110,7 @@ export default function MasterEventos() {
     setPermiteDevolucao(evt.permiteDevolucao || false);
     setPermitirEdicaoGateway(evt.permitirEdicaoGateway || false);
     setExibirAvisoSaldo(evt.exibirAvisoSaldo !== undefined ? evt.exibirAvisoSaldo : true);
-    setTextoAvisoSaldo(evt.textoAvisoSaldo || 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.');
+    setTextoAvisoSaldo(evt.textoAvisoSaldo || 'O saldo não será devolvido, o mesmo deverá ser consumido até o final da festa ou ficará para doação.');
     setGatewayActive(evt.gatewayActive || (evt.chavePix ? 'PIX_DIRETO' : 'PIX_DIRETO'));
     setChavePix(evt.chavePix || '');
     setTipoChavePix(evt.tipoChavePix || 'CPF');
@@ -605,7 +605,7 @@ export default function MasterEventos() {
                         rows={3}
                         value={textoAvisoSaldo}
                         onChange={(e) => setTextoAvisoSaldo(e.target.value)}
-                        placeholder="Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa."
+                        placeholder="O saldo não será devolvido, o mesmo deverá ser consumido até o final da festa ou ficará para doação."
                         className="w-full bg-white border-2 border-gray-200 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2 text-xs font-semibold text-gray-900"
                       />
                     </div>
