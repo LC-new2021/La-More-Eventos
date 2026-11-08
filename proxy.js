@@ -3,44 +3,26 @@ import { getToken } from 'next-auth/jwt';
 import { NextResponse } from 'next/server';
 
 export default async function proxy(req) {
-  const secret = process.env.NEXTAUTH_SECRET || 'lamore-eventos-secret-dev';
-  let token = await getToken({ req, secret });
-  if (!token) {
-    token = await getToken({ req, secret, secureCookie: true });
-  }
-  if (!token) {
-    token = await getToken({ req, secret, secureCookie: false });
-  }
-
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET || "lamore-eventos-secret-dev" });
   const { pathname } = req.nextUrl;
 
-  if (
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/cartao') ||
-    pathname.startsWith('/e/')
-  ) {
+  if (pathname.startsWith('/login') || pathname.startsWith('/api/auth') || pathname.startsWith('/cartao')) {
     return NextResponse.next();
   }
 
   if (!token) return NextResponse.redirect(new URL('/login', req.url));
 
-  const role = token.role;
-  const isSupport = ['SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(role);
+  const isSupport = ['SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(token.role);
 
-  if (pathname.startsWith('/master') && role !== 'MASTER')
+  if (pathname.startsWith('/master') && token.role !== 'MASTER')
     return NextResponse.redirect(new URL('/acessos', req.url));
-
-  if ((pathname.startsWith('/org/relatorios') || pathname.startsWith('/org/configuracoes')) && isSupport)
+  if (pathname.startsWith('/org') && !['MASTER', 'ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(token.role))
+    return NextResponse.redirect(new URL('/acessos', req.url));
+  if (isSupport && (pathname.startsWith('/org/relatorios') || pathname.startsWith('/org/configuracoes')))
     return NextResponse.redirect(new URL('/org', req.url));
-
-  if (pathname.startsWith('/org') && !['MASTER', 'ORGANIZADOR', 'ORG', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(role))
+  if (pathname.startsWith('/pos') && !['MASTER', 'ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE', 'CAIXA', 'TESOURARIA'].includes(token.role))
     return NextResponse.redirect(new URL('/acessos', req.url));
-
-  if (pathname.startsWith('/pos') && !['MASTER', 'CAIXA', 'CAIXA_VOLANTE', 'TESOURARIA', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(role))
-    return NextResponse.redirect(new URL('/acessos', req.url));
-
-  if (pathname.startsWith('/bar') && !['MASTER', 'OPERADOR_BAR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(role))
+  if (pathname.startsWith('/bar') && !['MASTER', 'ORGANIZADOR', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE', 'OPERADOR_BAR'].includes(token.role))
     return NextResponse.redirect(new URL('/acessos', req.url));
 
   return NextResponse.next();

@@ -11,14 +11,15 @@ export default function ConfiguracoesPage() {
   const [sucesso, setSucesso] = useState('');
   
   const [config, setConfig] = useState({
-    gatewayActive: 'ASAAS',
+    gatewayActive: 'NENHUM',
     asaasToken: '',
     asaasUrl: 'https://api.asaas.com',
     mercadoPagoPublicKey: '',
     mercadoPagoAccessToken: '',
     pagbankToken: '',
     stoneToken: '',
-    permiteDevolucao: false
+    permiteDevolucao: false,
+    permitirEdicaoGateway: false
   });
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function ConfiguracoesPage() {
       
       if (data.evento) {
         setConfig({
-          gatewayActive: data.evento.gatewayActive || 'ASAAS',
+          gatewayActive: data.evento.gatewayActive || 'NENHUM',
           asaasToken: data.evento.asaasToken || '',
           asaasUrl: data.evento.asaasUrl || 'https://api.asaas.com',
           mercadoPagoPublicKey: data.evento.mercadoPagoPublicKey || '',
@@ -59,6 +60,8 @@ export default function ConfiguracoesPage() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!window.confirm("Você quer realmente salvar estas configurações de pagamento do evento?")) return;
+
     setSalvando(true);
     setErro('');
     setSucesso('');
@@ -110,7 +113,7 @@ export default function ConfiguracoesPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Configurações Financeiras</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Vincule sua conta do Asaas ou Mercado Pago para receber o valor das recargas e vendas diretamente na sua conta.
+          Vincule sua conta do Asaas ou Mercado Pago para receber o valor das recargas e vendas diretamente na sua conta, ou marque "Nenhum" para modo gerencial.
         </p>
       </div>
 
@@ -142,7 +145,20 @@ export default function ConfiguracoesPage() {
           <h2 className="text-lg font-medium text-gray-900 mb-4">Gateway de Pagamento Principal</h2>
           
           <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-            <label className="flex items-center">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="radio"
+                name="gatewayActive"
+                value="NENHUM"
+                checked={config.gatewayActive === 'NENHUM'}
+                onChange={handleChange}
+                disabled={!config.permitirEdicaoGateway}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 disabled:opacity-50"
+              />
+              <span className="ml-2 text-sm text-gray-700 font-medium">🚫 Nenhum (Gerencial)</span>
+            </label>
+
+            <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
                 name="gatewayActive"
@@ -155,7 +171,7 @@ export default function ConfiguracoesPage() {
               <span className="ml-2 text-sm text-gray-700 font-medium">Asaas</span>
             </label>
             
-            <label className="flex items-center">
+            <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
                 name="gatewayActive"
@@ -168,7 +184,7 @@ export default function ConfiguracoesPage() {
               <span className="ml-2 text-sm text-gray-700 font-medium">Mercado Pago</span>
             </label>
 
-            <label className="flex items-center">
+            <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
                 name="gatewayActive"
@@ -181,7 +197,7 @@ export default function ConfiguracoesPage() {
               <span className="ml-2 text-sm text-gray-700 font-medium">PagBank</span>
             </label>
 
-            <label className="flex items-center">
+            <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
                 name="gatewayActive"
@@ -195,6 +211,12 @@ export default function ConfiguracoesPage() {
             </label>
           </div>
           
+          {config.gatewayActive === 'NENHUM' && (
+            <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600">
+              💡 <strong>Modo sem Gateway Ativo:</strong> Nenhuma chave de gateway de pagamento é exigida. Ideal para eventos em modo gerencial.
+            </div>
+          )}
+
           {!config.permitirEdicaoGateway && (
             <p className="text-xs text-gray-500 mt-4 font-semibold">
               ⚠️ Para alterar o gateway de pagamento ou suas credenciais, contate o administrador Master do sistema.

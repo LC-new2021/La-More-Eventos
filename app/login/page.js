@@ -1,14 +1,16 @@
 "use client";
+
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [verSenha, setVerSenha] = useState(false);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
 
-  async function handleLogin(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setErro("");
     setCarregando(true);
@@ -54,8 +56,8 @@ export default function LoginPage() {
       } else {
         window.location.href = "/org";
       }
-    } catch {
-      window.location.href = "/org";
+    } catch (e) {
+      window.location.href = "/login";
     }
   }
 
@@ -72,9 +74,9 @@ export default function LoginPage() {
         </div>
 
         {/* Formulário */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-blue-200 font-bold text-sm uppercase tracking-widest block mb-2">
+            <label className="block text-blue-200 text-sm font-bold mb-2">
               Email
             </label>
             <input
@@ -88,17 +90,27 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="text-blue-200 font-bold text-sm uppercase tracking-widest block mb-2">
+            <label className="block text-blue-200 text-sm font-bold mb-2">
               Senha
             </label>
-            <input
-              type="password"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300/50 rounded-2xl px-5 py-4 text-base sm:text-lg font-semibold focus:outline-none focus:border-white transition-all"
-            />
+            <div className="relative">
+              <input
+                type={verSenha ? "text" : "password"}
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="w-full bg-white/10 border-2 border-white/20 text-white placeholder-blue-300/50 rounded-2xl pl-5 pr-12 py-4 text-base sm:text-lg font-semibold focus:outline-none focus:border-white transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setVerSenha(!verSenha)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-xl text-blue-200 hover:text-white transition-colors cursor-pointer select-none"
+                title={verSenha ? "Ocultar senha" : "Ver senha"}
+              >
+                {verSenha ? "🙈" : "🔍"}
+              </button>
+            </div>
           </div>
 
           {erro && (
@@ -116,10 +128,6 @@ export default function LoginPage() {
             {carregando ? "Entrando..." : "Entrar →"}
           </button>
         </form>
-
-        <p className="text-center text-blue-400 text-sm font-medium mt-8">
-          La More Eventos © {new Date().getFullYear()}
-        </p>
       </div>
     </div>
   );

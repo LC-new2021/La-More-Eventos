@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { logSupportAction } from '@/lib/audit';
 
 export async function GET(req, { params }) {
   try {
@@ -116,6 +117,18 @@ export async function PATCH(req, { params }) {
       data: updateData,
     });
 
+    if (session.user.role === 'SUPORTE_OPERACIONAL') {
+      const detalheAcao = ativo !== undefined && ativo !== targetUser.ativo
+        ? `Alterou status do operador ${targetUser.nome} para ${ativo ? 'ATIVO' : 'DESATIVADO'}`
+        : `Editou dados do operador ${targetUser.nome}`;
+      await logSupportAction({
+        session,
+        eventoId: targetUser.eventoId || eventoId,
+        acao: ativo !== undefined && ativo !== targetUser.ativo ? 'STATUS_OPERADOR' : 'EDITAR_OPERADOR',
+        detalhes: detalheAcao,
+      });
+    }
+
     const { senha: _, ...safeUsuario } = usuario;
     return NextResponse.json(safeUsuario);
   } catch (e) {
@@ -152,6 +165,23 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
     
+    // Preserva o nome do operador no histórico das movimentações para não quebrar relatórios detalhados
+    await prisma.movimentacao.updateMany({
+      where: { operadorId: id },
+      data: {
+        operadorNome: `${targetUser.nome} (${targetUser.role} - Excluído)`,
+      },
+    });
+
+    if (session.user.role === 'SUPORTE_OPERACIONAL') {
+      await logSupportAction({
+        session,
+        eventoId: targetUser.eventoId,
+        acao: 'EXCLUIR_OPERADOR',
+        detalhes: `Excluiu o operador ${targetUser.nome} (${targetUser.role})`,
+      });
+    }
+
     const usuario = await prisma.usuario.delete({
       where: { id },
     });

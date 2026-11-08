@@ -5,12 +5,8 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
-
-const getTodayBR = () => {
-  const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
-};
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { exportarPlanilhaProdutosMaster } from "@/lib/exportProdutosXlsx";
 
 const COLORS_GRUPO = ["#1D3461", "#3B82F6", "#F59E0B", "#10B981", "#8B5CF6"];
 
@@ -37,10 +33,11 @@ export default function MasterRelatoriosPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [aba, setAba] = useState("bi"); // bi | vendas | produtos | recebimentos | cortesias
+  const [aba, setAba] = useState("bi"); // bi | vendas | produtos | operadores | recebimentos | cortesias
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [buscaCortesia, setBuscaCortesia] = useState("");
+  const [exportandoPlanilhaMaster, setExportandoPlanilhaMaster] = useState(false);
 
   const [eventoId, setEventoId] = useState(null);
   const [eventos, setEventos] = useState([]);
@@ -105,14 +102,42 @@ export default function MasterRelatoriosPage() {
     );
   }
 
-  const { summary, vendasPorGrupo, vendasPorProduto, vendasPorHora, recebimentos, vendasMestre, cortesiasConsolidadas = [] } = data || {
+  const {
+    eventoNome = "Evento",
+    summary,
+    vendasPorGrupo,
+    vendasPorProduto,
+    vendasPorOperador = [],
+    vendasPorHora,
+    recebimentos,
+    vendasMestre,
+    cortesiasConsolidadas = [],
+  } = data || {
+    eventoNome: "Evento",
     summary: { totalRecarregado: 0, totalDebito: 0, totalEstorno: 0, saldoEmAberto: 0, totalCartoes: 0, totalPedidos: 0, ticketMedio: 0, totalCortesiasValor: 0, totalCortesiasConsumido: 0, totalCortesiasDevolvido: 0, totalCortesiasCartoesQtd: 0 },
     vendasPorGrupo: [],
     vendasPorProduto: [],
+    vendasPorOperador: [],
     vendasPorHora: [],
     recebimentos: [],
     vendasMestre: [],
     cortesiasConsolidadas: []
+  };
+
+  const handleExportarPlanilhaProdutosMaster = async () => {
+    if (!eventoId) return;
+    try {
+      setExportandoPlanilhaMaster(true);
+      const evObj = eventos.find((e) => e.id === eventoId);
+      await exportarPlanilhaProdutosMaster({
+        eventoId,
+        eventoNome: evObj?.nome || eventoNome || "Evento",
+      });
+    } catch (e) {
+      alert(e.message || "Erro ao exportar planilha de produtos.");
+    } finally {
+      setExportandoPlanilhaMaster(false);
+    }
   };
 
   const cortesiasFiltradas = cortesiasConsolidadas.filter(p => {
@@ -124,15 +149,13 @@ export default function MasterRelatoriosPage() {
            p.clienteCelular?.includes(q);
   });
 
-  // EXPORTAÇÕES EXCLUSIVAS POR TEMA
-
   // 1. Exportação EXCLUSIVA de Cortesias por Pessoa (PDF)
   function exportarCortesiasPDF() {
     const doc = new jsPDF();
     doc.setFontSize(20);
     doc.setTextColor(29, 52, 97);
     doc.text("LA MORE EVENTOS", 14, 18);
-    
+
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text("Relatório Consolidado de Cortesias por Pessoa", 14, 25);
@@ -164,11 +187,11 @@ export default function MasterRelatoriosPage() {
       doc.setTextColor(29, 52, 97);
       doc.setFont("helvetica", "bold");
       doc.text(`${idx + 1}. ${pessoa.clienteNome} — Cartão: ${pessoa.cartaoCodigo}`, 14, currentY);
-      
+
       doc.setFontSize(9);
       doc.setTextColor(80);
       doc.setFont("helvetica", "normal");
-      
+
       let infoText = `Cortesia Concedida: R$ ${pessoa.totalCortesiaConcedida.toFixed(2).replace('.', ',')}`;
       if (pessoa.totalRecargasPagas > 0) {
         infoText += ` | Recarga Própria: R$ ${pessoa.totalRecargasPagas.toFixed(2).replace('.', ',')} (Total: R$ ${pessoa.totalCreditosCartao.toFixed(2).replace('.', ',')})`;
@@ -236,7 +259,6 @@ export default function MasterRelatoriosPage() {
     workbook.creator = "La More Eventos";
     workbook.created = new Date();
 
-    // Aba 1: Resumo Consolidado por Pessoa
     const wsPessoas = workbook.addWorksheet("Cortesias por Pessoa", { properties: { tabColor: { argb: 'FF8B5CF6' } } });
     wsPessoas.mergeCells('A1:J2');
     const titleCell = wsPessoas.getCell('A1');
@@ -246,15 +268,15 @@ export default function MasterRelatoriosPage() {
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
     wsPessoas.getRow(4).values = [
-      "Cliente (Pessoa)", 
-      "Código Cartão", 
-      "CPF / Celular", 
-      "Operador Principal", 
-      "Cortesia Concedida (R$)", 
+      "Cliente (Pessoa)",
+      "Código Cartão",
+      "CPF / Celular",
+      "Operador Principal",
+      "Cortesia Concedida (R$)",
       "Recargas Próprias (R$)",
-      "Total Créditos no Cartão (R$)", 
-      "Total Consumido (R$)", 
-      "Total Devolvido (R$)", 
+      "Total Créditos no Cartão (R$)",
+      "Total Consumido (R$)",
+      "Total Devolvido (R$)",
       "Saldo Restante (R$)"
     ];
     wsPessoas.getRow(4).font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -286,7 +308,6 @@ export default function MasterRelatoriosPage() {
       { width: 25 }, { width: 15 }, { width: 18 }, { width: 20 }, { width: 22 }, { width: 22 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 20 }
     ];
 
-    // Aba 2: Itens Consumidos
     const wsItens = workbook.addWorksheet("Itens Consumidos", { properties: { tabColor: { argb: 'FF059669' } } });
     wsItens.getRow(1).values = ["Data", "Hora", "Cliente", "Código Cartão", "Produto Consumido", "Categoria", "Ponto / Atendente", "Valor Debitado (R$)"];
     wsItens.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -347,9 +368,9 @@ export default function MasterRelatoriosPage() {
       { key: "data", width: 14 },
       { key: "hora", width: 10 },
       { key: "cliente", width: 26 },
-      { key: "produto", width: 30 },
+      { key: "produto", width: 35 },
       { key: "categoria", width: 18 },
-      { key: "operador", width: 22 },
+      { key: "operador", width: 24 },
       { key: "tipo", width: 18 },
       { key: "valor", width: 16 }
     ];
@@ -380,7 +401,7 @@ export default function MasterRelatoriosPage() {
     doc.setFontSize(20);
     doc.setTextColor(29, 52, 97);
     doc.text("LA MORE EVENTOS", 14, 18);
-    
+
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text("Extrato Completo de Vendas Gerais (Tabela)", 14, 25);
@@ -415,10 +436,10 @@ export default function MasterRelatoriosPage() {
 
     const ws = workbook.addWorksheet("Relatório de Produtos", { properties: { tabColor: { argb: 'FFF59E0B' } } });
 
-    ws.mergeCells('A1:F2');
+    ws.mergeCells('A1:H2');
     const titleCell = ws.getCell('A1');
-    titleCell.value = 'LA MORE EVENTOS - Relatório Detalhado de Vendas por Produto';
-    titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.value = 'LA MORE EVENTOS - Relatório Detalhado de Vendas por Produto (Incluindo Ativos, Desativados e Excluídos)';
+    titleCell.font = { name: 'Arial', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
     titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
     titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
@@ -426,12 +447,13 @@ export default function MasterRelatoriosPage() {
     ws.getCell('A3').font = { italic: true, size: 10, color: { argb: 'FF4B5563' } };
 
     const headerRow = ws.getRow(5);
-    headerRow.values = ["Posição", "Produto / Item", "Categoria", "Preço Unitário (R$)", "Transações (Bipadas)", "Unidades Físicas (Qtd Real)", "Faturamento Total (R$)"];
+    headerRow.values = ["Posição", "Status Atual", "Produto / Item", "Categoria", "Preço Unitário (R$)", "Transações (Bipadas)", "Unidades Físicas (Qtd Real)", "Faturamento Total (R$)"];
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF59E0B' } };
 
     ws.columns = [
       { key: "pos", width: 10 },
+      { key: "status", width: 16 },
       { key: "nome", width: 32 },
       { key: "grupo", width: 20 },
       { key: "preco", width: 22 },
@@ -443,6 +465,7 @@ export default function MasterRelatoriosPage() {
     vendasPorProduto.forEach((p, idx) => {
       const row = ws.addRow({
         pos: `${idx + 1}º`,
+        status: p.statusProduto || 'ATIVO',
         nome: p.name,
         grupo: p.grupo || 'Geral',
         preco: p.precoUnitario || 0,
@@ -452,8 +475,8 @@ export default function MasterRelatoriosPage() {
       });
 
       if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
-      row.getCell(4).numFmt = '"R$ "#,##0.00';
-      row.getCell(7).numFmt = '"R$ "#,##0.00';
+      row.getCell(5).numFmt = '"R$ "#,##0.00';
+      row.getCell(8).numFmt = '"R$ "#,##0.00';
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -462,21 +485,22 @@ export default function MasterRelatoriosPage() {
   }
 
   function exportarProdutosPDF() {
-    const doc = new jsPDF();
+    const doc = new jsPDF("landscape");
     doc.setFontSize(20);
     doc.setTextColor(29, 52, 97);
     doc.text("LA MORE EVENTOS", 14, 18);
-    
+
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text("Relatório Detalhado de Vendas por Produto", 14, 25);
+    doc.text("Relatório Detalhado de Vendas por Produto (Ativos, Desativados e Excluídos)", 14, 25);
     doc.text(`Período: ${dataInicio || "Todo o período"} até ${dataFim || "Hoje"} | Total: ${vendasPorProduto.length} itens`, 14, 31);
 
     autoTable(doc, {
       startY: 36,
-      head: [["#", "Produto / Item", "Categoria", "Preço Unit.", "Transações", "Qtd Real Vendida", "Total Faturado"]],
+      head: [["#", "Status", "Produto / Item", "Categoria", "Preço Unit.", "Transações", "Qtd Real Vendida", "Total Faturado"]],
       body: vendasPorProduto.map((p, idx) => [
         idx + 1,
+        p.statusProduto || 'ATIVO',
         p.name,
         p.grupo || 'Geral',
         `R$ ${(p.precoUnitario || 0).toFixed(2).replace('.', ',')}`,
@@ -489,6 +513,79 @@ export default function MasterRelatoriosPage() {
     });
 
     doc.save("LaMore_Relatorio_Produtos.pdf");
+  }
+
+  // 4.5 Exportação de Operadores
+  async function exportarOperadoresXLSX() {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "La More Eventos";
+    workbook.created = new Date();
+    const ws = workbook.addWorksheet("Desempenho Operadores", { properties: { tabColor: { argb: 'FF1D3461' } } });
+
+    ws.mergeCells('A1:H2');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'LA MORE EVENTOS - Relatório Detalhado de Operadores e Usuários (Ativos, Desativados e Excluídos)';
+    titleCell.font = { name: 'Arial', size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D3461' } };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    const headerRow = ws.getRow(4);
+    headerRow.values = ["Status", "Operador / Usuário", "Função", "Qtd Recargas", "Total Recargas (R$)", "Qtd Vendas Bar", "Total Vendas Bar (R$)", "Total Estornos (R$)"];
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } };
+
+    ws.columns = [
+      { width: 15 }, { width: 30 }, { width: 22 }, { width: 16 }, { width: 22 }, { width: 16 }, { width: 22 }, { width: 22 }
+    ];
+
+    vendasPorOperador.forEach((op, idx) => {
+      const row = ws.addRow([
+        op.status,
+        op.nome,
+        op.role,
+        op.qtdRecargas,
+        op.totalRecargas,
+        op.qtdVendasBar,
+        op.totalVendasBar,
+        op.totalEstornos
+      ]);
+      if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
+      row.getCell(5).numFmt = '"R$ "#,##0.00';
+      row.getCell(7).numFmt = '"R$ "#,##0.00';
+      row.getCell(8).numFmt = '"R$ "#,##0.00';
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, "LaMore_Relatorio_Operadores.xlsx");
+  }
+
+  function exportarOperadoresPDF() {
+    const doc = new jsPDF("landscape");
+    doc.setFontSize(20);
+    doc.setTextColor(29, 52, 97);
+    doc.text("LA MORE EVENTOS", 14, 18);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text("Relatório Detalhado de Operadores e Usuários (Ativos, Desativados e Excluídos)", 14, 25);
+
+    autoTable(doc, {
+      startY: 34,
+      head: [["Status", "Operador / Usuário", "Função", "Qtd Recargas", "Total Recargas", "Qtd Bar", "Total Vendas Bar", "Estornos"]],
+      body: vendasPorOperador.map((op) => [
+        op.status,
+        op.nome,
+        op.role,
+        op.qtdRecargas,
+        `R$ ${(op.totalRecargas || 0).toFixed(2).replace('.', ',')}`,
+        op.qtdVendasBar,
+        `R$ ${(op.totalVendasBar || 0).toFixed(2).replace('.', ',')}`,
+        `R$ ${(op.totalEstornos || 0).toFixed(2).replace('.', ',')}`
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255] }
+    });
+    doc.save("LaMore_Relatorio_Operadores.pdf");
   }
 
   // 5. Exportação de Recebimentos (Excel & PDF)
@@ -544,7 +641,7 @@ export default function MasterRelatoriosPage() {
     doc.setFontSize(20);
     doc.setTextColor(29, 52, 97);
     doc.text("LA MORE EVENTOS", 14, 18);
-    
+
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text("Relatório de Recebimentos por Forma de Pagamento", 14, 25);
@@ -626,7 +723,7 @@ export default function MasterRelatoriosPage() {
     doc.setFontSize(20);
     doc.setTextColor(29, 52, 97);
     doc.text("LA MORE EVENTOS", 14, 18);
-    
+
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text("Relatório Geral de Balanço (BI)", 14, 25);
@@ -653,6 +750,7 @@ export default function MasterRelatoriosPage() {
     if (aba === "cortesias") return exportarCortesiasPDF();
     if (aba === "vendas") return exportarVendasPDF();
     if (aba === "produtos") return exportarProdutosPDF();
+    if (aba === "operadores") return exportarOperadoresPDF();
     if (aba === "recebimentos") return exportarRecebimentosPDF();
     return exportarGeralPDF();
   };
@@ -661,6 +759,7 @@ export default function MasterRelatoriosPage() {
     if (aba === "cortesias") return exportarCortesiasXLSX();
     if (aba === "vendas") return exportarVendasXLSX();
     if (aba === "produtos") return exportarProdutosXLSX();
+    if (aba === "operadores") return exportarOperadoresXLSX();
     if (aba === "recebimentos") return exportarRecebimentosXLSX();
     return exportarGeralXLSX();
   };
@@ -668,8 +767,9 @@ export default function MasterRelatoriosPage() {
   const getNomeAbaAtual = () => {
     switch (aba) {
       case "bi": return { titulo: "Visão Geral de BI", desc: "Painel de indicadores gerenciais e balanço financeiro" };
-      case "vendas": return { titulo: "Vendas Gerais de Tabela", desc: "Extrato cronológico detalhado de todas as transações" };
-      case "produtos": return { titulo: "Relatório de Produtos", desc: "Ranking detalhado de vendas com unidades físicas e faturamento" };
+      case "vendas": return { titulo: "Vendas Gerais de Tabela", desc: "Extrato cronológico detalhado de todas as transações (incluindo itens/clientes/operadores desativados ou excluídos)" };
+      case "produtos": return { titulo: "Relatório de Produtos", desc: "Ranking completo de vendas com produtos ativos, desativados, excluídos e histórico de valores" };
+      case "operadores": return { titulo: "Relatório de Operadores", desc: "Movimentação consolidada por operador/usuário (ativos, desativados e excluídos)" };
       case "recebimentos": return { titulo: "Relatório de Recebimentos", desc: "Distribuição das recargas por forma de pagamento" };
       case "cortesias": return { titulo: "Cortesias por Pessoa", desc: "Consolidação de cortesias, recargas e consumo individual" };
       default: return { titulo: "Relatórios e BI", desc: "Dados consolidados do evento" };
@@ -683,10 +783,10 @@ export default function MasterRelatoriosPage() {
       {/* Header e Filtros */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8 bg-white p-6 rounded-3xl border-2 border-gray-100 shadow-sm">
         <div>
-          <h2 className="text-4xl font-black text-[#1D3461]">{infoAba.titulo}</h2>
-          <p className="text-gray-500 text-lg font-semibold mt-1">{infoAba.desc}</p>
+          <h2 className="text-3xl sm:text-4xl font-black text-[#1D3461]">{infoAba.titulo}</h2>
+          <p className="text-gray-500 text-base sm:text-lg font-semibold mt-1">{infoAba.desc}</p>
         </div>
-        
+
         <div className="flex flex-wrap items-end gap-4">
           {session?.user?.role === 'MASTER' && eventos.length > 0 && (
             <div className="min-w-[220px]">
@@ -717,13 +817,22 @@ export default function MasterRelatoriosPage() {
               <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-2 font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"/>
             </div>
           </div>
-          
-          <div className="flex gap-2">
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleExportarPlanilhaProdutosMaster}
+              disabled={exportandoPlanilhaMaster}
+              className="bg-amber-500 text-white font-black text-sm px-4 py-3 rounded-xl hover:bg-amber-600 transition-all flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+              title="Exclusivo Master: Baixar planilha de produtos ativos, desativados e alterações de valores"
+            >
+              <span>📋</span> {exportandoPlanilhaMaster ? "Exportando..." : "Planilha de Produtos (XLSX)"}
+            </button>
             <button onClick={handleExportarXLSX} className="bg-green-600 text-white font-black text-sm px-5 py-3 rounded-xl hover:bg-green-700 transition-all flex items-center gap-2 shadow-sm cursor-pointer">
               <span>📊</span> {
                 aba === 'cortesias' ? 'Excel (Cortesias)' :
                 aba === 'vendas' ? 'Excel (Vendas Gerais)' :
-                aba === 'produtos' ? 'Excel (Produtos)' :
+                aba === 'produtos' ? 'Excel (Vendas Produtos)' :
+                aba === 'operadores' ? 'Excel (Operadores)' :
                 aba === 'recebimentos' ? 'Excel (Recebimentos)' :
                 'Excel (BI Geral)'
               }
@@ -733,6 +842,7 @@ export default function MasterRelatoriosPage() {
                 aba === 'cortesias' ? 'PDF (Cortesias)' :
                 aba === 'vendas' ? 'PDF (Vendas Gerais)' :
                 aba === 'produtos' ? 'PDF (Produtos)' :
+                aba === 'operadores' ? 'PDF (Operadores)' :
                 aba === 'recebimentos' ? 'PDF (Recebimentos)' :
                 'PDF (BI Geral)'
               }
@@ -747,13 +857,14 @@ export default function MasterRelatoriosPage() {
           { id: "bi", label: "📈 Visão Geral de BI" },
           { id: "vendas", label: "🧾 Vendas Gerais de Tabela" },
           { id: "produtos", label: "🍔 Produtos" },
+          { id: "operadores", label: "👥 Operadores" },
           { id: "recebimentos", label: "💳 Recebimentos" },
           { id: "cortesias", label: "🎁 Cortesias por Pessoa" },
         ].map((a) => (
           <button
             key={a.id}
             onClick={() => setAba(a.id)}
-            className={`px-6 py-4 rounded-2xl font-black text-lg whitespace-nowrap transition-all cursor-pointer ${
+            className={`px-5 py-3.5 rounded-2xl font-black text-base sm:text-lg whitespace-nowrap transition-all cursor-pointer ${
               aba === a.id ? "bg-[#1D3461] text-white shadow-lg" : "bg-white text-gray-500 border-2 border-gray-100 hover:border-gray-300"
             }`}
           >
@@ -765,7 +876,6 @@ export default function MasterRelatoriosPage() {
       {/* ABA: CORTESIAS POR PESSOA */}
       {aba === "cortesias" && (
         <div className="space-y-6">
-          {/* KPI Cards de Cortesia */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-purple-50 border-2 border-purple-100 rounded-3xl p-6">
               <span className="text-4xl block mb-2">🎁</span>
@@ -793,7 +903,6 @@ export default function MasterRelatoriosPage() {
             </div>
           </div>
 
-          {/* Barra de Busca Exclusiva de Cortesias e Ações de Exportação */}
           <div className="bg-white p-5 rounded-3xl border-2 border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="w-full md:w-auto flex-1">
               <input
@@ -805,13 +914,13 @@ export default function MasterRelatoriosPage() {
               />
             </div>
             <div className="flex gap-2 w-full md:w-auto">
-              <button 
+              <button
                 onClick={exportarCortesiasXLSX}
                 className="flex-1 md:flex-none bg-green-700 hover:bg-green-800 text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-sm flex items-center gap-2 justify-center cursor-pointer"
               >
                 <span>📊</span> Baixar Planilha (.xlsx)
               </button>
-              <button 
+              <button
                 onClick={exportarCortesiasPDF}
                 className="flex-1 md:flex-none bg-red-700 hover:bg-red-800 text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-sm flex items-center gap-2 justify-center cursor-pointer"
               >
@@ -820,7 +929,6 @@ export default function MasterRelatoriosPage() {
             </div>
           </div>
 
-          {/* Lista de Cortesias Consolidadas por Pessoa */}
           {cortesiasFiltradas.length === 0 ? (
             <div className="bg-white rounded-3xl border-2 border-gray-100 p-12 text-center">
               <p className="text-gray-400 font-bold text-lg">Nenhuma cortesia encontrada com os filtros selecionados.</p>
@@ -829,18 +937,22 @@ export default function MasterRelatoriosPage() {
             <div className="space-y-6">
               {cortesiasFiltradas.map((pessoa, idx) => (
                 <div key={pessoa.id || idx} className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
-                  {/* Cabeçalho da Pessoa */}
                   <div className="p-6 bg-gradient-to-r from-purple-900 to-[#1D3461] text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-2xl font-black shrink-0">
                         👤
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-2xl font-black">{pessoa.clienteNome}</h3>
                           <span className="bg-purple-400/20 text-purple-200 border border-purple-400/30 text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg">
                             Cartão: {pessoa.cartaoCodigo}
                           </span>
+                          {pessoa.cartaoStatus && pessoa.cartaoStatus !== "ATIVO" && (
+                            <span className="bg-amber-400/30 text-amber-100 text-[11px] font-black uppercase px-2 py-0.5 rounded">
+                              {pessoa.cartaoStatus === "CANCELADO" ? "Excluído" : "Desativado"}
+                            </span>
+                          )}
                         </div>
                         <p className="text-blue-200 text-xs font-semibold mt-1">
                           Operador Principal: <b>{pessoa.operadorPrincipal}</b> {pessoa.clienteCpf && `• CPF: ${pessoa.clienteCpf}`} {pessoa.clienteCelular && `• Tel: ${pessoa.clienteCelular}`}
@@ -848,7 +960,6 @@ export default function MasterRelatoriosPage() {
                       </div>
                     </div>
 
-                    {/* Resumo Financeiro da Pessoa */}
                     <div className="flex flex-wrap items-center gap-3 bg-black/20 p-3 rounded-2xl border border-white/10">
                       <div className="text-center px-3">
                         <p className="text-[10px] uppercase font-bold text-purple-200">Cortesia</p>
@@ -885,9 +996,7 @@ export default function MasterRelatoriosPage() {
                     </div>
                   </div>
 
-                  {/* Extrato de Itens Consumidos pela Pessoa */}
                   <div className="p-6 space-y-4">
-                    {/* Histórico de Recargas do Cartão */}
                     {pessoa.recargas && pessoa.recargas.length > 0 && (
                       <div>
                         <h4 className="text-sm font-black text-purple-800 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -922,7 +1031,6 @@ export default function MasterRelatoriosPage() {
                       </div>
                     )}
 
-                    {/* Consumo de Produtos */}
                     <div>
                       <h4 className="text-sm font-black text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                         <span>🍔</span> Extrato de Consumo ({pessoa.consumos.length} {pessoa.consumos.length === 1 ? 'item' : 'itens'})
@@ -960,7 +1068,6 @@ export default function MasterRelatoriosPage() {
                       )}
                     </div>
 
-                    {/* Devoluções / Estornos de Saldo */}
                     {pessoa.devolucoes && pessoa.devolucoes.length > 0 && (
                       <div className="pt-2">
                         <h4 className="text-sm font-black text-red-600 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -1024,7 +1131,6 @@ export default function MasterRelatoriosPage() {
             </div>
           </div>
 
-          {/* Gráficos */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white rounded-3xl border-2 border-gray-100 p-8 shadow-sm h-[400px]">
               <h3 className="text-2xl font-black text-[#1D3461] mb-6">Faturamento por Categoria (R$)</h3>
@@ -1116,18 +1222,28 @@ export default function MasterRelatoriosPage() {
       {/* ABA: PRODUTOS */}
       {aba === "produtos" && (
         <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
+          <div className="p-6 bg-[#1D3461] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-2xl font-black">Ranking de Vendas por Produto</h3>
-              <p className="text-blue-200 text-sm font-semibold mt-0.5">Contagem exata de unidades físicas e transações</p>
+              <h3 className="text-2xl font-black">Ranking de Vendas por Produto (Ativos, Desativados e Excluídos)</h3>
+              <p className="text-blue-200 text-sm font-semibold mt-0.5">Contagem exata de unidades físicas, faturamento e histórico de valores</p>
             </div>
-            <span className="bg-white/20 text-white font-bold px-3 py-1 rounded-xl text-sm">{vendasPorProduto.length} itens</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleExportarPlanilhaProdutosMaster}
+                disabled={exportandoPlanilhaMaster}
+                className="bg-amber-500 hover:bg-amber-600 text-white font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>📊</span> {exportandoPlanilhaMaster ? "Exportando..." : "Planilha de Produtos e Valores (XLSX)"}
+              </button>
+              <span className="bg-white/20 text-white font-bold px-3 py-1 rounded-xl text-sm">{vendasPorProduto.length} itens</span>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-gray-50 border-b-2 border-gray-100">
                   <th className="p-4 font-bold text-gray-400 uppercase text-xs">Produto / Item</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Status Atual</th>
                   <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Preço Unit.</th>
                   <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Transações (Bipadas)</th>
                   <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Unidades Físicas (Qtd Real)</th>
@@ -1136,10 +1252,26 @@ export default function MasterRelatoriosPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {vendasPorProduto.map((p, idx) => (
-                  <tr key={p.name} className="hover:bg-blue-50/50 transition-colors">
+                  <tr key={p.id || p.name} className="hover:bg-blue-50/50 transition-colors">
                     <td className="p-4 font-black text-gray-900">
-                      {idx + 1}. {p.name}
-                      {p.grupo && <span className="ml-2 text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-500">{p.grupo}</span>}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{idx + 1}. {p.name}</span>
+                        {p.grupo && <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-500">{p.grupo}</span>}
+                        {Array.isArray(p.historicoPrecos) && p.historicoPrecos.length > 0 && (
+                          <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                            💲 {p.historicoPrecos.length} alt. de preço
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-4 text-center">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                        p.statusProduto === 'EXCLUÍDO' ? 'bg-red-100 text-red-700' :
+                        p.statusProduto === 'DESATIVADO' ? 'bg-amber-100 text-amber-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {p.statusProduto || 'ATIVO'}
+                      </span>
                     </td>
                     <td className="p-4 font-bold text-gray-600 text-center">
                       R$ {(p.precoUnitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1156,6 +1288,72 @@ export default function MasterRelatoriosPage() {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ABA: OPERADORES */}
+      {aba === "operadores" && (
+        <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden">
+          <div className="p-6 bg-[#1D3461] text-white flex justify-between items-center">
+            <div>
+              <h3 className="text-2xl font-black">Movimentação por Operador / Usuário</h3>
+              <p className="text-blue-200 text-sm font-semibold mt-0.5">Inclui operadores ativos, desativados e excluídos que atuaram no evento</p>
+            </div>
+            <span className="bg-white/20 text-white font-bold px-3 py-1 rounded-xl text-sm">{vendasPorOperador.length} operadores</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50 border-b-2 border-gray-100">
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs">Operador / Usuário</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Função</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Status Atual</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Recargas (Qtd / Total)</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-center">Vendas Bar (Qtd / Total)</th>
+                  <th className="p-4 font-bold text-gray-400 uppercase text-xs text-right">Estornos / Devoluções</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {vendasPorOperador.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-400 font-bold">Nenhum operador encontrado.</td>
+                  </tr>
+                ) : (
+                  vendasPorOperador.map((op) => (
+                    <tr key={op.id} className="hover:bg-blue-50/50 transition-colors">
+                      <td className="p-4">
+                        <p className="font-black text-gray-900">{op.nome}</p>
+                        {op.email && op.email !== '—' && <p className="text-xs text-gray-500 font-semibold">{op.email}</p>}
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-xs font-bold bg-blue-50 text-blue-800 px-2.5 py-1 rounded-full">
+                          {op.role}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                          op.status === 'EXCLUÍDO' ? 'bg-red-100 text-red-700' :
+                          op.status === 'DESATIVADO' ? 'bg-amber-100 text-amber-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                          {op.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center font-bold text-green-700">
+                        {op.qtdRecargas}x — R$ {(op.totalRecargas || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-4 text-center font-bold text-[#1D3461]">
+                        {op.qtdVendasBar}x — R$ {(op.totalVendasBar || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="p-4 text-right font-bold text-red-600">
+                        {op.qtdEstornos}x — R$ {(op.totalEstornos || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

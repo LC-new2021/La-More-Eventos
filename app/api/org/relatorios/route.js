@@ -35,30 +35,53 @@ export async function GET(req) {
       }
     }
 
-    // Fetch all cards and their transactions for the event
-    const [cartoes, movimentacoes, produtos] = await Promise.all([
-      prisma.cartao.findMany({ where: { eventoId } }),
+    // Fetch all cards (includingATIVO, ENCERRADO, CANCELADO), transactions, products, and operators
+    const [evento, cartoes, movimentacoes, produtos, usuariosEvento] = await Promise.all([
+      prisma.evento.findUnique({ where: { id: eventoId }, select: { id: true, nome: true } }),
+      prisma.cartao.findMany({
+        where: { eventoId },
+        include: { cliente: true },
+      }),
       prisma.movimentacao.findMany({
-        where: { 
+        where: {
           cartao: { eventoId },
-          ...(Object.keys(dateFilter).length > 0 ? dateFilter : {})
+          tipo: { in: ['RECARGA', 'DEBITO', 'ESTORNO'] },
+          ...(Object.keys(dateFilter).length > 0 ? dateFilter : {}),
         },
         include: {
           cartao: { include: { cliente: true } },
           produto: true,
-          operador: true
+          operador: true,
         },
-        orderBy: { criadaEm: 'desc' }
+        orderBy: { criadaEm: 'desc' },
       }),
-      prisma.produto.findMany({ where: { eventoId } })
+      prisma.produto.findMany({
+        where: { eventoId },
+        include: {
+          movimentacoes: {
+            where: { tipo: 'HISTORICO_PRECO' },
+            orderBy: { criadaEm: 'asc' },
+          },
+        },
+      }),
+      prisma.usuario.findMany({
+        where: { eventoId },
+        select: { id: true, nome: true, email: true, role: true, ativo: true },
+      }),
     ]);
 
-    const totalRecarregado = movimentacoes.filter(m => m.tipo === 'RECARGA').reduce((s, m) => s + m.valor, 0);
-    const totalDebito = movimentacoes.filter(m => m.tipo === 'DEBITO').reduce((s, m) => s + m.valor, 0);
-    const totalEstorno = movimentacoes.filter(m => m.tipo === 'ESTORNO').reduce((s, m) => s + m.valor, 0);
+    const totalRecarregado = movimentacoes
+      .filter((m) => m.tipo === 'RECARGA')
+      .reduce((s, m) => s + m.valor, 0);
+    const totalDebito = movimentacoes
+      .filter((m) => m.tipo === 'DEBITO')
+      .reduce((s, m) => s + m.valor, 0);
+    const totalEstorno = movimentacoes
+      .filter((m) => m.tipo === 'ESTORNO')
+      .reduce((s, m) => s + m.valor, 0);
     const saldoEmAberto = cartoes.reduce((s, c) => s + c.saldo, 0);
     const totalCartoes = cartoes.length;
-    const totalPedidos = movimentacoes.filter(m => m.tipo === 'DEBITO').length;
+    const totalPedidos = movimentacoes.filter((m) => m.tipo === 'DEBITO').length;
     const ticketMedio = totalPedidos > 0 ? totalDebito / totalPedidos : 0;
 
     // Aggregations
@@ -79,9 +102,18 @@ export async function GET(req) {
       return 1;
     };
 
-    movimentacoes.forEach(m => {
-      if (m.tipo === 'DEBITO' && m.produto) {
-        const cat = m.produto.grupo || 'Outros';
+    const extrairNomeProdutoFallback = (m) => {
+      if (m.produto?.nome) return m.produto.nome;
+      const desc = String(m.descricao || '')
+        .replace(/^(\d+)x\s+/i, '')
+        .replace(/\s*\(Cortesia:.*$/i, '')
+        .trim();
+      return desc || 'Item Excluído';
+    };
+
+    movimentacoes.forEach((m) => {
+      if (m.tipo === 'DEBITO') {
+        const cat = m.produto?.grupo || 'Outros';
         if (!vendasPorGrupoMap[cat]) {
           vendasPorGrupoMap[cat] = { value: 0, qtd: 0 };
         }
@@ -91,13 +123,17 @@ export async function GET(req) {
 
       if (m.tipo === 'RECARGA') {
         const descLower = (m.descricao || '').toLowerCase();
-        let metodo = 'Pix'; // default
-        
+        let metodo = 'Pix';
+
         if (descLower.includes('debito_offline') || descLower.includes('débito')) {
           metodo = 'Débito';
         } else if (descLower.includes('credito_offline') || descLower.includes('crédito')) {
           metodo = 'Crédito';
-        } else if (descLower.includes('cartão') || descLower.includes('cartao') || descLower.includes('wallet')) {
+        } else if (
+          descLower.includes('cartão') ||
+          descLower.includes('cartao') ||
+          descLower.includes('wallet')
+        ) {
           metodo = 'Cartão';
         } else if (descLower.includes('dinheiro')) {
           metodo = 'Dinheiro';
@@ -110,103 +146,246 @@ export async function GET(req) {
       }
     });
 
-    const vendasPorGrupo = Object.keys(vendasPorGrupoMap).map(k => ({
+    const vendasPorGrupo = Object.keys(vendasPorGrupoMap).map((k) => ({
       name: k,
       value: vendasPorGrupoMap[k].value,
-      qtd: vendasPorGrupoMap[k].qtd
+      qtd: vendasPorGrupoMap[k].qtd,
     }));
 
+    // Map all products (active, deactivated, and soft-deleted) so none are ever missing
     const vendasPorProdutoMap = {};
-    movimentacoes.forEach(m => {
-      if (m.tipo === 'DEBITO' && m.produto) {
-        const prodName = m.produto.nome || 'Desconhecido';
-        const precoUnit = parseFloat(m.produto.preco) || parseFloat(m.valor) || 1;
-        const valorDebito = parseFloat(m.valor) || 0;
-        const unidadesCalculadas = extrairUnidades(m);
+    produtos.forEach((p) => {
+      const isDeleted = String(p.atualizadoPorNome || '').startsWith('[EXCLUIDO]');
+      const statusProduto = isDeleted ? 'EXCLUÍDO' : p.ativo ? 'ATIVO' : 'DESATIVADO';
+      const hist = Array.isArray(p.movimentacoes)
+        ? p.movimentacoes.map((hm) => {
+            try {
+              const parsed = JSON.parse(hm.descricao || '{}');
+              return { de: parsed.de, para: parsed.para, por: parsed.por, data: hm.criadaEm };
+            } catch {
+              return { de: null, para: hm.valor, por: hm.operadorNome, data: hm.criadaEm };
+            }
+          })
+        : [];
 
-        if (!vendasPorProdutoMap[prodName]) {
-          vendasPorProdutoMap[prodName] = {
+      const key = p.id;
+      vendasPorProdutoMap[key] = {
+        id: p.id,
+        name: p.nome,
+        grupo: p.grupo || 'Geral',
+        precoUnitario: parseFloat(p.preco) || 0,
+        statusProduto,
+        historicoPrecos: hist,
+        value: 0,
+        qtd: 0,
+        pedidos: 0,
+      };
+    });
+
+    movimentacoes.forEach((m) => {
+      if (m.tipo === 'DEBITO') {
+        const prodKey = m.produto?.id || `deleted_${extrairNomeProdutoFallback(m)}`;
+        const prodName = extrairNomeProdutoFallback(m);
+        const isDeleted = m.produto
+          ? String(m.produto.atualizadoPorNome || '').startsWith('[EXCLUIDO]')
+          : true;
+        const statusProduto = !m.produto
+          ? 'EXCLUÍDO'
+          : isDeleted
+          ? 'EXCLUÍDO'
+          : m.produto.ativo
+          ? 'ATIVO'
+          : 'DESATIVADO';
+
+        const unidadesCalculadas = extrairUnidades(m);
+        const valorDebito = parseFloat(m.valor) || 0;
+        const precoUnit =
+          parseFloat(m.produto?.preco) ||
+          (unidadesCalculadas > 0 ? valorDebito / unidadesCalculadas : valorDebito) ||
+          0;
+
+        if (!vendasPorProdutoMap[prodKey]) {
+          vendasPorProdutoMap[prodKey] = {
+            id: prodKey,
+            name: prodName,
             value: 0,
-            qtd: 0, // Unidades físicas reais vendidas
-            pedidos: 0, // Vezes que foi bipado/transações
+            qtd: 0,
+            pedidos: 0,
             precoUnitario: precoUnit,
-            grupo: m.produto.grupo || 'Geral'
+            grupo: m.produto?.grupo || 'Outros',
+            statusProduto,
+            historicoPrecos: [],
           };
         }
-        vendasPorProdutoMap[prodName].value += valorDebito;
-        vendasPorProdutoMap[prodName].qtd += unidadesCalculadas;
-        vendasPorProdutoMap[prodName].pedidos += 1;
+        vendasPorProdutoMap[prodKey].value += valorDebito;
+        vendasPorProdutoMap[prodKey].qtd += unidadesCalculadas;
+        vendasPorProdutoMap[prodKey].pedidos += 1;
       }
     });
 
-    const vendasPorProduto = Object.keys(vendasPorProdutoMap).map(k => ({
-      name: k,
-      grupo: vendasPorProdutoMap[k].grupo,
-      precoUnitario: vendasPorProdutoMap[k].precoUnitario,
-      value: vendasPorProdutoMap[k].value,
-      qtd: Math.round(vendasPorProdutoMap[k].qtd * 100) / 100, // Unidades reais
-      pedidos: vendasPorProdutoMap[k].pedidos // Transações/bipadas
-    })).sort((a,b) => b.value - a.value);
+    // Include all sold products AND any deactivated/deleted/price-changed products for complete visibility
+    const vendasPorProduto = Object.values(vendasPorProdutoMap)
+      .filter((p) => p.pedidos > 0 || p.statusProduto !== 'ATIVO' || (p.historicoPrecos || []).length > 0)
+      .map((p) => ({
+        ...p,
+        qtd: Math.round(p.qtd * 100) / 100,
+      }))
+      .sort((a, b) => b.value - a.value || b.qtd - a.qtd);
 
-    const recebimentos = Object.keys(recebimentosMap).map(k => ({
-      name: k,
-      value: recebimentosMap[k],
-      qtd: recebimentosQtd[k]
-    })).filter(r => r.value > 0);
+    // Resumo detalhado por Operador / Usuário (incluindo ativos, desativados e excluídos)
+    const operadoresMap = {};
+    usuariosEvento.forEach((u) => {
+      operadoresMap[u.id] = {
+        id: u.id,
+        nome: u.nome,
+        email: u.email,
+        role: u.role,
+        status: u.ativo ? 'ATIVO' : 'DESATIVADO',
+        totalRecargas: 0,
+        qtdRecargas: 0,
+        totalVendasBar: 0,
+        qtdVendasBar: 0,
+        totalEstornos: 0,
+        qtdEstornos: 0,
+      };
+    });
+
+    movimentacoes.forEach((m) => {
+      const opKey = m.operadorId || `op_${m.operadorNome || 'Sistema / Online'}`;
+      if (!operadoresMap[opKey]) {
+        const isExcluido = String(m.operadorNome || '').includes('Excluído') || (!m.operador && m.operadorNome);
+        operadoresMap[opKey] = {
+          id: opKey,
+          nome: m.operador?.nome || m.operadorNome || 'Sistema / Auto-atendimento Online',
+          email: m.operador?.email || '—',
+          role: m.operador?.role || (m.tipo === 'DEBITO' ? 'OPERADOR_BAR' : 'CAIXA'),
+          status: m.operador ? (m.operador.ativo ? 'ATIVO' : 'DESATIVADO') : (isExcluido ? 'EXCLUÍDO' : 'SISTEMA'),
+          totalRecargas: 0,
+          qtdRecargas: 0,
+          totalVendasBar: 0,
+          qtdVendasBar: 0,
+          totalEstornos: 0,
+          qtdEstornos: 0,
+        };
+      }
+      if (m.tipo === 'RECARGA') {
+        operadoresMap[opKey].totalRecargas += m.valor;
+        operadoresMap[opKey].qtdRecargas += 1;
+      } else if (m.tipo === 'DEBITO') {
+        operadoresMap[opKey].totalVendasBar += m.valor;
+        operadoresMap[opKey].qtdVendasBar += 1;
+      } else if (m.tipo === 'ESTORNO') {
+        operadoresMap[opKey].totalEstornos += m.valor;
+        operadoresMap[opKey].qtdEstornos += 1;
+      }
+    });
+
+    const vendasPorOperador = Object.values(operadoresMap).sort(
+      (a, b) => b.totalRecargas + b.totalVendasBar - (a.totalRecargas + a.totalVendasBar)
+    );
+
+    const recebimentos = Object.keys(recebimentosMap)
+      .map((k) => ({
+        name: k,
+        value: recebimentosMap[k],
+        qtd: recebimentosQtd[k],
+      }))
+      .filter((r) => r.value > 0);
 
     // Grouping by hour
     const horasMap = {};
-    movimentacoes.forEach(m => {
+    movimentacoes.forEach((m) => {
       if (m.tipo === 'DEBITO') {
-        const hourStr = new Date(m.criadaEm).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit' });
+        const hourStr = new Date(m.criadaEm).toLocaleTimeString('pt-BR', {
+          timeZone: 'America/Sao_Paulo',
+          hour: '2-digit',
+        });
         const hour = parseInt(hourStr, 10) + 'h';
         horasMap[hour] = (horasMap[hour] || 0) + m.valor;
       }
     });
-    const vendasPorHora = Object.keys(horasMap).map(h => ({
-      hora: h,
-      valor: horasMap[h]
-    })).sort((a,b) => parseInt(a.hora) - parseInt(b.hora));
+    const vendasPorHora = Object.keys(horasMap)
+      .map((h) => ({
+        hora: h,
+        valor: horasMap[h],
+      }))
+      .sort((a, b) => parseInt(a.hora) - parseInt(b.hora));
 
-    const vendasMestre = movimentacoes.map(m => {
+    const vendasMestre = movimentacoes.map((m) => {
       const qtd = m.tipo === 'DEBITO' ? extrairUnidades(m) : 1;
-      const precoUnit = qtd > 0 ? (m.valor / qtd) : m.valor;
-      const nomeBaseProd = m.produto?.nome || m.descricao || 'Item';
-      const labelProduto = m.tipo === 'DEBITO'
-        ? `${qtd}x ${nomeBaseProd} (${qtd} un. × R$ ${precoUnit.toFixed(2).replace('.', ',')})`
-        : (m.descricao || (m.tipo === 'RECARGA' ? 'Recarga Cartão' : m.tipo));
+      const precoUnit = qtd > 0 ? m.valor / qtd : m.valor;
+      const nomeBaseProd = extrairNomeProdutoFallback(m);
+
+      const isProdDeleted = m.produto
+        ? String(m.produto.atualizadoPorNome || '').startsWith('[EXCLUIDO]')
+        : m.tipo === 'DEBITO';
+      const prodStatusTag =
+        m.tipo === 'DEBITO'
+          ? isProdDeleted
+            ? ' [Produto Excluído]'
+            : m.produto && !m.produto.ativo
+            ? ' [Produto Desativado]'
+            : ''
+          : '';
+
+      const labelProduto =
+        m.tipo === 'DEBITO'
+          ? `${qtd}x ${nomeBaseProd}${prodStatusTag} (${qtd} un. × R$ ${precoUnit
+              .toFixed(2)
+              .replace('.', ',')})`
+          : m.descricao || (m.tipo === 'RECARGA' ? 'Recarga Cartão' : m.tipo);
+
+      const statusCartao = m.cartao?.status;
+      const clienteSuffix =
+        statusCartao === 'CANCELADO'
+          ? ' (Excluído)'
+          : statusCartao === 'ENCERRADO'
+          ? ' (Desativado)'
+          : '';
+
+      const opNome = m.operador?.nome
+        ? `${m.operador.nome}${!m.operador.ativo ? ' (Desativado)' : ''}`
+        : m.operadorNome || 'Online/Sistema';
 
       return {
         id: m.id,
         data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-        hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
-        cliente: m.cartao?.cliente?.nome || '—',
+        hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'America/Sao_Paulo',
+        }),
+        cliente: `${m.cartao?.cliente?.nome || '—'}${clienteSuffix}`,
+        statusCliente: statusCartao || 'ATIVO',
         produto: labelProduto,
         quantidade: qtd,
         precoUnitario: precoUnit,
         categoria: m.produto?.grupo || m.tipo,
-        operador: m.operador?.nome || m.operadorNome || 'Online/Excluído',
-        pagto: m.tipo === 'RECARGA' ? 'Entrada' : (m.tipo === 'ESTORNO' ? 'Estorno/Devolução' : 'Saldo Consumo'),
-        valor: m.valor
+        operador: opNome,
+        pagto:
+          m.tipo === 'RECARGA'
+            ? 'Entrada'
+            : m.tipo === 'ESTORNO'
+            ? 'Estorno/Devolução'
+            : 'Saldo Consumo',
+        valor: m.valor,
       };
     });
 
     // Consolidação de Cortesias por Pessoa / Cartão Único
     const pessoasCortesiaMap = {};
-    const cartoesComCortesiaIds = new Set();
 
-    // 1. Primeiro passo: identificar quais cartões receberam cortesia
-    movimentacoes.forEach(m => {
+    movimentacoes.forEach((m) => {
       if (m.tipo === 'RECARGA') {
         const descLower = (m.descricao || '').toLowerCase();
         if (descLower.includes('cortesia')) {
           const key = m.cartaoId || m.cartao?.codigo || m.id;
-          cartoesComCortesiaIds.add(key);
           if (!pessoasCortesiaMap[key]) {
             pessoasCortesiaMap[key] = {
               id: key,
               cartaoId: m.cartaoId,
               cartaoCodigo: m.cartao?.codigo || '—',
+              cartaoStatus: m.cartao?.status || 'ATIVO',
               clienteId: m.cartao?.cliente?.id,
               clienteNome: m.cartao?.cliente?.nome || 'Cliente Cortesia',
               clienteCpf: m.cartao?.cliente?.cpf || '',
@@ -218,15 +397,14 @@ export async function GET(req) {
               totalDevolvido: 0,
               recargas: [],
               consumos: [],
-              devolucoes: []
+              devolucoes: [],
             };
           }
         }
       }
     });
 
-    // 2. Mapear todas as movimentações (recargas cortesia, recargas pagas, consumos e devoluções) para estes cartões
-    movimentacoes.forEach(m => {
+    movimentacoes.forEach((m) => {
       const key = m.cartaoId || m.cartao?.codigo;
       if (key && pessoasCortesiaMap[key]) {
         if (m.tipo === 'RECARGA') {
@@ -239,64 +417,100 @@ export async function GET(req) {
           }
           pessoasCortesiaMap[key].recargas.push({
             id: m.id,
-            data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-            hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
+            data: new Date(m.criadaEm).toLocaleDateString('pt-BR', {
+              timeZone: 'America/Sao_Paulo',
+            }),
+            hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'America/Sao_Paulo',
+            }),
             valor: m.valor,
             tipoRecarga: isCortesia ? 'Cortesia' : 'Recarga Própria / Paga',
             operador: m.operador?.nome || m.operadorNome || 'Sistema / Caixa',
             descricao: m.descricao || (isCortesia ? 'Recarga Cortesia' : 'Recarga'),
-            criadaEm: m.criadaEm
+            criadaEm: m.criadaEm,
           });
         } else if (m.tipo === 'DEBITO') {
           pessoasCortesiaMap[key].totalConsumido += m.valor;
           const qtdConsumo = extrairUnidades(m);
-          const unitConsumo = qtdConsumo > 0 ? (m.valor / qtdConsumo) : m.valor;
+          const unitConsumo = qtdConsumo > 0 ? m.valor / qtdConsumo : m.valor;
+          const nomeProd = extrairNomeProdutoFallback(m);
           pessoasCortesiaMap[key].consumos.push({
             id: m.id,
-            data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-            hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
-            produtoNome: `${qtdConsumo}x ${m.produto?.nome || 'Item Geral'} (${qtdConsumo} un. × R$ ${unitConsumo.toFixed(2).replace('.', ',')})`,
+            data: new Date(m.criadaEm).toLocaleDateString('pt-BR', {
+              timeZone: 'America/Sao_Paulo',
+            }),
+            hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'America/Sao_Paulo',
+            }),
+            produtoNome: `${qtdConsumo}x ${nomeProd} (${qtdConsumo} un. × R$ ${unitConsumo
+              .toFixed(2)
+              .replace('.', ',')})`,
             quantidade: qtdConsumo,
             precoUnitario: unitConsumo,
             produtoGrupo: m.produto?.grupo || 'Outros',
             valor: m.valor,
             operador: m.operador?.nome || m.operadorNome || 'Bar / Atendente',
-            criadaEm: m.criadaEm
+            criadaEm: m.criadaEm,
           });
         } else if (m.tipo === 'ESTORNO') {
           pessoasCortesiaMap[key].totalDevolvido += m.valor;
           pessoasCortesiaMap[key].devolucoes.push({
             id: m.id,
-            data: new Date(m.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-            hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
+            data: new Date(m.criadaEm).toLocaleDateString('pt-BR', {
+              timeZone: 'America/Sao_Paulo',
+            }),
+            hora: new Date(m.criadaEm).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'America/Sao_Paulo',
+            }),
             valor: m.valor,
             operador: m.operador?.nome || m.operadorNome || 'Caixa / Devolução',
             descricao: m.descricao || 'Devolução de Saldo',
-            criadaEm: m.criadaEm
+            criadaEm: m.criadaEm,
           });
         }
       }
     });
 
-    const cortesiasConsolidadas = Object.values(pessoasCortesiaMap).map(p => {
-      const totalCreditosCartao = p.totalCortesiaConcedida + p.totalRecargasPagas;
-      const saldoRestanteCalculado = Math.max(0, totalCreditosCartao - p.totalConsumido - p.totalDevolvido);
-      return {
-        ...p,
-        totalCreditosCartao,
-        saldoRestante: saldoRestanteCalculado,
-        primeiraRecargaData: p.recargas[0]?.data || '',
-        primeiraRecargaHora: p.recargas[0]?.hora || '',
-        operadorPrincipal: p.recargas.map(r => r.operador).filter(Boolean)[0] || 'Sistema'
-      };
-    }).sort((a, b) => b.totalCortesiaConcedida - a.totalCortesiaConcedida);
+    const cortesiasConsolidadas = Object.values(pessoasCortesiaMap)
+      .map((p) => {
+        const totalCreditosCartao = p.totalCortesiaConcedida + p.totalRecargasPagas;
+        const saldoRestanteCalculado = Math.max(
+          0,
+          totalCreditosCartao - p.totalConsumido - p.totalDevolvido
+        );
+        return {
+          ...p,
+          totalCreditosCartao,
+          saldoRestante: saldoRestanteCalculado,
+          primeiraRecargaData: p.recargas[0]?.data || '',
+          primeiraRecargaHora: p.recargas[0]?.hora || '',
+          operadorPrincipal: p.recargas.map((r) => r.operador).filter(Boolean)[0] || 'Sistema',
+        };
+      })
+      .sort((a, b) => b.totalCortesiaConcedida - a.totalCortesiaConcedida);
 
-    const totalCortesiasValor = cortesiasConsolidadas.reduce((acc, c) => acc + c.totalCortesiaConcedida, 0);
-    const totalCortesiasConsumido = cortesiasConsolidadas.reduce((acc, c) => acc + c.totalConsumido, 0);
-    const totalCortesiasDevolvido = cortesiasConsolidadas.reduce((acc, c) => acc + c.totalDevolvido, 0);
+    const totalCortesiasValor = cortesiasConsolidadas.reduce(
+      (acc, c) => acc + c.totalCortesiaConcedida,
+      0
+    );
+    const totalCortesiasConsumido = cortesiasConsolidadas.reduce(
+      (acc, c) => acc + c.totalConsumido,
+      0
+    );
+    const totalCortesiasDevolvido = cortesiasConsolidadas.reduce(
+      (acc, c) => acc + c.totalDevolvido,
+      0
+    );
     const totalCortesiasCartoesQtd = cortesiasConsolidadas.length;
 
     return NextResponse.json({
+      eventoNome: evento?.nome || 'Evento',
       summary: {
         totalRecarregado,
         totalDebito,
@@ -308,14 +522,15 @@ export async function GET(req) {
         totalCortesiasValor,
         totalCortesiasConsumido,
         totalCortesiasDevolvido,
-        totalCortesiasCartoesQtd
+        totalCortesiasCartoesQtd,
       },
       vendasPorGrupo,
       vendasPorProduto,
+      vendasPorOperador,
       vendasPorHora,
       recebimentos,
       vendasMestre,
-      cortesiasConsolidadas
+      cortesiasConsolidadas,
     });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

@@ -14,9 +14,7 @@ export default function MasterEventos() {
   const [taxa, setTaxa] = useState('5.0');
   const [permiteDevolucao, setPermiteDevolucao] = useState(false);
   const [permitirEdicaoGateway, setPermitirEdicaoGateway] = useState(false);
-  const [exibirAvisoSaldo, setExibirAvisoSaldo] = useState(true);
-  const [textoAvisoSaldo, setTextoAvisoSaldo] = useState('O saldo não será devolvido, o mesmo deverá ser consumido até o final da festa ou ficará para doação.');
-  const [gatewayActive, setGatewayActive] = useState('PIX_DIRETO');
+  const [gatewayActive, setGatewayActive] = useState('NENHUM');
   const [chavePix, setChavePix] = useState('');
   const [tipoChavePix, setTipoChavePix] = useState('CPF');
   const [titularPix, setTitularPix] = useState('');
@@ -78,7 +76,6 @@ export default function MasterEventos() {
   };
 
   const abrirCriar = () => {
-    setError('');
     setEventoParaEditar(null);
     setNome('');
     setData('');
@@ -86,9 +83,7 @@ export default function MasterEventos() {
     setTaxa('5.0');
     setPermiteDevolucao(false);
     setPermitirEdicaoGateway(false);
-    setExibirAvisoSaldo(true);
-    setTextoAvisoSaldo('O saldo não será devolvido, o mesmo deverá ser consumido até o final da festa ou ficará para doação.');
-    setGatewayActive('PIX_DIRETO');
+    setGatewayActive('NENHUM');
     setChavePix('');
     setTipoChavePix('CPF');
     setTitularPix('');
@@ -101,7 +96,6 @@ export default function MasterEventos() {
   };
 
   const abrirEditar = (evt) => {
-    setError('');
     setEventoParaEditar(evt);
     setNome(evt.nome || '');
     setData(evt.data ? new Date(evt.data).toISOString().split('T')[0] : '');
@@ -109,9 +103,7 @@ export default function MasterEventos() {
     setTaxa(evt.taxaMasterPercent?.toString() || '5.0');
     setPermiteDevolucao(evt.permiteDevolucao || false);
     setPermitirEdicaoGateway(evt.permitirEdicaoGateway || false);
-    setExibirAvisoSaldo(evt.exibirAvisoSaldo !== undefined ? evt.exibirAvisoSaldo : true);
-    setTextoAvisoSaldo(evt.textoAvisoSaldo || 'O saldo não será devolvido, o mesmo deverá ser consumido até o final da festa ou ficará para doação.');
-    setGatewayActive(evt.gatewayActive || (evt.chavePix ? 'PIX_DIRETO' : 'PIX_DIRETO'));
+    setGatewayActive(evt.gatewayActive || (evt.chavePix ? 'PIX_DIRETO' : 'NENHUM'));
     setChavePix(evt.chavePix || '');
     setTipoChavePix(evt.tipoChavePix || 'CPF');
     setTitularPix(evt.titularPix || '');
@@ -149,6 +141,11 @@ export default function MasterEventos() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const acaoTexto = eventoParaEditar
+      ? `Você quer realmente salvar as alterações do evento "${nome}"?`
+      : `Você quer realmente criar o novo evento "${nome}"?`;
+    if (!window.confirm(acaoTexto)) return;
+
     setSalvando(true);
     setError('');
 
@@ -166,14 +163,12 @@ export default function MasterEventos() {
           taxaMasterPercent: parseFloat(taxa),
           permiteDevolucao,
           permitirEdicaoGateway,
-          exibirAvisoSaldo,
-          textoAvisoSaldo: textoAvisoSaldo.trim() || 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.',
           gatewayActive,
-          chavePix,
+          chavePix: gatewayActive === 'NENHUM' ? null : chavePix,
           tipoChavePix,
-          titularPix,
-          cidadePix,
-          asaasToken: asaasToken,
+          titularPix: gatewayActive === 'NENHUM' ? null : titularPix,
+          cidadePix: gatewayActive === 'NENHUM' ? 'BRASILIA' : cidadePix,
+          asaasToken: gatewayActive === 'NENHUM' ? null : asaasToken,
           mercadoPagoPublicKey: mpPublicKey,
           mercadoPagoAccessToken: mpAccessToken,
           bilheteriaEventoId: bilheteriaEventoId || null,
@@ -187,7 +182,7 @@ export default function MasterEventos() {
         setData('');
         setLocal('');
         setTaxa('5.0');
-        setGatewayActive('PIX_DIRETO');
+        setGatewayActive('NENHUM');
         setChavePix('');
         setTipoChavePix('CPF');
         setTitularPix('');
@@ -205,6 +200,9 @@ export default function MasterEventos() {
 
   const handleMudarStatus = async (id, statusAtual) => {
     const proximoStatus = statusAtual === 'CONFIGURANDO' ? 'ATIVO' : statusAtual === 'ATIVO' ? 'ENCERRADO' : 'CONFIGURANDO';
+    const labelStatus = proximoStatus === 'ATIVO' ? 'ATIVAR' : proximoStatus === 'ENCERRADO' ? 'ENCERRAR' : 'REABRIR/CONFIGURAR';
+    if (!window.confirm(`Você quer realmente ${labelStatus} este evento?`)) return;
+
     try {
       const res = await fetch(`/api/eventos/${id}`, {
         method: 'PATCH',
@@ -219,6 +217,8 @@ export default function MasterEventos() {
 
   const handleMudarModoOperacao = async (id, modoAtual) => {
     const proximoModo = modoAtual === 'INTEGRADO' ? 'GERENCIAL' : 'INTEGRADO';
+    if (!window.confirm(`Você quer realmente alterar o modo de operação para "${proximoModo}"?`)) return;
+
     try {
       const res = await fetch(`/api/eventos/${id}`, {
         method: 'PATCH',
@@ -232,7 +232,7 @@ export default function MasterEventos() {
   };
 
   const handleExcluir = async (id, nome) => {
-    if (window.confirm(`TEM CERTEZA ABSOLUTA que deseja EXCLUIR o evento "${nome}"?\n\nIsso apagará TODOS os cartões, vendas, e clientes atrelados a ele! Essa ação NÃO PODE ser desfeita.`)) {
+    if (window.confirm(`Você quer realmente excluir este evento "${nome}"?\n\nTEM CERTEZA ABSOLUTA? Isso apagará TODOS os cartões, vendas, e clientes atrelados a ele! Essa ação NÃO PODE ser desfeita.`)) {
       setLoading(true);
       try {
         const res = await fetch(`/api/eventos/${id}`, {
@@ -253,7 +253,7 @@ export default function MasterEventos() {
   };
 
   const handleLimparBanco = async () => {
-    if (window.confirm('⚠️ ALERTA VERMELHO ⚠️\n\nTem certeza que deseja APAGAR TODOS os Cartões, Vendas, Clientes e Operadores do sistema?\n(O seu usuário Master e o Evento continuarão intactos).')) {
+    if (window.confirm('⚠️ ALERTA VERMELHO ⚠️\n\nVocê quer realmente APAGAR TODOS os Cartões, Vendas, Clientes e Operadores do sistema?\n(O seu usuário Master e o Evento continuarão intactos).')) {
       setLoading(true);
       try {
         const res = await fetch('/api/admin/limpar', { method: 'POST' });
@@ -273,7 +273,7 @@ export default function MasterEventos() {
   };
 
   const handleLimparEvento = async (id) => {
-    if (window.confirm('ATENÇÃO: Você está prestes a apagar TODOS os Caixas, Operadores de Bar, Tesourarias e Cartões deste evento.\n\nOs clientes base serão mantidos. Esta ação não tem volta. Deseja continuar?')) {
+    if (window.confirm('ATENÇÃO: Você quer realmente encerrar e apagar TODOS os Caixas, Operadores de Bar, Tesourarias e Cartões deste evento?\n\nOs clientes base serão mantidos. Esta ação não tem volta. Deseja continuar?')) {
       setLoading(true);
       try {
         const res = await fetch(`/api/eventos/${id}/limpar`, { method: 'DELETE' });
@@ -294,10 +294,10 @@ export default function MasterEventos() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 sm:mb-8 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h2 className="text-2xl sm:text-4xl font-black text-[#1D3461] mb-1 sm:mb-2">Eventos</h2>
-          <p className="text-gray-500 text-sm sm:text-lg font-semibold">Gerencie e configure os eventos da plataforma</p>
+          <h2 className="text-4xl font-black text-[#1D3461] mb-2">Eventos</h2>
+          <p className="text-gray-500 text-lg font-semibold">Gerencie e configure os eventos da plataforma</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <button
@@ -308,15 +308,15 @@ export default function MasterEventos() {
           </button>
           <button
             onClick={abrirCriar}
-            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg hover:shadow-green-700/20 text-base sm:text-lg flex items-center justify-center gap-2"
+            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg hover:shadow-green-700/20 text-lg flex items-center justify-center gap-2"
           >
             <span>➕</span> Novo Evento
           </button>
         </div>
       </div>
 
-      {error && !mostrarModal && (
-        <div className="bg-red-50 border-2 border-red-300 text-red-700 p-4 rounded-2xl mb-6 font-bold flex items-center gap-3">
+      {error && (
+        <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold flex items-center gap-3">
           <span>⚠️</span> {error}
         </div>
       )}
@@ -339,28 +339,28 @@ export default function MasterEventos() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {eventos.map((evt) => (
-            <div key={evt.id} className="bg-white rounded-3xl p-5 sm:p-6 border-2 border-gray-100 hover:border-[#1D3461] transition-all shadow-sm hover:shadow-md flex flex-col justify-between">
+            <div key={evt.id} className="bg-white rounded-3xl p-6 border-2 border-gray-100 hover:border-[#1D3461] transition-all shadow-sm hover:shadow-md flex flex-col justify-between">
               <div>
-                <div className="flex justify-between items-start gap-2 mb-4">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-black text-xl sm:text-2xl text-gray-900 break-words">{evt.nome}</h3>
-                    <p className="text-gray-500 font-semibold text-sm sm:text-base">{evt.local || 'Local não informado'}</p>
-                    <div className="mt-2 inline-flex flex-wrap items-center gap-1.5 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-mono text-gray-600 max-w-full">
-                      <span className="truncate">ID: <strong className="text-gray-900">{evt.id}</strong></span>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="font-black text-2xl text-gray-900">{evt.nome}</h3>
+                    <p className="text-gray-500 font-semibold">{evt.local || 'Local não informado'}</p>
+                    <div className="mt-2 inline-flex items-center gap-2 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-lg text-xs font-mono text-gray-600">
+                      <span>ID: <strong className="text-gray-900">{evt.id}</strong></span>
                       <button
                         type="button"
                         onClick={() => {
                           navigator.clipboard.writeText(evt.id);
                           alert(`ID copiado: ${evt.id}`);
                         }}
-                        className="text-[#ff5500] hover:underline font-sans text-[11px] font-black cursor-pointer ml-1 shrink-0"
+                        className="text-[#ff5500] hover:underline font-sans text-[11px] font-black cursor-pointer ml-1"
                         title="Copiar ID para usar na Bilheteria"
                       >
                         Copiar ID
                       </button>
                     </div>
                   </div>
-                  <span className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-black shrink-0 ${
+                  <span className={`px-4 py-1.5 rounded-full text-sm font-black ${
                     evt.status === 'ATIVO' ? 'bg-green-100 text-green-700' :
                     evt.status === 'CONFIGURANDO' ? 'bg-yellow-100 text-yellow-700' :
                     'bg-gray-100 text-gray-700'
@@ -381,27 +381,27 @@ export default function MasterEventos() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 bg-gray-50 rounded-2xl p-3 sm:p-4 mb-4 text-center">
+                <div className="grid grid-cols-3 gap-2 bg-gray-50 rounded-2xl p-4 mb-4 text-center">
                   <div>
-                    <p className="text-gray-400 text-[10px] sm:text-xs font-bold uppercase">Cartões</p>
-                    <p className="text-gray-950 font-black text-base sm:text-lg">{evt._count?.cartoes || 0}</p>
+                    <p className="text-gray-400 text-xs font-bold uppercase">Cartões</p>
+                    <p className="text-gray-950 font-black text-lg">{evt._count?.cartoes || 0}</p>
                   </div>
                   <div>
-                    <p className="text-gray-400 text-[10px] sm:text-xs font-bold uppercase">Produtos</p>
-                    <p className="text-gray-950 font-black text-base sm:text-lg">{evt._count?.produtos || 0}</p>
+                    <p className="text-gray-400 text-xs font-bold uppercase">Produtos</p>
+                    <p className="text-gray-950 font-black text-lg">{evt._count?.produtos || 0}</p>
                   </div>
                   <div>
-                    <p className="text-gray-400 text-[10px] sm:text-xs font-bold uppercase">Taxa Master</p>
-                    <p className="text-gray-950 font-black text-base sm:text-lg">{evt.taxaMasterPercent}%</p>
+                    <p className="text-gray-400 text-xs font-bold uppercase">Taxa Master</p>
+                    <p className="text-gray-950 font-black text-lg">{evt.taxaMasterPercent}%</p>
                   </div>
                 </div>
 
-                <div className={`mt-3 p-3 sm:p-3.5 rounded-2xl border-2 flex items-center justify-between gap-2 text-xs font-black mb-4 ${
+                <div className={`mt-3 p-3.5 rounded-2xl border-2 flex items-center justify-between text-xs font-black mb-4 ${
                   evt.mercadoPagoUserId 
                     ? 'bg-green-50 border-green-100 text-green-700' 
                     : 'bg-gray-50 border-gray-100 text-gray-500'
                 }`}>
-                  <div className="flex items-center gap-1.5 min-w-0 truncate">
+                  <div className="flex items-center gap-1.5 truncate">
                     <span>🔌 MP Split:</span>
                     <span className="truncate">{evt.mercadoPagoUserId ? `Conectado (ID: ${evt.mercadoPagoUserId})` : 'Não Configurado'}</span>
                   </div>
@@ -425,7 +425,7 @@ export default function MasterEventos() {
 
               <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
                 <div className="flex justify-between items-center text-gray-400 text-sm font-semibold">
-                  <span>📅 {evt.data ? new Date(evt.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'}</span>
+                  <span>📅 {new Date(evt.data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>
                   {evt.bilheteriaEventoId && (
                     <span className="text-[11px] bg-purple-50 text-purple-700 px-2.5 py-0.5 rounded-full font-bold">
                       🎟️ Bilheteria Conectada
@@ -452,19 +452,19 @@ export default function MasterEventos() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => abrirEditar(evt)}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs sm:text-sm px-3 sm:px-4 py-2.5 rounded-xl transition-all"
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm px-4 py-2.5 rounded-xl transition-all"
                   >
                     ✏️ Editar Detalhes
                   </button>
                   <button
                     onClick={() => handleMudarStatus(evt.id, evt.status)}
-                    className="flex-1 text-[#1D3461] hover:bg-[#1D3461]/10 px-3 sm:px-4 py-2.5 rounded-xl transition-all font-bold text-xs sm:text-sm border-2 border-[#1D3461]/10"
+                    className="flex-1 text-[#1D3461] hover:bg-[#1D3461]/10 px-4 py-2.5 rounded-xl transition-all font-bold text-sm border-2 border-[#1D3461]/10"
                   >
                     {evt.status === 'ATIVO' ? '⏸️ Pausar' : '▶️ Ativar'}
                   </button>
                   <button
                     onClick={() => handleExcluir(evt.id, evt.nome)}
-                    className="flex-none bg-red-50 hover:bg-red-100 text-red-600 px-3 sm:px-4 py-2.5 rounded-xl transition-all font-bold text-sm"
+                    className="flex-none bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2.5 rounded-xl transition-all font-bold text-sm"
                     title="Excluir Evento"
                   >
                     🗑️
@@ -496,18 +496,10 @@ export default function MasterEventos() {
       {/* Modal Criar/Editar Evento */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200 scrollbar-thin">
-            <h3 className="text-xl sm:text-2xl font-black text-[#1D3461] mb-4 flex items-center gap-2 sticky top-0 bg-white pb-2 z-10">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200 scrollbar-thin">
+            <h3 className="text-2xl font-black text-[#1D3461] mb-6 flex items-center gap-2">
               <span>🎪</span> {eventoParaEditar ? 'Editar Evento' : 'Novo Evento'}
             </h3>
-
-            {error && (
-              <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl mb-4 font-bold text-sm flex items-start gap-2">
-                <span className="shrink-0">⚠️</span>
-                <span>{error}</span>
-              </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-gray-500 font-bold mb-1 text-sm">Nome do Evento</label>
@@ -521,7 +513,7 @@ export default function MasterEventos() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gray-500 font-bold mb-1 text-sm">Data</label>
                   <input
@@ -563,7 +555,7 @@ export default function MasterEventos() {
                     type="checkbox"
                     checked={permiteDevolucao}
                     onChange={(e) => setPermiteDevolucao(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-[#1D3461] focus:ring-[#1D3461] shrink-0"
+                    className="w-5 h-5 rounded border-gray-300 text-[#1D3461] focus:ring-[#1D3461]"
                   />
                   <div>
                     <p className="font-bold text-gray-800 text-sm">Permitir Devoluções de Saldo (Master e APP)</p>
@@ -575,48 +567,20 @@ export default function MasterEventos() {
                   <input
                     type="checkbox"
                     checked={permitirEdicaoGateway}
-                    onChange={(e) => setPermitirEdicaoGateway(e.target.checked)}
-                    className="w-5 h-5 rounded border-gray-300 text-[#1D3461] focus:ring-[#1D3461] shrink-0"
+                    onChange={(e) => setPermirirEdicaoGateway ? setPermitirEdicaoGateway(e.target.checked) : null}
+                    className="w-5 h-5 rounded border-gray-300 text-[#1D3461] focus:ring-[#1D3461]"
                   />
                   <div>
                     <p className="font-bold text-gray-800 text-sm">Permitir que Produtor configure as API Keys do Gateway</p>
                     <p className="text-xs text-gray-500 font-semibold">Se desativado, apenas o Master poderá configurar as chaves do Asaas/Mercado Pago.</p>
                   </div>
                 </label>
-
-                <div className="pt-2 border-t border-gray-200 space-y-2.5">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={exibirAvisoSaldo}
-                      onChange={(e) => setExibirAvisoSaldo(e.target.checked)}
-                      className="w-5 h-5 rounded border-gray-300 text-[#1D3461] focus:ring-[#1D3461] shrink-0"
-                    />
-                    <div>
-                      <p className="font-bold text-gray-800 text-sm">Exibir aviso sobre regra de uso do saldo no Cartão Digital</p>
-                      <p className="text-xs text-gray-500 font-semibold">Permite incluir ou ocultar o aviso no cartão de cada festa e personalizar a mensagem.</p>
-                    </div>
-                  </label>
-
-                  {exibirAvisoSaldo && (
-                    <div>
-                      <label className="block text-gray-700 font-bold mb-1 text-xs">Texto do aviso no Cartão Digital (editável por festa)</label>
-                      <textarea
-                        rows={3}
-                        value={textoAvisoSaldo}
-                        onChange={(e) => setTextoAvisoSaldo(e.target.value)}
-                        placeholder="O saldo não será devolvido, o mesmo deverá ser consumido até o final da festa ou ficará para doação."
-                        className="w-full bg-white border-2 border-gray-200 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2 text-xs font-semibold text-gray-900"
-                      />
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* CONFIGURAÇÃO DE RECEBIMENTO PIX / GATEWAY */}
-              <div className="bg-amber-500/10 border-2 border-amber-500/30 p-4 sm:p-5 rounded-2xl space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h4 className="text-[#1D3461] font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+              <div className="bg-amber-500/10 border-2 border-amber-500/30 p-5 rounded-2xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[#1D3461] font-black text-sm uppercase tracking-wider flex items-center gap-2">
                     <span>⚡</span> Configuração de Recebimento PIX (PF / PJ)
                   </h4>
                   <span className="text-[10px] font-bold bg-amber-500/20 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-500/30">
@@ -629,14 +593,26 @@ export default function MasterEventos() {
                   <select
                     value={gatewayActive}
                     onChange={(e) => setGatewayActive(e.target.value)}
-                    className="w-full bg-white border-2 border-amber-200 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2.5 font-bold text-sm text-gray-900"
+                    className="w-full bg-white border-2 border-amber-200 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2.5 font-bold text-sm text-gray-900 cursor-pointer"
                   >
+                    <option value="NENHUM">🚫 Nenhum / Não utilizado (Modo Gerencial)</option>
                     <option value="PIX_DIRETO">⚡ PIX Direto (Chave Própria PF/PJ - Padrão)</option>
                     <option value="MERCADO_PAGO">Mercado Pago (OAuth / Split)</option>
                     <option value="ASAAS">Asaas Gateway</option>
                     <option value="PAGBANK">PagBank (PagSeguro)</option>
                   </select>
                 </div>
+
+                {gatewayActive === 'NENHUM' && (
+                  <div className="p-3 bg-white/90 rounded-xl border border-amber-200 text-xs text-gray-700 font-semibold space-y-1">
+                    <p className="font-bold text-[#1D3461] flex items-center gap-1.5">
+                      <span>🚫</span> Nenhum método de recebimento online ativo
+                    </p>
+                    <p className="text-gray-500 text-[11px] leading-relaxed">
+                      Chaves PIX e credenciais de API ficam desativadas. Ideal para modo gerencial e eventos onde todas as transações são físicas ou sem cobrança via aplicativo.
+                    </p>
+                  </div>
+                )}
 
                 {gatewayActive === 'PIX_DIRETO' && (
                   <div className="space-y-3 pt-2 border-t border-amber-500/20">
@@ -713,27 +689,31 @@ export default function MasterEventos() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-gray-500 font-bold mb-1 text-sm">Mercado Pago Public Key</label>
-                <input
-                  type="text"
-                  value={mpPublicKey}
-                  onChange={(e) => setMpPublicKey(e.target.value)}
-                  className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
-                  placeholder="Ex: APP_USR-..."
-                />
-              </div>
+              {gatewayActive !== 'NENHUM' && (
+                <>
+                  <div>
+                    <label className="block text-gray-500 font-bold mb-1 text-sm">Mercado Pago Public Key</label>
+                    <input
+                      type="text"
+                      value={mpPublicKey}
+                      onChange={(e) => setMpPublicKey(e.target.value)}
+                      className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
+                      placeholder="Ex: APP_USR-..."
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-gray-500 font-bold mb-1 text-sm">Mercado Pago Access Token</label>
-                <input
-                  type="password"
-                  value={mpAccessToken}
-                  onChange={(e) => setMpAccessToken(e.target.value)}
-                  className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
-                  placeholder="Ex: APP_USR-..."
-                />
-              </div>
+                  <div>
+                    <label className="block text-gray-500 font-bold mb-1 text-sm">Mercado Pago Access Token</label>
+                    <input
+                      type="password"
+                      value={mpAccessToken}
+                      onChange={(e) => setMpAccessToken(e.target.value)}
+                      className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
+                      placeholder="Ex: APP_USR-..."
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-gray-500 font-bold mb-1 text-sm">
@@ -777,17 +757,10 @@ export default function MasterEventos() {
                 </div>
               )}
 
-              {error && (
-                <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl font-bold text-sm flex items-start gap-2">
-                  <span className="shrink-0">⚠️</span>
-                  <span>{error}</span>
-                </div>
-              )}
-
               <div className="flex gap-4 pt-4">
                 <button
                   type="button"
-                  onClick={() => { setError(''); setMostrarModal(false); }}
+                  onClick={() => setMostrarModal(false)}
                   className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black py-3 rounded-2xl transition-all"
                 >
                   Cancelar
@@ -808,7 +781,7 @@ export default function MasterEventos() {
       {/* Modal QR Code */}
       {mostrarQrModal && eventoQr && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 text-center">
             <h3 className="text-xl font-black text-[#1D3461] mb-2">QR Code de Cadastro</h3>
             <p className="text-sm text-gray-500 mb-6 font-semibold">{eventoQr.nome}</p>
             

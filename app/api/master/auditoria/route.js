@@ -14,13 +14,17 @@ export async function GET(req) {
     const eventoId = searchParams.get('eventoId');
     const dataInicio = searchParams.get('dataInicio');
     const dataFim = searchParams.get('dataFim');
-    const search = searchParams.get('search');
 
     const where = {};
     if (eventoId) {
-      where.cartao = { eventoId };
+      where.OR = [
+        { cartao: { eventoId } },
+        { gatewayStatus: eventoId },
+        { produto: { eventoId } },
+        { operador: { eventoId } },
+      ];
     }
-    
+
     if (dataInicio || dataFim) {
       where.criadaEm = {};
       if (dataInicio) {
@@ -33,27 +37,49 @@ export async function GET(req) {
       }
     }
 
-    const movimentacoes = await prisma.movimentacao.findMany({
-      where,
-      include: {
-        cartao: {
-          include: {
-            cliente: true,
-            evento: { select: { id: true, nome: true } }
-          }
+    const [movimentacoes, eventos] = await Promise.all([
+      prisma.movimentacao.findMany({
+        where,
+        include: {
+          cartao: {
+            include: {
+              cliente: true,
+              evento: { select: { id: true, nome: true } },
+            },
+          },
+          produto: {
+            select: { id: true, nome: true, grupo: true, preco: true, eventoId: true },
+          },
+          operador: {
+            select: { id: true, nome: true, role: true, eventoId: true },
+          },
         },
-        produto: {
-          select: { id: true, nome: true, grupo: true, preco: true }
-        },
-        operador: {
-          select: { id: true, nome: true, role: true }
-        }
-      },
-      orderBy: { criadaEm: 'desc' },
-      take: 20000 // Garante que NENHUMA transação seja cortada no relatório
+        orderBy: { criadaEm: 'desc' },
+        take: 20000,
+      }),
+      prisma.evento.findMany({ select: { id: true, nome: true } }),
+    ]);
+
+    const eventosMap = Object.fromEntries(eventos.map((e) => [e.id, e.nome]));
+
+    const enriched = movimentacoes.map((m) => {
+      const resolvedEventoId =
+        m.cartao?.evento?.id ||
+        m.produto?.eventoId ||
+        (m.gatewayStatus && eventosMap[m.gatewayStatus] ? m.gatewayStatus : null) ||
+        m.operador?.eventoId ||
+        null;
+
+      const resolvedEventoNome =
+        m.cartao?.evento?.nome || (resolvedEventoId ? eventosMap[resolvedEventoId] : null) || 'Geral';
+
+      return {
+        ...m,
+        eventoNome: resolvedEventoNome,
+      };
     });
 
-    return NextResponse.json(movimentacoes);
+    return NextResponse.json(enriched);
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

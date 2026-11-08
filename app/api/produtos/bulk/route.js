@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { logSupportAction } from '@/lib/audit';
 
 export async function POST(req) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
     const body = await req.json();
     const { produtos, eventoId } = body;
 
@@ -10,7 +18,6 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Dados inválidos. Envie uma lista de produtos e o ID do evento.' }, { status: 400 });
     }
 
-    // Criação em lote (bulk) no Prisma
     const created = await prisma.produto.createMany({
       data: produtos.map(p => ({
         nome: p.nome,
@@ -18,8 +25,17 @@ export async function POST(req) {
         grupo: p.grupo || 'Outros',
         imagem: p.imagem || '📦',
         eventoId: eventoId,
-        ativo: true
+        ativo: true,
+        criadoPorId: session?.user?.id || null,
+        criadoPorNome: session?.user?.nome || null,
       }))
+    });
+
+    await logSupportAction({
+      session,
+      eventoId,
+      acao: 'IMPORTACAO_PRODUTOS',
+      detalhes: `Importou ${created.count} produto(s) em lote via planilha`,
     });
 
     return NextResponse.json({ ok: true, count: created.count }, { status: 201 });

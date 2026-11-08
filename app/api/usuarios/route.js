@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { logSupportAction } from '@/lib/audit';
 
 export async function GET(req) {
   try {
@@ -103,6 +104,15 @@ export async function POST(req) {
         criadoPorNome: session?.user?.nome,
       },
     });
+
+    if (session?.user?.role === 'SUPORTE_OPERACIONAL') {
+      await logSupportAction({
+        session,
+        eventoId,
+        acao: 'CRIAR_OPERADOR',
+        detalhes: `Criou operador ${usuario.nome} (${usuario.role})`,
+      });
+    }
 
     const { senha: _, ...safeUsuario } = usuario;
     return NextResponse.json(safeUsuario, { status: 201 });

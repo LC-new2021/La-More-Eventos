@@ -17,7 +17,6 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Código do cartão é obrigatório.' }, { status: 400 });
     }
 
-    // Transação atômica
     const result = await prisma.$transaction(async (tx) => {
       const cartao = await tx.cartao.findUnique({
         where: { codigo: codigo.toUpperCase() }
@@ -28,24 +27,22 @@ export async function POST(req) {
 
       const valorEstorno = cartao.saldo;
 
-      // Zera o saldo
       const updatedCartao = await tx.cartao.update({
         where: { id: cartao.id },
         data: { saldo: 0 }
       });
 
-      // Cria a movimentação de estorno manual pelo Master
       const mov = await tx.movimentacao.create({
         data: {
           tipo: 'ESTORNO',
           valor: valorEstorno,
           descricao: `Devolução Manual de Saldo (Admin Master)`,
           cartaoId: cartao.id,
-          operadorId: session.user.id
+          operadorId: session.user.id,
+          operadorNome: session.user.nome || 'Master Admin',
         }
       });
 
-      // Registra no histórico de "Devoluções Feitas" da aba Devoluções
       const solicitacao = await tx.solicitacaoDevolucao.create({
         data: {
           eventoId: cartao.eventoId,

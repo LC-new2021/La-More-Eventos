@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 
 export default function MasterUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -12,6 +11,7 @@ export default function MasterUsuarios() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [role, setRole] = useState('OPERADOR_BAR');
   const [eventoId, setEventoId] = useState('');
   const [razaoSocial, setRazaoSocial] = useState('');
@@ -26,19 +26,20 @@ export default function MasterUsuarios() {
   const [pagbankKey, setPagbankKey] = useState('');
   const [stoneToken, setStoneToken] = useState('');
   const [salvando, setSalvando] = useState(false);
-  
+
   // Modal states
   const [mostrarModal, setMostrarModal] = useState(false);
   const [usuarioParaEditar, setUsuarioParaEditar] = useState(null);
 
   // Filtros
   const [filtroEvento, setFiltroEvento] = useState('');
+  const [statusFiltro, setStatusFiltro] = useState('ativos'); // ativos | desativados | todos
   const [busca, setBusca] = useState('');
- 
+
   useEffect(() => {
     carregarDados();
   }, []);
- 
+
   const carregarDados = async () => {
     try {
       const [resUsers, resEvents] = await Promise.all([
@@ -47,24 +48,24 @@ export default function MasterUsuarios() {
       ]);
       const usersData = await resUsers.json();
       const eventsData = await resEvents.json();
-      
+
       if (usersData.error) setError(usersData.error);
-      else setUsuarios(usersData);
- 
-      if (!eventsData.error) setEventos(eventsData);
+      else setUsuarios(Array.isArray(usersData) ? usersData : []);
+
+      if (!eventsData.error) setEventos(Array.isArray(eventsData) ? eventsData : []);
     } catch (e) {
       setError('Erro ao carregar dados do banco');
     } finally {
       setLoading(false);
     }
   };
- 
+
   const abrirCriar = () => {
-    setError('');
     setUsuarioParaEditar(null);
     setNome('');
     setEmail('');
     setSenha('');
+    setMostrarSenha(false);
     setRole('OPERADOR_BAR');
     setEventoId(filtroEvento || '');
     setRazaoSocial('');
@@ -80,13 +81,13 @@ export default function MasterUsuarios() {
     setStoneToken('');
     setMostrarModal(true);
   };
- 
+
   const abrirEditar = (user) => {
-    setError('');
     setUsuarioParaEditar(user);
     setNome(user.nome || '');
     setEmail(user.email || '');
-    setSenha(''); // Leave password empty unless updating
+    setSenha('');
+    setMostrarSenha(false);
     let userRole = user.role || 'OPERADOR_BAR';
     if (userRole === 'CLIENTE' || userRole === 'SUPORTE') userRole = 'SUPORTE_OPERACIONAL';
     setRole(userRole);
@@ -104,12 +105,18 @@ export default function MasterUsuarios() {
     setStoneToken(user.stoneToken || '');
     setMostrarModal(true);
   };
- 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const msgConfirm = usuarioParaEditar
+      ? `Você quer realmente confirmar as alterações no usuário "${nome.trim()}"?`
+      : `Você quer realmente incluir o usuário "${nome.trim()}" (${role}) no sistema?`;
+
+    if (!window.confirm(msgConfirm)) return;
+
     setSalvando(true);
     setError('');
- 
+
     const payload = {
       nome: nome.trim(),
       email: email.trim().toLowerCase(),
@@ -131,23 +138,23 @@ export default function MasterUsuarios() {
     if (senha) {
       payload.senha = senha.trim();
     }
- 
+
     const url = usuarioParaEditar ? `/api/usuarios/${usuarioParaEditar.id}` : '/api/usuarios';
     const method = usuarioParaEditar ? 'PATCH' : 'POST';
- 
+
     try {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      
+
       let result = null;
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         result = await res.json();
       }
-      
+
       if (!res.ok || result?.error) {
         setError(result?.error || `Erro (${res.status}): Não foi possível salvar o usuário.`);
       } else {
@@ -173,10 +180,33 @@ export default function MasterUsuarios() {
     }
   };
 
-  const handleExcluir = async (id) => {
-    if (!window.confirm("ATENÇÃO: Tem certeza que deseja excluir permanentemente este usuário? Esta ação não pode ser desfeita.")) return;
+  const toggleAtivoUsuario = async (u) => {
+    if (u.role === 'MASTER' && u.ativo) {
+      if (!window.confirm(`Deseja realmente desativar o acesso Master de "${u.nome}"?`)) return;
+    }
     try {
-      const res = await fetch(`/api/usuarios/${id}`, {
+      const res = await fetch(`/api/usuarios/${u.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ativo: !u.ativo }),
+      });
+      if (res.ok) carregarDados();
+      else {
+        const err = await res.json();
+        if (err?.error) alert(err.error);
+      }
+    } catch (e) {
+      console.error('Erro ao alterar status do usuário', e);
+    }
+  };
+
+  const handleExcluir = async (u) => {
+    const confirmou = window.confirm(
+      `⚠️ CONFIRMAÇÃO DE EXCLUSÃO\n\nVocê quer realmente cancelar/excluir o usuário "${u.nome}" (${u.email})?\n\n💡 Dica: Se quiser apenas suspender o acesso temporariamente (organizador ou operador) para reativar depois, clique em "Cancelar" e use o botão "Desativar".\n\nDeseja realmente EXCLUIR este usuário definitivamente? (O histórico nos relatórios será preservado)`
+    );
+    if (!confirmou) return;
+    try {
+      const res = await fetch(`/api/usuarios/${u.id}`, {
         method: 'DELETE',
       });
       if (res.ok) carregarDados();
@@ -185,42 +215,57 @@ export default function MasterUsuarios() {
     }
   };
 
-  const usuariosFiltrados = usuarios.filter(u => {
+  const usuariosPorEvento = usuarios.filter((u) => {
     if (filtroEvento && u.eventoId !== filtroEvento) return false;
-    if (busca.trim()) {
-      const q = busca.toLowerCase();
-      const nomeMatch = u.nome?.toLowerCase().includes(q);
-      const emailMatch = u.email?.toLowerCase().includes(q);
-      const roleMatch = u.role?.toLowerCase().includes(q);
-      const eventoMatch = u.evento?.nome?.toLowerCase().includes(q);
-      if (!nomeMatch && !emailMatch && !roleMatch && !eventoMatch) return false;
-    }
     return true;
   });
+
+  const totalAtivos = usuariosPorEvento.filter((u) => u.ativo !== false).length;
+  const totalDesativados = usuariosPorEvento.filter((u) => u.ativo === false).length;
+
+  const usuariosFiltrados = usuariosPorEvento
+    .filter((u) => {
+      if (statusFiltro === 'ativos') return u.ativo !== false;
+      if (statusFiltro === 'desativados') return u.ativo === false;
+      return true;
+    })
+    .filter((u) => {
+      if (busca.trim()) {
+        const q = busca.toLowerCase();
+        const nomeMatch = u.nome?.toLowerCase().includes(q);
+        const emailMatch = u.email?.toLowerCase().includes(q);
+        const roleMatch = u.role?.toLowerCase().includes(q);
+        const eventoMatch = u.evento?.nome?.toLowerCase().includes(q);
+        if (!nomeMatch && !emailMatch && !roleMatch && !eventoMatch) return false;
+      }
+      return true;
+    });
 
   return (
     <div className="w-full max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl sm:text-4xl font-black text-[#1D3461] mb-1 sm:mb-2">Usuários e Operadores</h2>
-          <p className="text-gray-500 text-sm sm:text-lg font-semibold">Gerencie os acessos de organizadores, caixas e operadores</p>
+          <h2 className="text-3xl sm:text-4xl font-black text-[#1D3461] mb-2">Usuários, Organizadores e Operadores</h2>
+          <p className="text-gray-500 text-base sm:text-lg font-semibold">
+            {totalAtivos} ativos · {totalDesativados} desativados
+          </p>
         </div>
         <button
           onClick={abrirCriar}
-          className="bg-[#1D3461] hover:bg-[#112244] text-white font-black px-5 sm:px-6 py-3 rounded-2xl transition-all shadow-lg text-base sm:text-lg flex items-center justify-center gap-2 cursor-pointer shrink-0"
+          className="bg-[#1D3461] hover:bg-[#112244] text-white font-black px-6 py-3 rounded-2xl transition-all shadow-lg text-lg flex items-center justify-center gap-2 cursor-pointer shrink-0"
         >
           <span>➕</span> Novo Usuário
         </button>
       </div>
 
       {/* BARRA DE FILTROS: POR EVENTO E BUSCA */}
-      <div className="bg-white p-4 sm:p-5 rounded-3xl border-2 border-gray-100 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center">
+      <div className="bg-white p-5 rounded-3xl border-2 border-gray-100 shadow-sm mb-5 flex flex-col md:flex-row gap-4 items-center">
         <div className="flex-1 w-full">
           <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Filtrar por Evento</label>
           <select
             value={filtroEvento}
             onChange={(e) => setFiltroEvento(e.target.value)}
-            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-bold text-[#1D3461] outline-none transition-all text-sm sm:text-base"
+            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-bold text-[#1D3461] outline-none transition-all"
           >
             <option value="">🎪 Todos os Eventos ({usuarios.length} usuários)</option>
             {eventos.map(ev => (
@@ -236,14 +281,85 @@ export default function MasterUsuarios() {
             type="text"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="🔍 Buscar usuário..."
-            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-semibold text-gray-900 outline-none transition-all text-sm sm:text-base"
+            placeholder="🔍 Buscar organizador, suporte ou operador..."
+            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-2.5 font-semibold text-gray-900 outline-none transition-all"
           />
         </div>
       </div>
 
-      {error && !mostrarModal && (
-        <div className="bg-red-50 border-2 border-red-300 text-red-700 p-4 rounded-2xl mb-6 font-bold flex items-center gap-3">
+      {/* ABAS DE STATUS: ATIVOS vs DESATIVADOS */}
+      <div className="flex flex-wrap gap-2 bg-white p-1.5 rounded-2xl border-2 border-gray-100 shadow-sm mb-5 w-fit">
+        <button
+          onClick={() => setStatusFiltro('ativos')}
+          className={`px-4 py-2.5 rounded-xl font-black text-sm sm:text-base transition-all flex items-center gap-2 ${
+            statusFiltro === 'ativos'
+              ? 'bg-green-600 text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <span>✅ Ativos (Organizadores e Operadores)</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs font-black ${
+              statusFiltro === 'ativos' ? 'bg-white/20 text-white' : 'bg-green-100 text-green-800'
+            }`}
+          >
+            {totalAtivos}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusFiltro('desativados')}
+          className={`px-4 py-2.5 rounded-xl font-black text-sm sm:text-base transition-all flex items-center gap-2 ${
+            statusFiltro === 'desativados'
+              ? 'bg-amber-500 text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <span>⏸️ Desativados</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs font-black ${
+              statusFiltro === 'desativados' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
+            }`}
+          >
+            {totalDesativados}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setStatusFiltro('todos')}
+          className={`px-4 py-2.5 rounded-xl font-black text-sm sm:text-base transition-all flex items-center gap-2 ${
+            statusFiltro === 'todos'
+              ? 'bg-[#1D3461] text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <span>📋 Todos</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs font-black ${
+              statusFiltro === 'todos' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'
+            }`}
+          >
+            {usuariosPorEvento.length}
+          </span>
+        </button>
+      </div>
+
+      {statusFiltro === 'desativados' && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 mb-5 flex items-start gap-3">
+          <span className="text-2xl">⏸️</span>
+          <div>
+            <p className="font-black text-amber-900 text-sm sm:text-base">
+              Ambiente de Organizadores e Operadores Desativados
+            </p>
+            <p className="text-amber-800 text-xs sm:text-sm font-semibold mt-0.5">
+              Estes usuários estão com o login temporariamente bloqueado. Clique em <strong>&ldquo;✅ Reativar&rdquo;</strong> para restaurar o acesso imediatamente sem precisar recadastrar.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold flex items-center gap-3">
           <span>⚠️</span> {error}
         </div>
       )}
@@ -255,29 +371,39 @@ export default function MasterUsuarios() {
       ) : (
         <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[680px]">
+            <table className="w-full text-left border-collapse min-w-[820px]">
               <thead>
-                <tr className="bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold text-xs sm:text-sm">
-                  <th className="p-3.5 sm:p-4">Nome</th>
-                  <th className="p-3.5 sm:p-4">E-mail</th>
-                  <th className="p-3.5 sm:p-4">Função</th>
-                  <th className="p-3.5 sm:p-4">Criado Por</th>
-                  <th className="p-3.5 sm:p-4">Evento Vinculado</th>
-                  <th className="p-3.5 sm:p-4 text-center min-w-[170px]">Ações</th>
+                <tr className="bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold text-sm">
+                  <th className="p-4">Nome</th>
+                  <th className="p-4">E-mail</th>
+                  <th className="p-4">Função</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Criado Por</th>
+                  <th className="p-4">Evento Vinculado</th>
+                  <th className="p-4 text-center min-w-[260px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {usuariosFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-400 font-bold">Nenhum usuário encontrado com os filtros selecionados.</td>
+                    <td colSpan={7} className="p-8 text-center text-gray-400 font-bold">
+                      {statusFiltro === 'desativados'
+                        ? 'Nenhum usuário ou operador desativado no momento.'
+                        : 'Nenhum usuário encontrado com os filtros selecionados.'}
+                    </td>
                   </tr>
                 ) : (
                   usuariosFiltrados.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="p-3.5 sm:p-4 font-bold text-gray-900 text-sm sm:text-base">{u.nome}</td>
-                      <td className="p-3.5 sm:p-4 font-semibold text-gray-500 text-xs sm:text-sm break-all">{u.email}</td>
-                      <td className="p-3.5 sm:p-4">
-                        <span className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider inline-block whitespace-nowrap ${
+                    <tr
+                      key={u.id}
+                      className={`transition-colors ${
+                        u.ativo !== false ? 'hover:bg-gray-50/50' : 'bg-amber-50/40 hover:bg-amber-50/70'
+                      }`}
+                    >
+                      <td className="p-4 font-bold text-gray-900">{u.nome}</td>
+                      <td className="p-4 font-semibold text-gray-500">{u.email}</td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider ${
                           u.role === 'MASTER' ? 'bg-purple-100 text-purple-700' :
                           u.role === 'ORGANIZADOR' ? 'bg-blue-100 text-blue-700' :
                           (u.role === 'SUPORTE_OPERACIONAL' || u.role === 'CLIENTE' || u.role === 'SUPORTE') ? 'bg-teal-100 text-teal-700' :
@@ -285,28 +411,50 @@ export default function MasterUsuarios() {
                           u.role === 'CAIXA' ? 'bg-yellow-100 text-yellow-700' :
                           'bg-green-100 text-green-700'
                         }`}>
-                          {u.role === 'SUPORTE_OPERACIONAL' || u.role === 'CLIENTE' || u.role === 'SUPORTE' ? 'Suporte Operacional' : u.role.replace('_', ' ')}
+                          {u.role === 'SUPORTE_OPERACIONAL' || u.role === 'CLIENTE' || u.role === 'SUPORTE' ? 'Suporte Operacional' : u.role === 'ORGANIZADOR' ? 'Organizador' : u.role.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="p-3.5 sm:p-4 font-bold text-gray-700 text-xs sm:text-sm">
+                      <td className="p-4">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                            u.ativo !== false
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-amber-200 text-amber-900'
+                          }`}
+                        >
+                          {u.ativo !== false ? 'Ativo' : 'Desativado'}
+                        </span>
+                      </td>
+                      <td className="p-4 font-bold text-gray-700">
                         {u.criadoPorNome || <span className="text-gray-400 font-semibold text-xs">Sistema</span>}
                       </td>
-                      <td className="p-3.5 sm:p-4 font-bold text-gray-700 text-xs sm:text-sm">
+                      <td className="p-4 font-bold text-gray-700">
                         {u.evento?.nome || <span className="text-gray-400 font-semibold">—</span>}
                       </td>
-                      <td className="p-3.5 sm:p-4 text-center">
+                      <td className="p-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
+                            onClick={() => toggleAtivoUsuario(u)}
+                            className={`font-black text-xs px-3 py-2 rounded-xl transition-all cursor-pointer shadow-sm ${
+                              u.ativo !== false
+                                ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                                : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}
+                          >
+                            {u.ativo !== false ? '⏸️ Desativar' : '✅ Reativar'}
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => abrirEditar(u)}
-                            className="font-black text-xs px-3 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-200 hover:bg-gray-100 text-center cursor-pointer shadow-sm"
+                            className="font-black text-xs px-3.5 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-200 hover:bg-gray-100 text-center cursor-pointer shadow-sm"
                           >
                             ✏️ Editar
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleExcluir(u.id)}
-                            className="font-black text-xs px-3 py-2 rounded-xl transition-all border-2 text-red-600 border-red-200 hover:bg-red-50 text-center cursor-pointer shadow-sm"
+                            onClick={() => handleExcluir(u)}
+                            className="font-black text-xs px-3.5 py-2 rounded-xl transition-all border-2 text-red-600 border-red-200 hover:bg-red-50 text-center cursor-pointer shadow-sm"
                           >
                             🗑️ Excluir
                           </button>
@@ -325,17 +473,9 @@ export default function MasterUsuarios() {
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200 scrollbar-thin">
-            <h3 className="text-xl sm:text-2xl font-black text-[#1D3461] mb-4 flex items-center gap-2 sticky top-0 bg-white pb-2 z-10">
+            <h3 className="text-2xl font-black text-[#1D3461] mb-6 flex items-center gap-2 sticky top-0 bg-white pb-2 z-10">
               <span>👥</span> {usuarioParaEditar ? 'Editar Usuário' : 'Novo Usuário'}
             </h3>
-
-            {error && (
-              <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl mb-4 font-bold text-sm flex items-start gap-2 animate-in fade-in duration-150">
-                <span className="shrink-0">⚠️</span>
-                <span>{error}</span>
-              </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-gray-500 font-bold mb-1 text-sm">Nome Completo</label>
@@ -345,7 +485,7 @@ export default function MasterUsuarios() {
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
                   className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
-                  placeholder="Nome do operador"
+                  placeholder="Nome do usuário"
                 />
               </div>
 
@@ -366,15 +506,25 @@ export default function MasterUsuarios() {
                 <label className="block text-gray-500 font-bold mb-1 text-sm">
                   Senha {usuarioParaEditar && '(deixe em branco para não alterar)'}
                 </label>
-                <input
-                  type="password"
-                  required={!usuarioParaEditar}
-                  value={senha}
-                  autoComplete="new-password"
-                  onChange={(e) => setSenha(e.target.value)}
-                  className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
-                  placeholder="Senha de acesso"
-                />
+                <div className="relative">
+                  <input
+                    type={mostrarSenha ? 'text' : 'password'}
+                    required={!usuarioParaEditar}
+                    value={senha}
+                    autoComplete="new-password"
+                    onChange={(e) => setSenha(e.target.value)}
+                    className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl pl-4 pr-14 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"
+                    placeholder="Senha de acesso"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenha((prev) => !prev)}
+                    title={mostrarSenha ? 'Ocultar senha' : 'Visualizar senha'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gray-200/70 hover:bg-gray-300 flex items-center justify-center text-base"
+                  >
+                    {mostrarSenha ? '🙈' : '🔍'}
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -389,7 +539,7 @@ export default function MasterUsuarios() {
                     <option value="OPERADOR_BAR">Operador de Bar</option>
                     <option value="CAIXA">Operador de Caixa (Sem Dinheiro)</option>
                     <option value="TESOURARIA">Tesouraria (Acesso Multi)</option>
-                    <option value="ORGANIZADOR">Produtor</option>
+                    <option value="ORGANIZADOR">Organizador / Produtor</option>
                     <option value="SUPORTE_OPERACIONAL">Suporte Operacional</option>
                     <option value="MASTER">Master Admin</option>
                   </select>
@@ -415,7 +565,7 @@ export default function MasterUsuarios() {
               {role === 'ORGANIZADOR' && (
                 <div className="border-t border-gray-100 pt-4 mt-4 space-y-4">
                   <p className="font-black text-[#1D3461] text-base flex items-center gap-1.5">🏢 Dados Comerciais / Empresa</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-gray-500 font-bold mb-1 text-sm">Razão Social</label>
                       <input
@@ -437,7 +587,7 @@ export default function MasterUsuarios() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-gray-500 font-bold mb-1 text-sm">Insc. Estadual</label>
                       <input
@@ -475,7 +625,7 @@ export default function MasterUsuarios() {
               {role === 'ORGANIZADOR' && (
                 <div className="border-t border-gray-100 pt-4 mt-4 space-y-4">
                   <p className="font-black text-[#1D3461] text-base flex items-center gap-1.5">🛡️ Configuração de Gateway de Pagamento</p>
-                  
+
                   <div>
                     <label className="block text-gray-500 font-bold mb-1 text-sm">Gateway Ativo</label>
                     <select
@@ -483,11 +633,11 @@ export default function MasterUsuarios() {
                       onChange={(e) => setGatewayActive(e.target.value)}
                       className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900"
                     >
+                      <option value="NENHUM">🚫 Nenhum / Não utilizado</option>
                       <option value="ASAAS">Asaas API</option>
                       <option value="MERCADO_PAGO">Mercado Pago</option>
                       <option value="PAGBANK">PagBank API (Homologação)</option>
                       <option value="STONE">Stone API</option>
-                      <option value="NENHUM">Sem Gateway (Somente Dinheiro)</option>
                     </select>
                   </div>
 
@@ -558,17 +708,10 @@ export default function MasterUsuarios() {
                 </div>
               )}
 
-              {error && (
-                <div className="bg-red-50 border-2 border-red-300 text-red-700 p-3.5 rounded-2xl font-bold text-sm flex items-start gap-2">
-                  <span className="shrink-0">⚠️</span>
-                  <span>{error}</span>
-                </div>
-              )}
-
               <div className="flex gap-4 pt-4">
                 <button
                   type="button"
-                  onClick={() => { setError(''); setMostrarModal(false); }}
+                  onClick={() => setMostrarModal(false)}
                   className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 font-black py-3 rounded-2xl transition-all"
                 >
                   Cancelar

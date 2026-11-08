@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { enviarSmsCartao } from '@/lib/sms';
+import { logSupportAction } from '@/lib/audit';
 
 // GET — busca por nome, CPF, celular ou código
 export async function GET(req) {
@@ -73,10 +74,12 @@ export async function POST(req) {
     const body = await req.json();
     const { nome, cpf, celular, email, eventoId, valorRecarga, pagamentos, cartaoExistente } = body;
 
-    const evento = await prisma.evento.findUnique({ where: { id: eventoId } });
-    if (!evento) {
-      return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
+    if (!eventoId) {
+      return NextResponse.json({ error: 'eventoId é obrigatório' }, { status: 400 });
     }
+
+    const evento = await prisma.evento.findUnique({ where: { id: eventoId } });
+    if (!evento) return NextResponse.json({ error: 'Evento não encontrado' }, { status: 404 });
 
     const taxaPct = evento?.taxaMasterPercent || 0;
     const valorFloat = parseFloat(valorRecarga) || 0;
@@ -94,6 +97,9 @@ export async function POST(req) {
         include: { cliente: true }
       });
       if (!cartao) return NextResponse.json({ error: 'Cartão não encontrado' }, { status: 404 });
+      if (cartao.status === 'CANCELADO') {
+        return NextResponse.json({ error: 'Este cartão foi cancelado/excluído.' }, { status: 400 });
+      }
 
       // Blindagem anti-duplicidade de transações online
       if (primeiroGatewayId) {
@@ -126,6 +132,17 @@ export async function POST(req) {
           },
         }),
       ]);
+
+      if (session?.user?.role === 'SUPORTE_OPERACIONAL') {
+        await logSupportAction({
+          session,
+          eventoId: cartao.eventoId,
+          acao: 'RECARGA_CLIENTE',
+          detalhes: `Recarga de R$ ${valorFloat.toFixed(2)} no cartão ${cartao.codigo} (${cartao.cliente?.nome})`,
+          valor: valorFloat,
+        });
+      }
+
       return NextResponse.json({ cartao: cartaoAtualizado, codigo: cartaoExistente });
     }
 
@@ -193,6 +210,15 @@ export async function POST(req) {
     });
 
     if (cartaoExistenteNoDB) {
+      if (cartaoExistenteNoDB.status === 'CANCELADO') {
+        // Reativa cartão se recadastrado
+        await prisma.cartao.update({
+          where: { id: cartaoExistenteNoDB.id },
+          data: { status: 'ATIVO' }
+        });
+        cartaoExistenteNoDB.status = 'ATIVO';
+      }
+
       // PROTEÇÃO ATIVA: NÃO GERA CARTÃO REPETIDO!
       // Se houver transação online já creditada
       if (primeiroGatewayId) {
@@ -227,6 +253,16 @@ export async function POST(req) {
             },
           }),
         ]);
+
+        if (session?.user?.role === 'SUPORTE_OPERACIONAL') {
+          await logSupportAction({
+            session,
+            eventoId,
+            acao: 'RECARGA_CLIENTE',
+            detalhes: `Recarga de R$ ${valorFloat.toFixed(2)} no cartão existente ${cartaoAtualizado.codigo} (${cartaoAtualizado.cliente?.nome})`,
+            valor: valorFloat,
+          });
+        }
 
         return NextResponse.json({
           cartao: cartaoAtualizado,
@@ -268,6 +304,16 @@ export async function POST(req) {
       },
       include: { cliente: true },
     });
+
+    if (session?.user?.role === 'SUPORTE_OPERACIONAL') {
+      await logSupportAction({
+        session,
+        eventoId,
+        acao: 'CRIAR_CLIENTE_CARTAO',
+        detalhes: `Cadastro do cliente ${cliente.nome} (Cartão ${cartao.codigo}) com recarga de R$ ${valorFloat.toFixed(2)}`,
+        valor: valorFloat,
+      });
+    }
 
     // Disparo automático de SMS com link direto do cartão
     if (cliente?.celular) {
