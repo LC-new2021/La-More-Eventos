@@ -178,158 +178,163 @@ export default function MasterAuditoria() {
       { key: "cartao", width: 15 },
       { key: "operador", width: 24 },
       { key: "cargo", width: 20 },
-      { key: "valor", width: 16 },
-      { key: "saldo", width: 18 },
+      { key: "valor", width: 16, style: { numFmt: '"R$" #,##0.00' } },
+      { key: "saldo", width: 18, style: { numFmt: '"R$" #,##0.00' } }
     ];
 
-    logsFiltrados.forEach((log, idx) => {
+    logsFiltrados.forEach((log) => {
       const dataObj = new Date(log.criadaEm);
-      const dataFormatada = dataObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-      const horaFormatada = dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+      const dataStr = dataObj.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+      const horaStr = dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
-      const descricaoCompleta = formatarDescricaoLog(log);
-      const categoria = log.produto?.grupo || (log.tipo === 'RECARGA' ? 'Entrada' : log.tipo === 'AUDITORIA_SUPORTE' ? 'Suporte Operacional' : log.tipo);
-
-      const row = worksheet.addRow({
-        data: dataFormatada,
-        hora: horaFormatada,
-        evento: log.eventoNome || log.cartao?.evento?.nome || 'Geral',
-        tipo: log.tipo === 'AUDITORIA_SUPORTE' ? 'RASTREIO SUPORTE' : log.tipo === 'HISTORICO_PRECO' ? 'ALT. PREÇO' : log.tipo,
-        detalhes: descricaoCompleta,
-        categoria: categoria,
-        cliente: log.cartao?.cliente?.nome || '—',
-        cpf: log.cartao?.cliente?.cpf || '—',
-        celular: log.cartao?.cliente?.celular || '—',
-        cartao: log.cartao?.codigo || '—',
-        operador: log.operador?.nome || log.operadorNome || 'Sistema / Online',
-        cargo: log.operador?.role?.replace('_', ' ') || (log.tipo === 'AUDITORIA_SUPORTE' ? 'SUPORTE OPERACIONAL' : 'Online'),
-        valor: log.valor,
-        saldo: log.cartao?.saldo || 0
+      worksheet.addRow({
+        data: dataStr,
+        hora: horaStr,
+        evento: log.eventoNome || "Evento",
+        tipo: log.tipo === 'AUDITORIA_SUPORTE' ? 'RASTREIO SUPORTE' : log.tipo === 'HISTORICO_PRECO' ? 'ALTERAÇÃO DE PREÇO' : log.tipo,
+        detalhes: formatarDescricaoLog(log),
+        categoria: log.produto?.grupo || "—",
+        cliente: log.cartao?.cliente?.nome || "—",
+        cpf: log.cartao?.cliente?.cpf || "—",
+        celular: log.cartao?.cliente?.celular || "—",
+        cartao: log.cartao?.codigo || "—",
+        operador: log.operador?.nome || log.operadorNome || "Sistema",
+        cargo: log.operador?.role || (log.tipo === 'AUDITORIA_SUPORTE' ? 'SUPORTE_OPERACIONAL' : 'Sistema'),
+        valor: Number(log.valor || 0),
+        saldo: Number(log.cartao?.saldo || 0)
       });
-
-      if (idx % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } };
-      row.getCell(13).numFmt = '"R$ "#,##0.00';
-      row.getCell(14).numFmt = '"R$ "#,##0.00';
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    saveAs(blob, `LaMore_Auditoria_${abaTipo}_${eventoId || 'Geral'}.xlsx`);
+    saveAs(new Blob([buffer]), `Auditoria_LaMore_${Date.now()}.xlsx`);
   };
 
   const exportarPDF = () => {
     if (!logsFiltrados || logsFiltrados.length === 0) return;
-    const doc = new jsPDF("landscape");
-    doc.setFontSize(20);
-    doc.setTextColor(29, 52, 97);
-    doc.text("LA MORE EVENTOS", 14, 18);
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    
+    doc.setFillColor(29, 52, 97);
+    doc.rect(0, 0, 297, 20, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.text("LA MORE EVENTOS - RELATÓRIO DE AUDITORIA & RASTREIO", 14, 13);
 
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text("Relatório de Auditoria e Rastreio de Movimentações (Exclusivo Master)", 14, 25);
-    doc.text(`Filtro: ${dataInicio || "Início"} até ${dataFim || "Fim"} | Aba: ${abaTipo.toUpperCase()} | Total: ${logsFiltrados.length} registros`, 14, 31);
-
-    autoTable(doc, {
-      startY: 36,
-      head: [["Data/Hora", "Tipo", "Item / Ação / Alteração", "Cliente / Cartão", "Operador / Perfil", "Valor (R$)"]],
-      body: logsFiltrados.map(log => [
-        new Date(log.criadaEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }),
+    const rows = logsFiltrados.map((log) => {
+      const dataObj = new Date(log.criadaEm);
+      const dataFormatada = `${dataObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} ${dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}`;
+      return [
+        dataFormatada,
         log.tipo === 'AUDITORIA_SUPORTE' ? 'SUPORTE OP.' : log.tipo === 'HISTORICO_PRECO' ? 'ALT. PREÇO' : log.tipo,
         formatarDescricaoLog(log),
-        log.cartao ? `${log.cartao.cliente?.nome || '—'} (${log.cartao.codigo})` : '—',
-        `${log.operador?.nome || log.operadorNome || 'Sistema'} (${log.operador?.role || (log.tipo === 'AUDITORIA_SUPORTE' ? 'SUPORTE_OPERACIONAL' : 'Online')})`,
+        log.cartao?.cliente?.nome || '—',
+        log.cartao?.codigo || '—',
+        log.operador?.nome || log.operadorNome || 'Sistema',
         `R$ ${Number(log.valor || 0).toFixed(2).replace('.', ',')}`
-      ]),
-      theme: 'striped',
-      headStyles: { fillColor: [29, 52, 97], textColor: [255, 255, 255], fontSize: 8 },
-      styles: { fontSize: 8 }
+      ];
     });
 
-    doc.save(`LaMore_Auditoria_${abaTipo}_${eventoId || 'Geral'}.pdf`);
+    autoTable(doc, {
+      startY: 25,
+      head: [["Data/Hora", "Tipo", "Ação / Detalhes", "Cliente", "Cartão", "Operador", "Valor"]],
+      body: rows,
+      theme: "striped",
+      headStyles: { fillColor: [29, 52, 97], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: 8, cellPadding: 2 },
+    });
+
+    doc.save(`Auditoria_LaMore_${Date.now()}.pdf`);
   };
 
   return (
-    <div className="max-w-6xl mx-auto pb-12">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div className="w-full mx-auto">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-3xl sm:text-4xl font-black text-[#1D3461] mb-1">Auditoria do Sistema</h2>
-          <p className="text-gray-500 text-sm sm:text-base font-semibold">
-            Rastreabilidade completa de recargas, consumos, estornos e ações do Suporte Operacional (Exclusivo Master)
+          <h2 className="text-2xl sm:text-3xl font-black text-[#1D3461]">Auditoria & Rastreio</h2>
+          <p className="text-gray-500 text-xs sm:text-sm font-semibold">
+            Rastreio completo de suporte operacional, reajustes de preços e movimentações financeiras
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <button onClick={exportarXLSX} className="bg-green-600 hover:bg-green-700 text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-sm flex items-center gap-2 cursor-pointer">
-            <span>📊</span> Exportar Excel ({logsFiltrados.length})
+        <div className="flex gap-2">
+          <button
+            onClick={exportarXLSX}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>📊</span> Exportar XLSX
           </button>
-          <button onClick={exportarPDF} className="bg-red-600 hover:bg-red-700 text-white font-black text-sm px-5 py-3 rounded-2xl transition-all shadow-sm flex items-center gap-2 cursor-pointer">
-            <span>📄</span> Exportar PDF
+          <button
+            onClick={exportarPDF}
+            className="bg-[#1D3461] hover:bg-[#112244] text-white font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>📄</span> PDF
           </button>
         </div>
       </div>
 
       {/* Abas de Rastreio */}
-      <div className="flex flex-wrap gap-2 bg-white p-1.5 rounded-2xl border-2 border-gray-100 shadow-sm mb-6">
+      <div className="flex flex-wrap gap-1.5 bg-white p-1.5 rounded-xl border border-gray-200 shadow-sm mb-4">
         <button
           onClick={() => setAbaTipo('todos')}
-          className={`px-4 py-2.5 rounded-xl font-black text-sm transition-all flex items-center gap-2 ${
-            abaTipo === 'todos' ? 'bg-[#1D3461] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+          className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+            abaTipo === 'todos' ? 'bg-[#1D3461] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
-          <span>📋 Todas as Movimentações</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-black ${abaTipo === 'todos' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>
+          <span>📋 Todas</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${abaTipo === 'todos' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>
             {logs.length}
           </span>
         </button>
 
         <button
           onClick={() => setAbaTipo('suporte')}
-          className={`px-4 py-2.5 rounded-xl font-black text-sm transition-all flex items-center gap-2 ${
-            abaTipo === 'suporte' ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+          className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+            abaTipo === 'suporte' ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
-          <span>🛠️ Rastreio Suporte Operacional</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-black ${abaTipo === 'suporte' ? 'bg-white/20 text-white' : 'bg-teal-100 text-teal-800'}`}>
+          <span>🛠️ Suporte Operacional</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${abaTipo === 'suporte' ? 'bg-white/20 text-white' : 'bg-teal-100 text-teal-800'}`}>
             {totalSuporte}
           </span>
         </button>
 
         <button
           onClick={() => setAbaTipo('precos')}
-          className={`px-4 py-2.5 rounded-xl font-black text-sm transition-all flex items-center gap-2 ${
-            abaTipo === 'precos' ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+          className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+            abaTipo === 'precos' ? 'bg-amber-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
           <span>💲 Alterações de Preços</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-black ${abaTipo === 'precos' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'}`}>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${abaTipo === 'precos' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'}`}>
             {totalPrecos}
           </span>
         </button>
 
         <button
           onClick={() => setAbaTipo('financeiro')}
-          className={`px-4 py-2.5 rounded-xl font-black text-sm transition-all flex items-center gap-2 ${
-            abaTipo === 'financeiro' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-50'
+          className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
+            abaTipo === 'financeiro' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
-          <span>💳 Financeiro (Recargas/Bar/Estornos)</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-black ${abaTipo === 'financeiro' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'}`}>
+          <span>💳 Financeiro</span>
+          <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${abaTipo === 'financeiro' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'}`}>
             {totalFinanceiro}
           </span>
         </button>
       </div>
 
       {/* Filtros */}
-      <div className="bg-white p-6 rounded-3xl border-2 border-gray-100 shadow-sm mb-6 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200 shadow-sm mb-4 space-y-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Filtrar por Evento</label>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Filtrar por Evento</label>
             <select
               value={eventoId}
               onChange={(e) => {
                 setEventoId(e.target.value);
                 localStorage.setItem("activeEventoId", e.target.value);
               }}
-              className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-3 font-bold text-[#1D3461] outline-none focus:border-[#1D3461]"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 font-bold text-xs text-[#1D3461] outline-none cursor-pointer"
             >
               <option value="">Todos os Eventos</option>
               {eventos.map(ev => (
@@ -338,12 +343,12 @@ export default function MasterAuditoria() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Data Inicial</label>
-            <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-3 font-semibold text-gray-900 outline-none focus:border-[#1D3461]"/>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Data Inicial</label>
+            <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 font-semibold text-xs text-gray-900 outline-none"/>
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Data Final</label>
-            <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-200 rounded-2xl px-4 py-3 font-semibold text-gray-900 outline-none focus:border-[#1D3461]"/>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Data Final</label>
+            <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 font-semibold text-xs text-gray-900 outline-none"/>
           </div>
         </div>
 
@@ -353,53 +358,53 @@ export default function MasterAuditoria() {
             type="text"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="🔍 Buscar por nome do cliente, CPF, código do cartão, produto, operador ou ação realizada..."
-            className="w-full bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-2xl px-5 py-3 font-semibold text-gray-900 outline-none"
+            placeholder="🔍 Buscar por nome do cliente, CPF, código do cartão, produto, operador ou ação..."
+            className="w-full bg-gray-50 border border-gray-200 focus:border-[#1D3461] rounded-lg px-3 py-1.5 font-semibold text-xs text-gray-900 outline-none"
           />
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold">
+        <div className="bg-red-500/10 border border-red-500/20 text-red-700 p-3 rounded-xl mb-4 font-bold text-xs">
           ⚠️ {error}
         </div>
       )}
 
       {loading ? (
-        <div className="text-center py-12">
-          <p className="text-[#1D3461] text-xl font-bold">Carregando todas as movimentações...</p>
+        <div className="text-center py-10">
+          <p className="text-[#1D3461] text-base font-bold">Carregando movimentações...</p>
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
-          <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wider">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+          <div className="p-2.5 bg-gray-50/80 border-b border-gray-200 flex justify-between items-center text-[11px] font-bold text-gray-500 uppercase tracking-wider">
             <span>Listando {logsFiltrados.length} de {logs.length} movimentações</span>
           </div>
           <div className="overflow-x-auto max-h-[700px] overflow-y-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 bg-gray-50 border-b-2 border-gray-100 text-gray-500 font-bold z-10">
+            <table className="w-full text-left border-collapse table-fixed">
+              <thead className="sticky top-0 bg-gray-50 border-b border-gray-200 text-gray-500 font-bold text-[11px] uppercase tracking-wider z-10">
                 <tr>
-                  <th className="p-4 text-xs">Data & Hora</th>
-                  <th className="p-4 text-xs">Tipo</th>
-                  <th className="p-4 text-xs">Detalhes / Ação</th>
-                  <th className="p-4 text-xs">Cliente / Cartão</th>
-                  <th className="p-4 text-xs">Operador / Perfil</th>
-                  <th className="p-4 text-xs text-right">Valor</th>
+                  <th className="py-2.5 px-3 w-[15%]">Data & Hora</th>
+                  <th className="py-2.5 px-3 w-[13%]">Tipo</th>
+                  <th className="py-2.5 px-3 w-[30%]">Detalhes / Ação</th>
+                  <th className="py-2.5 px-3 w-[18%]">Cliente / Cartão</th>
+                  <th className="py-2.5 px-3 w-[14%]">Operador</th>
+                  <th className="py-2.5 px-3 w-[10%] text-right">Valor</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 font-semibold text-gray-700">
+              <tbody className="divide-y divide-gray-100 text-xs">
                 {logsFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-12 text-center text-gray-400 font-bold">Nenhum registro encontrado.</td>
+                    <td colSpan={6} className="p-8 text-center text-gray-400 font-bold">Nenhum registro encontrado.</td>
                   </tr>
                 ) : (
                   logsFiltrados.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50/70 transition-colors">
-                      <td className="p-4 text-xs text-gray-500 whitespace-nowrap">
-                        {new Date(log.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}{' '}
+                      <td className="py-2 px-3 text-gray-500 whitespace-nowrap">
+                        <span className="font-semibold">{new Date(log.criadaEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</span>{' '}
                         <span className="font-bold text-gray-900">{new Date(log.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}</span>
                       </td>
-                      <td className="p-4">
-                        <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider whitespace-nowrap ${
+                      <td className="py-2 px-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider whitespace-nowrap inline-block ${
                           log.tipo === 'RECARGA' ? 'bg-green-100 text-green-800' :
                           log.tipo === 'DEBITO' ? 'bg-blue-100 text-blue-800' :
                           log.tipo === 'AUDITORIA_SUPORTE' ? 'bg-teal-100 text-teal-800 border border-teal-300' :
@@ -409,39 +414,33 @@ export default function MasterAuditoria() {
                           {log.tipo === 'AUDITORIA_SUPORTE' ? '🛠️ SUPORTE OP.' : log.tipo === 'HISTORICO_PRECO' ? '💲 ALT. PREÇO' : log.tipo}
                         </span>
                       </td>
-                      <td className="p-4 text-sm">
-                        <p className="font-black text-gray-900">{formatarDescricaoLog(log)}</p>
-                        <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                          {log.produto?.grupo && (
-                            <span className="text-xs text-gray-400 font-semibold uppercase">{log.produto.grupo}</span>
-                          )}
-                          {log.eventoNome && (
-                            <span className="text-[11px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded font-bold">
-                              🎪 {log.eventoNome}
-                            </span>
-                          )}
-                        </div>
+                      <td className="py-2 px-3">
+                        <p className="font-bold text-gray-900 truncate" title={formatarDescricaoLog(log)}>
+                          {formatarDescricaoLog(log)}
+                        </p>
+                        {log.eventoNome && (
+                          <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded font-semibold inline-block mt-0.5 truncate max-w-full">
+                            🎪 {log.eventoNome}
+                          </span>
+                        )}
                       </td>
-                      <td className="p-4 text-sm">
-                        <p className="font-black text-gray-950">{log.cartao?.cliente?.nome || '—'}</p>
+                      <td className="py-2 px-3">
+                        <p className="font-bold text-gray-900 truncate" title={log.cartao?.cliente?.nome || '—'}>
+                          {log.cartao?.cliente?.nome || '—'}
+                        </p>
                         {log.cartao?.codigo && (
-                          <p className="text-purple-700 font-mono font-bold text-xs">Cartão: {log.cartao.codigo}</p>
-                        )}
-                        {(log.cartao?.cliente?.cpf || log.cartao?.cliente?.celular) && (
-                          <p className="text-gray-500 font-semibold text-[11px] mt-0.5">
-                            {log.cartao?.cliente?.cpf && `CPF: ${log.cartao.cliente.cpf}`}
-                            {log.cartao?.cliente?.cpf && log.cartao?.cliente?.celular && ' • '}
-                            {log.cartao?.cliente?.celular && `Tel: ${log.cartao.cliente.celular}`}
-                          </p>
+                          <p className="text-purple-700 font-mono font-bold text-[10px]">Cód: {log.cartao.codigo}</p>
                         )}
                       </td>
-                      <td className="p-4 text-sm">
-                        <p className="font-bold text-gray-800">{log.operador?.nome || log.operadorNome || 'Sistema'}</p>
-                        <p className="text-gray-400 text-xs font-bold uppercase">
-                          {log.operador?.role?.replace('_', ' ') || (log.tipo === 'AUDITORIA_SUPORTE' ? 'SUPORTE OPERACIONAL' : 'Online')}
+                      <td className="py-2 px-3">
+                        <p className="font-bold text-gray-800 truncate" title={log.operador?.nome || log.operadorNome || 'Sistema'}>
+                          {log.operador?.nome || log.operadorNome || 'Sistema'}
+                        </p>
+                        <p className="text-gray-400 text-[10px] uppercase font-semibold">
+                          {log.operador?.role?.replace('_', ' ') || (log.tipo === 'AUDITORIA_SUPORTE' ? 'SUPORTE' : 'Online')}
                         </p>
                       </td>
-                      <td className={`p-4 font-black text-right text-base whitespace-nowrap ${
+                      <td className={`py-2 px-3 font-bold text-right whitespace-nowrap ${
                         log.tipo === 'RECARGA' ? 'text-green-600' :
                         log.tipo === 'DEBITO' ? 'text-gray-900' :
                         log.tipo === 'AUDITORIA_SUPORTE' || log.tipo === 'HISTORICO_PRECO' ? 'text-amber-700' :

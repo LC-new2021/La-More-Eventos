@@ -1,15 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 
 const labels = {
-  ORGANIZADOR: { label: "Organizador", cor: "bg-indigo-100 text-indigo-700", emoji: "👑" },
-  CAIXA: { label: "Caixa Entrada", cor: "bg-green-100 text-green-700", emoji: "💳" },
-  OPERADOR_BAR: { label: "Operador Bar/Food", cor: "bg-blue-100 text-blue-700", emoji: "🍺" },
-  TESOURARIA: { label: "Tesouraria (Acesso Multi)", cor: "bg-purple-100 text-purple-700", emoji: "💵" },
+  OPERADOR_BAR: { label: "Operador de Bar", cor: "bg-blue-100 text-blue-700", emoji: "🍺" },
+  CAIXA: { label: "Caixa Fixo", cor: "bg-green-100 text-green-700", emoji: "💳" },
+  CAIXA_VOLANTE: { label: "Caixa Volante", cor: "bg-yellow-100 text-yellow-700", emoji: "📱" },
+  TESOURARIA: { label: "Tesouraria", cor: "bg-purple-100 text-purple-700", emoji: "💰" },
   SUPORTE_OPERACIONAL: { label: "Suporte Operacional", cor: "bg-teal-100 text-teal-700", emoji: "🛠️" },
-  CLIENTE: { label: "Suporte Operacional", cor: "bg-teal-100 text-teal-700", emoji: "🛠️" },
-  SUPORTE: { label: "Suporte Operacional", cor: "bg-teal-100 text-teal-700", emoji: "🛠️" },
+  ORGANIZADOR: { label: "Produtor", cor: "bg-purple-100 text-purple-700", emoji: "🎯" },
 };
 
 export default function OperadoresPage() {
@@ -17,13 +16,12 @@ export default function OperadoresPage() {
   const [operadores, setOperadores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [modalAberto, setModalAberto] = useState(false);
+  const [operadorEditando, setOperadorEditando] = useState(null);
   const [statusFiltro, setStatusFiltro] = useState("ativos"); // ativos | desativados | todos
   const [busca, setBusca] = useState("");
 
-  const [modalAberto, setModalAberto] = useState(false);
-  const [operadorEditando, setOperadorEditando] = useState(null);
-
-  // Forms
+  // Form states
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -31,61 +29,23 @@ export default function OperadoresPage() {
   const [role, setRole] = useState("OPERADOR_BAR");
   const [salvando, setSalvando] = useState(false);
 
-  const [eventoId, setEventoId] = useState(null);
-
   useEffect(() => {
-    if (session) {
-      if (session.user.role === "MASTER") {
-        const stored = localStorage.getItem("activeEventoId");
-        if (stored) {
-          setEventoId(stored);
-        } else {
-          fetch("/api/eventos")
-            .then((res) => res.json())
-            .then((data) => {
-              if (data && data.length > 0) {
-                localStorage.setItem("activeEventoId", data[0].id);
-                setEventoId(data[0].id);
-              }
-            });
-        }
-      } else {
-        if (session.user.eventoId) {
-          setEventoId(session.user.eventoId);
-        } else {
-          const stored = localStorage.getItem("activeEventoId");
-          if (stored) {
-            setEventoId(stored);
-          } else {
-            fetch("/api/eventos")
-              .then((res) => res.json())
-              .then((data) => {
-                if (data && data.length > 0 && !data.error) {
-                  localStorage.setItem("activeEventoId", data[0].id);
-                  setEventoId(data[0].id);
-                }
-              })
-              .catch(console.error);
-          }
-        }
-      }
-    }
+    carregarOperadores();
   }, [session]);
-
-  useEffect(() => {
-    if (eventoId) {
-      carregarOperadores();
-    }
-  }, [eventoId]);
 
   const carregarOperadores = async () => {
     try {
-      const res = await fetch(`/api/usuarios?eventoId=${eventoId}`);
+      const storedEventoId = localStorage.getItem("activeEventoId");
+      let url = "/api/usuarios";
+      if (session?.user?.role === "MASTER" && storedEventoId) {
+        url += `?eventoId=${storedEventoId}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.error) setError(data.error);
       else setOperadores(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError("Erro ao buscar lista de operadores");
+    } catch {
+      setError("Erro ao carregar operadores");
     } finally {
       setLoading(false);
     }
@@ -103,26 +63,36 @@ export default function OperadoresPage() {
 
   const abrirEditar = (op) => {
     setOperadorEditando(op);
-    setNome(op.nome);
-    setEmail(op.email);
+    setNome(op.nome || "");
+    setEmail(op.email || "");
     setSenha("");
     setMostrarSenha(false);
-    setRole(op.role);
+    setRole(op.role || "OPERADOR_BAR");
     setModalAberto(true);
   };
 
-  const salvar = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!nome || !email || !eventoId) return;
-
-    const msgConfirm = operadorEditando
+    const acaoMsg = operadorEditando
       ? `Você quer realmente confirmar as alterações no operador "${nome.trim()}"?`
-      : `Você quer realmente incluir o operador "${nome.trim()}" neste evento?`;
+      : `Você quer realmente incluir o operador "${nome.trim()}" (${labels[role]?.label || role}) no sistema?`;
 
-    if (!window.confirm(msgConfirm)) return;
+    if (!window.confirm(acaoMsg)) return;
 
     setSalvando(true);
     setError("");
+
+    const payload = {
+      nome: nome.trim(),
+      email: email.trim().toLowerCase(),
+      role,
+    };
+    if (senha) payload.senha = senha.trim();
+
+    const storedEventoId = localStorage.getItem("activeEventoId");
+    if (session?.user?.role === "MASTER" && storedEventoId) {
+      payload.eventoId = storedEventoId;
+    }
 
     const url = operadorEditando ? `/api/usuarios/${operadorEditando.id}` : "/api/usuarios";
     const method = operadorEditando ? "PATCH" : "POST";
@@ -131,205 +101,187 @@ export default function OperadoresPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome: nome.trim(),
-          email: email.trim().toLowerCase(),
-          ...(senha && { senha: senha.trim() }),
-          role,
-          eventoId,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (data.error) {
-        setError(data.error);
-      } else {
+      if (res.ok) {
         setModalAberto(false);
         carregarOperadores();
+      } else {
+        setError(data.error || "Erro ao salvar operador");
       }
-    } catch (err) {
-      setError("Erro ao salvar operador");
+    } catch {
+      setError("Erro de conexão ao salvar operador");
     } finally {
       setSalvando(false);
     }
   };
 
   const toggleAtivoOperador = async (op) => {
-    if (op.id === session?.user?.id && op.ativo) {
-      alert("Você não pode desativar o seu próprio usuário conectado.");
-      return;
-    }
+    const novoStatus = !op.ativo;
+    const msg = novoStatus
+      ? `Você quer realmente REATIVAR o acesso do operador "${op.nome}"?`
+      : `Você quer realmente DESATIVAR o operador "${op.nome}"?\n\nEle não conseguirá fazer login nos caixas/bares, mas todo o histórico e dados permanecerão salvos na aba Desativados.`;
+
+    if (!window.confirm(msg)) return;
+
     try {
       const res = await fetch(`/api/usuarios/${op.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ativo: !op.ativo }),
+        body: JSON.stringify({ ativo: novoStatus }),
       });
-      if (res.ok) carregarOperadores();
-      else {
-        const err = await res.json();
-        if (err?.error) alert(err.error);
+      if (res.ok) {
+        carregarOperadores();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Erro ao alterar status");
       }
-    } catch (e) {
-      console.error("Erro ao alterar status do operador", e);
+    } catch {
+      alert("Erro de conexão ao alterar status");
     }
   };
 
   const handleExcluir = async (op) => {
-    if (op.id === session?.user?.id) {
-      alert("Você não pode excluir o seu próprio usuário conectado.");
-      return;
-    }
-    const confirmou = window.confirm(
-      `⚠️ CONFIRMAÇÃO DE EXCLUSÃO\n\nVocê quer realmente cancelar/excluir o operador "${op.nome}" (${op.email})?\n\n💡 Dica: Se quiser apenas bloquear o acesso temporariamente e poder reativar depois, clique em "Cancelar" e use o botão "Desativar".\n\nDeseja realmente EXCLUIR este operador definitivamente? (As operações já realizadas permanecerão salvas nos relatórios)`
+    const confirmacao = window.confirm(
+      `PERGUNTA FINAL DE CONFIRMAÇÃO:\n\nVocê quer realmente EXCLUIR permanentemente o operador "${op.nome}"?\n\nSe você só deseja pausar o acesso para o evento de hoje, use a opção "Desativar" para mantê-lo na aba Desativados.\n\nDeseja realmente excluir em definitivo?`
     );
-    if (!confirmou) return;
+    if (!confirmacao) return;
 
     try {
       const res = await fetch(`/api/usuarios/${op.id}`, {
         method: "DELETE",
       });
-      if (res.ok) carregarOperadores();
-    } catch (e) {
-      console.error("Erro ao excluir operador", e);
+      if (res.ok) {
+        carregarOperadores();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Erro ao excluir operador");
+      }
+    } catch {
+      alert("Erro de conexão ao excluir operador");
     }
   };
-
-  if (!eventoId) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-500 font-bold text-xl">
-          Este usuário não está vinculado a um evento.
-        </p>
-      </div>
-    );
-  }
 
   const totalAtivos = operadores.filter((o) => o.ativo).length;
   const totalDesativados = operadores.filter((o) => !o.ativo).length;
 
   const operadoresFiltrados = operadores
     .filter((o) => {
-      if (statusFiltro === "ativos") return o.ativo === true;
-      if (statusFiltro === "desativados") return o.ativo === false;
+      if (statusFiltro === "ativos") return o.ativo;
+      if (statusFiltro === "desativados") return !o.ativo;
       return true;
     })
     .filter((o) => {
       if (!busca.trim()) return true;
       const q = busca.toLowerCase();
       return (
-        String(o.nome || "").toLowerCase().includes(q) ||
-        String(o.email || "").toLowerCase().includes(q) ||
-        String(o.role || "").toLowerCase().includes(q)
+        o.nome?.toLowerCase().includes(q) ||
+        o.email?.toLowerCase().includes(q) ||
+        o.role?.toLowerCase().includes(q)
       );
     });
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="w-full mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-3xl sm:text-4xl font-black text-[#1D3461]">Operadores</h2>
-          <p className="text-gray-500 text-base sm:text-lg font-semibold mt-1">
-            {totalAtivos} ativos · {totalDesativados} desativados neste evento
+          <h2 className="text-2xl sm:text-3xl font-black text-[#1D3461]">Operadores do Evento</h2>
+          <p className="text-gray-500 text-xs sm:text-sm font-semibold">
+            {totalAtivos} ativos · {totalDesativados} desativados · {operadores.length} no total
           </p>
         </div>
         <button
           onClick={abrirCriar}
-          className="bg-[#1D3461] text-white font-black text-base sm:text-lg px-6 py-3 rounded-2xl hover:bg-blue-900 transition-all"
-          style={{ minHeight: "52px" }}
+          className="bg-[#1D3461] hover:bg-blue-900 text-white font-bold text-xs sm:text-sm px-4 py-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
         >
-          + Novo Operador
+          <span>➕</span> Novo Operador
         </button>
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border-2 border-red-500/20 text-red-700 p-4 rounded-2xl mb-6 font-bold">
+        <div className="bg-red-500/10 border border-red-500/20 text-red-700 p-3 rounded-xl mb-4 font-bold text-xs">
           ⚠️ {error}
         </div>
       )}
 
-      {/* Cards por tipo */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-green-50 border-2 border-green-100 rounded-3xl p-5">
-          <span className="text-3xl sm:text-4xl">💳</span>
-          <p className="text-2xl sm:text-3xl font-black text-green-700 mt-2">
-            {operadores.filter((o) => (o.role === "CAIXA" || o.role === "TESOURARIA") && o.ativo).length}
-          </p>
-          <p className="text-green-600 font-bold text-sm sm:text-base">Caixas / Tesouraria Ativos</p>
+      {/* Cards de resumo compacto */}
+      <div className="grid grid-cols-3 gap-2.5 mb-4">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xl">💳</span>
+            <p className="text-lg sm:text-xl font-black text-green-700">
+              {operadores.filter((o) => (o.role === "CAIXA" || o.role === "TESOURARIA") && o.ativo).length}
+            </p>
+          </div>
+          <p className="text-green-800 font-bold text-[11px] mt-1">Caixas / Tesouraria</p>
         </div>
-        <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-5">
-          <span className="text-3xl sm:text-4xl">🍺</span>
-          <p className="text-2xl sm:text-3xl font-black text-blue-700 mt-2">
-            {operadores.filter((o) => o.role === "OPERADOR_BAR" && o.ativo).length}
-          </p>
-          <p className="text-blue-600 font-bold text-sm sm:text-base">Operadores de Bar Ativos</p>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xl">🍺</span>
+            <p className="text-lg sm:text-xl font-black text-blue-700">
+              {operadores.filter((o) => o.role === "OPERADOR_BAR" && o.ativo).length}
+            </p>
+          </div>
+          <p className="text-blue-800 font-bold text-[11px] mt-1">Bares Ativos</p>
         </div>
-        <div className="bg-amber-50 border-2 border-amber-100 rounded-3xl p-5 col-span-2 sm:col-span-1">
-          <span className="text-3xl sm:text-4xl">⏸️</span>
-          <p className="text-2xl sm:text-3xl font-black text-amber-700 mt-2">{totalDesativados}</p>
-          <p className="text-amber-700 font-bold text-sm sm:text-base">Operadores Desativados</p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xl">⏸️</span>
+            <p className="text-lg sm:text-xl font-black text-amber-700">{totalDesativados}</p>
+          </div>
+          <p className="text-amber-800 font-bold text-[11px] mt-1">Desativados</p>
         </div>
       </div>
 
-      {/* Abas de Status: Ativos vs Desativados */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-        <div className="flex flex-wrap gap-2 bg-white p-1.5 rounded-2xl border-2 border-gray-100 shadow-sm">
+      {/* Abas de Status e Busca */}
+      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => setStatusFiltro("ativos")}
-            className={`px-4 py-2.5 rounded-xl font-black text-sm sm:text-base transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
               statusFiltro === "ativos"
                 ? "bg-green-600 text-white shadow-sm"
-                : "text-gray-600 hover:bg-gray-50"
+                : "text-gray-600 hover:bg-gray-100"
             }`}
           >
-            <span>✅ Operadores Ativos</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-xs font-black ${
-                statusFiltro === "ativos"
-                  ? "bg-white/20 text-white"
-                  : "bg-green-100 text-green-800"
-              }`}
-            >
+            <span>✅ Ativos</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+              statusFiltro === "ativos" ? "bg-white/20 text-white" : "bg-green-100 text-green-800"
+            }`}>
               {totalAtivos}
             </span>
           </button>
 
           <button
             onClick={() => setStatusFiltro("desativados")}
-            className={`px-4 py-2.5 rounded-xl font-black text-sm sm:text-base transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
               statusFiltro === "desativados"
                 ? "bg-amber-500 text-white shadow-sm"
-                : "text-gray-600 hover:bg-gray-50"
+                : "text-gray-600 hover:bg-gray-100"
             }`}
           >
-            <span>⏸️ Operadores Desativados</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-xs font-black ${
-                statusFiltro === "desativados"
-                  ? "bg-white/20 text-white"
-                  : "bg-amber-100 text-amber-800"
-              }`}
-            >
+            <span>⏸️ Desativados</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+              statusFiltro === "desativados" ? "bg-white/20 text-white" : "bg-amber-100 text-amber-800"
+            }`}>
               {totalDesativados}
             </span>
           </button>
 
           <button
             onClick={() => setStatusFiltro("todos")}
-            className={`px-4 py-2.5 rounded-xl font-black text-sm sm:text-base transition-all flex items-center gap-2 ${
+            className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer ${
               statusFiltro === "todos"
                 ? "bg-[#1D3461] text-white shadow-sm"
-                : "text-gray-600 hover:bg-gray-50"
+                : "text-gray-600 hover:bg-gray-100"
             }`}
           >
             <span>📋 Todos</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-xs font-black ${
-                statusFiltro === "todos"
-                  ? "bg-white/20 text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+              statusFiltro === "todos" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
+            }`}>
               {operadores.length}
             </span>
           </button>
@@ -340,46 +292,38 @@ export default function OperadoresPage() {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="🔍 Buscar operador..."
-          className="bg-white border-2 border-gray-200 rounded-2xl px-4 py-2.5 text-sm font-semibold text-gray-800 focus:outline-none focus:border-[#1D3461]"
+          className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-800 focus:outline-none focus:border-[#1D3461] sm:w-64"
         />
       </div>
 
       {statusFiltro === "desativados" && (
-        <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 mb-5 flex items-start gap-3">
-          <span className="text-2xl">⏸️</span>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-start gap-2.5">
+          <span className="text-xl">⏸️</span>
           <div>
-            <p className="font-black text-amber-900 text-sm sm:text-base">
+            <p className="font-bold text-amber-900 text-xs sm:text-sm">
               Ambiente de Operadores Desativados
             </p>
-            <p className="text-amber-800 text-xs sm:text-sm font-semibold mt-0.5">
-              Operadores desativados não conseguem fazer login no sistema, mas seus cadastros e históricos permanecem salvos. Clique em <strong>&ldquo;✅ Reativar&rdquo;</strong> para liberar o acesso novamente a qualquer momento.
+            <p className="text-amber-800 text-[11px] sm:text-xs font-medium mt-0.5">
+              Operadores desativados não conseguem fazer login, mas seus históricos continuam salvos. Clique em <strong>&ldquo;✅ Reativar&rdquo;</strong> para liberar o acesso a qualquer momento.
             </p>
           </div>
         </div>
       )}
 
       {/* Lista */}
-      <div className="bg-white rounded-3xl border-2 border-gray-100 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
         <div className="divide-y divide-gray-100">
           {loading ? (
-            <p className="text-center text-gray-400 font-semibold text-lg py-12">
+            <p className="text-center text-gray-400 font-semibold text-sm py-10">
               Carregando operadores...
             </p>
           ) : operadoresFiltrados.length === 0 ? (
-            <div className="text-center py-12 px-4">
-              <p className="text-gray-400 font-semibold text-lg">
+            <div className="text-center py-10 px-4">
+              <p className="text-gray-400 font-semibold text-sm">
                 {statusFiltro === "desativados"
                   ? "Nenhum operador desativado no momento."
                   : "Nenhum operador encontrado nesta visualização."}
               </p>
-              {statusFiltro === "ativos" && totalDesativados > 0 && (
-                <button
-                  onClick={() => setStatusFiltro("desativados")}
-                  className="mt-3 text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-4 py-2 rounded-xl font-black text-sm transition-all"
-                >
-                  Ver {totalDesativados} operador(es) na aba Desativados →
-                </button>
-              )}
             </div>
           ) : (
             operadoresFiltrados.map((op) => {
@@ -391,50 +335,48 @@ export default function OperadoresPage() {
               return (
                 <div
                   key={op.id}
-                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 sm:px-6 py-5 transition-colors border-b border-gray-100 last:border-0 ${
-                    op.ativo ? "hover:bg-gray-50" : "bg-amber-50/40 hover:bg-amber-50/70"
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3.5 sm:px-4 py-2.5 transition-colors border-b border-gray-50 last:border-0 ${
+                    op.ativo ? "hover:bg-gray-50/70" : "bg-amber-50/30 hover:bg-amber-50/60"
                   }`}
                 >
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div
-                      className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${tipo.cor} shrink-0`}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg ${tipo.cor} shrink-0`}
                     >
                       {tipo.emoji}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-black text-gray-900 text-lg sm:text-xl truncate">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="font-bold text-gray-900 text-sm truncate">
                           {op.nome}
                         </p>
                         <span
-                          className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                          className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
                             op.ativo
                               ? "bg-green-100 text-green-800"
-                              : "bg-amber-200 text-amber-900"
+                              : "bg-amber-100 text-amber-800"
                           }`}
                         >
-                          {op.ativo ? "Ativo" : "Desativado"}
+                          {op.ativo ? "Ativo" : "Pausado"}
                         </span>
-                      </div>
-                      <p className="text-gray-500 font-semibold text-sm sm:text-base truncate">
-                        {op.email}
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className={`text-xs font-black px-3 py-1 rounded-full ${tipo.cor}`}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${tipo.cor}`}>
                           {tipo.label}
                         </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 font-mono mt-0.5">
+                        <span className="truncate">{op.email}</span>
                         {op.criadoPorNome && (
-                          <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
-                            👤 Criado por {op.criadoPorNome}
+                          <span className="text-[10px] font-medium text-gray-400 font-sans">
+                            • por {op.criadoPorNome}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+                  <div className="flex items-center justify-end gap-1 shrink-0 pt-1 sm:pt-0 border-t sm:border-0 border-gray-100">
                     <button
                       onClick={() => toggleAtivoOperador(op)}
-                      className={`font-black text-sm px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+                      className={`font-bold text-[11px] px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
                         op.ativo
                           ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
                           : "bg-green-600 text-white hover:bg-green-700 shadow-sm"
@@ -445,15 +387,16 @@ export default function OperadoresPage() {
                     </button>
                     <button
                       onClick={() => abrirEditar(op)}
-                      className="font-bold text-sm px-3.5 py-2 rounded-xl transition-all border-2 text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                      className="font-bold text-[11px] px-2 py-1 rounded-lg transition-all border border-gray-200 text-gray-700 hover:bg-gray-100 cursor-pointer whitespace-nowrap"
                     >
                       ✏️ Editar
                     </button>
                     <button
                       onClick={() => handleExcluir(op)}
-                      className="font-bold text-sm px-3.5 py-2 rounded-xl transition-all border-2 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                      className="font-bold text-[11px] px-1.5 py-1 rounded-lg transition-all border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer whitespace-nowrap"
+                      title="Excluir operador"
                     >
-                      🗑️ Excluir
+                      🗑️
                     </button>
                   </div>
                 </div>
@@ -466,94 +409,94 @@ export default function OperadoresPage() {
       {/* Modal: Novo/Editar Operador */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl animate-in fade-in duration-200">
-            <h3 className="text-2xl sm:text-3xl font-black text-[#1D3461] mb-6">
+          <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-md shadow-2xl animate-in fade-in duration-200">
+            <h3 className="text-xl font-black text-[#1D3461] mb-4 pb-2 border-b border-gray-100">
               {operadorEditando ? "✏️ Editar Operador" : "➕ Novo Operador"}
             </h3>
-
-            <form onSubmit={salvar} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Nome *</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Nome do Operador
+                </label>
                 <input
                   type="text"
                   required
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  placeholder="Nome completo"
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  placeholder="Ex: João da Silva"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
               </div>
+
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">E-mail *</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  E-mail (Login)
+                </label>
                 <input
                   type="email"
                   required
                   value={email}
-                  autoComplete="off"
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="email@exemplo.com"
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                  placeholder="operador@lamore.com"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                 />
               </div>
+
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">
-                  Senha {operadorEditando && "(deixe em branco para não alterar)"} *
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  {operadorEditando ? "Nova Senha (opcional)" : "Senha de Acesso"}
                 </label>
                 <div className="relative">
                   <input
                     type={mostrarSenha ? "text" : "password"}
                     required={!operadorEditando}
                     value={senha}
-                    autoComplete="new-password"
                     onChange={(e) => setSenha(e.target.value)}
-                    placeholder="Senha de acesso"
-                    className="w-full border-2 border-gray-200 rounded-2xl pl-5 pr-14 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
+                    placeholder="••••••••"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 pr-10 text-xs font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
                   />
                   <button
                     type="button"
-                    onClick={() => setMostrarSenha((prev) => !prev)}
-                    title={mostrarSenha ? "Ocultar senha" : "Visualizar senha"}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-lg"
+                    onClick={() => setMostrarSenha(!mostrarSenha)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-sm cursor-pointer select-none"
+                    title={mostrarSenha ? "Ocultar senha" : "Ver senha"}
                   >
                     {mostrarSenha ? "🙈" : "🔍"}
                   </button>
                 </div>
               </div>
+
               <div>
-                <label className="block font-black text-gray-700 text-base mb-2">Função</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  Função no Evento
+                </label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  disabled={operadorEditando && session?.user?.id === operadorEditando.id}
-                  className="w-full border-2 border-gray-200 rounded-2xl px-5 py-3.5 text-lg font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461] bg-white disabled:bg-gray-100 disabled:text-gray-500"
-                  style={{ minHeight: "52px" }}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-[#1D3461] cursor-pointer"
                 >
-                  {operadorEditando?.role === "ORGANIZADOR" && (
-                    <option value="ORGANIZADOR">👑 Organizador</option>
-                  )}
-                  <option value="OPERADOR_BAR">🍺 Operador de Bar/Food</option>
-                  <option value="CAIXA">💳 Caixa de Entrada (Sem Dinheiro)</option>
-                  <option value="TESOURARIA">💵 Tesouraria (Acesso Multi)</option>
+                  <option value="OPERADOR_BAR">🍺 Operador de Bar</option>
+                  <option value="CAIXA">💳 Caixa Fixo</option>
+                  <option value="CAIXA_VOLANTE">📱 Caixa Volante</option>
+                  <option value="TESOURARIA">💰 Tesouraria</option>
                   <option value="SUPORTE_OPERACIONAL">🛠️ Suporte Operacional</option>
                 </select>
               </div>
 
-              <div className="flex gap-3 mt-8 pt-4">
+              <div className="flex gap-2.5 pt-3">
                 <button
                   type="button"
                   onClick={() => setModalAberto(false)}
-                  className="flex-1 bg-gray-100 text-gray-700 font-black text-base py-4 rounded-2xl"
-                  style={{ minHeight: "52px" }}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2.5 rounded-xl transition-all text-xs cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={salvando}
-                  className="flex-1 bg-[#1D3461] text-white font-black text-base py-4 rounded-2xl disabled:opacity-40"
-                  style={{ minHeight: "52px" }}
+                  className="flex-1 bg-[#1D3461] hover:bg-blue-900 text-white font-bold py-2.5 rounded-xl transition-all text-xs disabled:opacity-50 cursor-pointer"
                 >
-                  {salvando ? "Salvando..." : "✅ Salvar"}
+                  {salvando ? "Salvando..." : "Salvar Operador"}
                 </button>
               </div>
             </form>

@@ -191,9 +191,9 @@ export default function OrgLayout({ children }) {
       </aside>
 
       {/* Conteúdo */}
-      <main className="ml-0 lg:ml-64 flex-1 p-4 md:p-8 pb-28 lg:pb-8 min-w-0 w-full overflow-x-hidden">
+      <main className="ml-0 lg:ml-64 flex-1 p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 min-w-0 w-full overflow-x-hidden">
         {/* Mobile Header indicator */}
-        <div className="flex flex-col gap-2 bg-[#1D3461] text-white p-4 rounded-2xl mb-6 lg:hidden shadow-sm">
+        <div className="flex flex-col gap-2 bg-[#1D3461] text-white p-4 rounded-2xl mb-4 lg:hidden shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-2xl">🎪</span>
