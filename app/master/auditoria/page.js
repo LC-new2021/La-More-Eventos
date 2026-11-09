@@ -28,7 +28,7 @@ export default function MasterAuditoria() {
 
   // Filtros
   const [abaTipo, setAbaTipo] = useState('todos'); // todos | suporte | precos | financeiro
-  const [eventoId, setEventoId] = useState('');
+  const [eventoId, setEventoId] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("activeEventoId") || "" : ""));
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [busca, setBusca] = useState('');

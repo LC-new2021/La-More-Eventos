@@ -7,7 +7,7 @@ export default function OrgDashboard() {
   const { data: session } = useSession();
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(true);
-  const [eventoId, setEventoId] = useState(null);
+  const [eventoId, setEventoId] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("activeEventoId") || null : null));
   
   const [mostrarQrModal, setMostrarQrModal] = useState(false);
 

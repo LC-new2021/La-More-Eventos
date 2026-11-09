@@ -14,7 +14,7 @@ export default function MasterDevolucoesPage() {
   const [processandoId, setProcessandoId] = useState(null);
   
   const [eventos, setEventos] = useState([]);
-  const [eventoId, setEventoId] = useState("");
+  const [eventoId, setEventoId] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("activeEventoId") || "" : ""));
 
   useEffect(() => {
     carregarEventos();

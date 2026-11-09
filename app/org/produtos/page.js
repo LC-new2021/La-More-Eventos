@@ -6,7 +6,7 @@ import { saveAs } from "file-saver";
 import { exportarPlanilhaProdutosMaster } from "@/lib/exportProdutosXlsx";
 
 export default function ProdutosPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const isMaster = session?.user?.role === "MASTER";
   const isSupport =
     session?.user?.role === "SUPORTE_OPERACIONAL" ||
@@ -56,7 +56,7 @@ export default function ProdutosPage() {
     a.localeCompare(b)
   );
 
-  const [eventoId, setEventoId] = useState(null);
+  const [eventoId, setEventoId] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("activeEventoId") || null : null));
   const [eventoNome, setEventoNome] = useState("");
 
   useEffect(() => {
@@ -550,14 +550,17 @@ export default function ProdutosPage() {
 
       {/* ABA: PRODUTOS */}
       {aba === "produtos" &&
-        (!eventoId ? (
+        (status === "loading" || (loading && !produtos.length && !error) ? (
+          <div className="flex flex-col items-center justify-center py-24 min-h-[350px]">
+            <div className="w-10 h-10 border-4 border-[#1D3461] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-[#1D3461] font-black text-base animate-pulse">Carregando cardápio de produtos...</p>
+          </div>
+        ) : !eventoId ? (
           <div className="bg-white rounded-3xl p-12 text-center border-2 border-gray-100 shadow-sm mt-6">
             <span className="text-6xl block mb-4">🎪</span>
-            <p className="text-red-500 text-xl font-bold">
-              Este usuário não está vinculado a um evento.
-            </p>
+            <h3 className="text-[#1D3461] text-xl font-black mb-1">Nenhum evento selecionado</h3>
             <p className="text-gray-500 mt-2 font-medium">
-              Vincule este usuário a um evento no Painel Master para gerenciar o cardápio de produtos.
+              Selecione ou vincule este usuário a um evento para gerenciar o cardápio de produtos.
             </p>
           </div>
         ) : (

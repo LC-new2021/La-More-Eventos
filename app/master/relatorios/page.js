@@ -29,7 +29,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function MasterRelatoriosPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -39,7 +39,7 @@ export default function MasterRelatoriosPage() {
   const [buscaCortesia, setBuscaCortesia] = useState("");
   const [exportandoPlanilhaMaster, setExportandoPlanilhaMaster] = useState(false);
 
-  const [eventoId, setEventoId] = useState(null);
+  const [eventoId, setEventoId] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("activeEventoId") || null : null));
   const [eventos, setEventos] = useState([]);
 
   useEffect(() => {
@@ -86,18 +86,23 @@ export default function MasterRelatoriosPage() {
     }
   };
 
-  if (!eventoId) {
+  if (status === "loading" || (loading && !data && !error)) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-500 font-bold text-xl">Nenhum evento selecionado.</p>
+      <div className="flex flex-col items-center justify-center py-24 min-h-[350px]">
+        <div className="w-10 h-10 border-4 border-[#1D3461] border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-[#1D3461] font-black text-base animate-pulse">Carregando dados de relatórios e BI...</p>
       </div>
     );
   }
 
-  if (loading) {
+  if (!eventoId) {
     return (
-      <div className="text-center py-12">
-        <p className="text-[#1D3461] text-xl font-bold">Carregando dados de relatórios e BI...</p>
+      <div className="bg-white rounded-3xl p-10 text-center border-2 border-gray-100 shadow-sm mt-8 max-w-lg mx-auto">
+        <span className="text-5xl block mb-3">🎪</span>
+        <h3 className="text-[#1D3461] text-xl font-black mb-1">Nenhum evento selecionado</h3>
+        <p className="text-gray-500 font-medium text-sm">
+          Selecione um evento ativo no topo para visualizar os relatórios e métricas de BI.
+        </p>
       </div>
     );
   }

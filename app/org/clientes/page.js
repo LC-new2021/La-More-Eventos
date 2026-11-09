@@ -22,7 +22,7 @@ function maskPhone(phone) {
 }
 
 export default function ClientesPage({ isMasterView = false }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const isSupport =
     session?.user?.role === "SUPORTE_OPERACIONAL" ||
     session?.user?.role === "CLIENTE" ||
@@ -35,7 +35,7 @@ export default function ClientesPage({ isMasterView = false }) {
   const [error, setError] = useState("");
   const [estornando, setEstornando] = useState(null);
 
-  const [eventoId, setEventoId] = useState(null);
+  const [eventoId, setEventoId] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("activeEventoId") || null : null));
   const [eventos, setEventos] = useState([]);
 
   async function exportarClientesXLSX() {
@@ -134,7 +134,7 @@ export default function ClientesPage({ isMasterView = false }) {
 
   useEffect(() => {
     if (session) {
-      if (session.user.role === "MASTER") {
+      if (session.user.role === "MASTER" || isMasterView) {
         fetch("/api/eventos")
           .then((res) => res.json())
           .then((data) => {
@@ -145,9 +145,14 @@ export default function ClientesPage({ isMasterView = false }) {
               const idToSet = existe ? stored : data[0].id;
               localStorage.setItem("activeEventoId", idToSet);
               setEventoId(idToSet);
+            } else {
+              setLoading(false);
             }
           })
-          .catch(console.error);
+          .catch((err) => {
+            console.error(err);
+            setLoading(false);
+          });
       } else {
         if (session.user.eventoId) {
           setEventoId(session.user.eventoId);
@@ -162,14 +167,19 @@ export default function ClientesPage({ isMasterView = false }) {
                 if (data && data.length > 0 && !data.error) {
                   localStorage.setItem("activeEventoId", data[0].id);
                   setEventoId(data[0].id);
+                } else {
+                  setLoading(false);
                 }
               })
-              .catch(console.error);
+              .catch((err) => {
+                console.error(err);
+                setLoading(false);
+              });
           }
         }
       }
     }
-  }, [session]);
+  }, [session, isMasterView]);
 
   useEffect(() => {
     if (eventoId) {
@@ -281,11 +291,22 @@ export default function ClientesPage({ isMasterView = false }) {
     return true;
   });
 
+  if (status === "loading" || (loading && !clientes.length && !error)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 min-h-[350px]">
+        <div className="w-10 h-10 border-4 border-[#1D3461] border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-[#1D3461] font-black text-base animate-pulse">Carregando dados de clientes...</p>
+      </div>
+    );
+  }
+
   if (!eventoId) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-500 font-bold text-xl">
-          Este usuário não está vinculado a um evento.
+      <div className="bg-white rounded-3xl p-10 text-center border-2 border-gray-100 shadow-sm mt-8 max-w-lg mx-auto">
+        <span className="text-5xl block mb-3">🎪</span>
+        <h3 className="text-[#1D3461] text-xl font-black mb-1">Nenhum evento selecionado</h3>
+        <p className="text-gray-500 font-medium text-sm">
+          Selecione ou vincule um evento ativo para gerenciar a carteira de clientes.
         </p>
       </div>
     );
