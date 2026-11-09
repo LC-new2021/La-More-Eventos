@@ -107,6 +107,27 @@ export default function MasterDashboard() {
         ))}
       </div>
 
+
+      {/* Diagnóstico & Teste de SMS / Twilio */}
+      <div className="bg-white rounded-3xl p-6 border-2 border-gray-100 shadow-sm mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-4 border-b border-gray-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">📱</span>
+              <h3 className="text-xl font-black text-[#1D3461]">Diagnóstico & Teste de Disparo de SMS</h3>
+            </div>
+            <p className="text-gray-500 text-xs sm:text-sm font-medium mt-0.5">
+              Envio automático de link do cartão via Twilio na ativação do cliente.
+            </p>
+          </div>
+          <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-blue-50 text-[#1D3461] border border-blue-200 shrink-0 self-start sm:self-auto">
+            Configuração de Produção
+          </span>
+        </div>
+
+        <DiagnosticoSmsBox />
+      </div>
+
       {/* Atalhos */}
       <h3 className="text-2xl font-black text-[#1D3461] mb-4">Acesso Rápido</h3>
       <div className="grid grid-cols-1 gap-4">
@@ -125,6 +146,134 @@ export default function MasterDashboard() {
           </Link>
         ))}
       </div>
+    </div>
+  );
+}
+
+
+function DiagnosticoSmsBox() {
+  const [smsStatus, setSmsStatus] = useState(null);
+  const [carregandoStatus, setCarregandoStatus] = useState(true);
+  const [numeroTeste, setNumeroTeste] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [respostaTeste, setRespostaTeste] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/admin/test-sms')
+      .then((r) => r.json())
+      .then((data) => setSmsStatus(data))
+      .catch(console.error)
+      .finally(() => setCarregandoStatus(false));
+  }, []);
+
+  const handleTestarSms = async (e) => {
+    e.preventDefault();
+    if (!numeroTeste.trim()) {
+      alert('Digite o seu número de celular com DDD (ex: 61999999999)');
+      return;
+    }
+    setEnviando(true);
+    setRespostaTeste(null);
+    try {
+      const res = await fetch('/api/admin/test-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ celular: numeroTeste }),
+      });
+      const data = await res.json();
+      setRespostaTeste(data);
+    } catch (err) {
+      setRespostaTeste({ success: false, error: err.message });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {carregandoStatus ? (
+        <div className="flex items-center gap-2 text-sm text-gray-500 font-semibold py-2">
+          <div className="w-4 h-4 border-2 border-[#1D3461] border-t-transparent rounded-full animate-spin"></div>
+          Verificando credenciais do servidor...
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-200">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Status do Provedor:</span>
+            {smsStatus?.twilio?.configured ? (
+              <span className="px-2.5 py-1 bg-green-100 text-green-800 rounded-lg text-xs font-black flex items-center gap-1">
+                <span>🟢</span> Twilio Conectada {smsStatus.twilio.phoneNumber && `(${smsStatus.twilio.phoneNumber})`}
+              </span>
+            ) : smsStatus?.activeProvider === 'AWS_SNS' ? (
+              <span className="px-2.5 py-1 bg-green-100 text-green-800 rounded-lg text-xs font-black">
+                🟢 AWS SNS Ativo
+              </span>
+            ) : (
+              <span className="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-black flex items-center gap-1">
+                <span>⚪</span> Modo Simulado (Credenciais da Twilio não detectadas no Railway)
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Formulário de Teste */}
+      <form onSubmit={handleTestarSms} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <input
+          type="text"
+          value={numeroTeste}
+          onChange={(e) => setNumeroTeste(e.target.value)}
+          placeholder="Digite seu celular com DDD (ex: 61999999999)"
+          className="flex-1 bg-gray-50 border-2 border-gray-200 focus:border-[#1D3461] rounded-xl px-4 py-3 text-sm font-bold text-[#1D3461] outline-none"
+        />
+        <button
+          type="submit"
+          disabled={enviando}
+          className="bg-[#1D3461] hover:bg-[#112244] text-white font-black text-sm px-6 py-3 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shrink-0"
+        >
+          {enviando ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Disparando SMS...
+            </>
+          ) : (
+            <>
+              <span>📤</span> Enviar SMS de Teste
+            </>
+          )}
+        </button>
+      </form>
+
+      {/* Feedback do Teste */}
+      {respostaTeste && (
+        <div
+          className={`p-4 rounded-2xl border text-xs font-bold leading-relaxed animate-in fade-in ${
+            respostaTeste.success && !respostaTeste.simulated
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : respostaTeste.simulated
+              ? 'bg-amber-50 border-amber-200 text-amber-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          {respostaTeste.success && !respostaTeste.simulated ? (
+            <p>
+              🎉 <strong>SMS enviado com sucesso via Twilio!</strong> O link do cartão teste foi despachado para a operadora. (Message ID: {respostaTeste.messageId || 'OK'})
+            </p>
+          ) : respostaTeste.simulated ? (
+            <div>
+              <p className="font-black text-sm mb-1">ℹ️ SMS Simulado com sucesso nos logs do servidor!</p>
+              <p>
+                O sistema funcionou normalmente, mas para o SMS tocar no chip do celular, as 3 variáveis da Twilio (<code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code> e <code>TWILIO_PHONE_NUMBER</code>) precisam estar inseridas no painel do <strong>Railway (Variables)</strong>.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p className="font-black text-sm mb-1">⚠️ Erro retornado pela Twilio:</p>
+              <p>{respostaTeste.error || 'Falha ao autenticar ou enviar via Twilio.'}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

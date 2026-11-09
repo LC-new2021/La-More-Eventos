@@ -11,38 +11,35 @@ export async function GET() {
     return NextResponse.json({ error: 'Acesso não autorizado' }, { status: 403 });
   }
 
-  const hasTwilioSid = Boolean(process.env.TWILIO_ACCOUNT_SID);
-  const hasTwilioToken = Boolean(process.env.TWILIO_AUTH_TOKEN);
-  const hasTwilioPhone = Boolean(process.env.TWILIO_PHONE_NUMBER);
-  const twilioConfigured = hasTwilioSid && hasTwilioToken && hasTwilioPhone;
+  const twilioSid = (process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_SID || '').trim();
+  const twilioToken = (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_TOKEN || '').trim();
+  const twilioPhone = (process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_NUMBER || process.env.TWILIO_FROM || '').trim();
+  const twilioConfigured = Boolean(twilioSid && twilioToken && twilioPhone);
 
-  const hasAwsKey = Boolean(process.env.AWS_ACCESS_KEY_ID);
-  const hasAwsSecret = Boolean(process.env.AWS_SECRET_ACCESS_KEY);
-  const awsConfigured = hasAwsKey && hasAwsSecret;
-
-  const hasSmsApiUrl = Boolean(process.env.SMS_API_URL);
+  const awsConfigured = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+  const webhookConfigured = Boolean(process.env.SMS_API_URL);
 
   let activeProvider = 'SIMULADO';
   if (awsConfigured) activeProvider = 'AWS_SNS';
-  else if (hasSmsApiUrl) activeProvider = 'WEBHOOK_API';
+  else if (webhookConfigured) activeProvider = 'WEBHOOK_API';
   else if (twilioConfigured) activeProvider = 'TWILIO';
 
   return NextResponse.json({
     activeProvider,
     twilio: {
       configured: twilioConfigured,
-      hasAccountSid: hasTwilioSid,
-      hasAuthToken: hasTwilioToken,
-      hasPhoneNumber: hasTwilioPhone,
-      phoneNumber: process.env.TWILIO_PHONE_NUMBER
-        ? `${process.env.TWILIO_PHONE_NUMBER.slice(0, 4)}****${process.env.TWILIO_PHONE_NUMBER.slice(-4)}`
+      hasAccountSid: Boolean(twilioSid),
+      hasAuthToken: Boolean(twilioToken),
+      hasPhoneNumber: Boolean(twilioPhone),
+      phoneNumber: twilioPhone
+        ? `${twilioPhone.slice(0, 4)}****${twilioPhone.slice(-4)}`
         : null,
     },
     aws: {
       configured: awsConfigured,
     },
     webhook: {
-      configured: hasSmsApiUrl,
+      configured: webhookConfigured,
     },
   });
 }
@@ -69,18 +66,26 @@ export async function POST(req) {
       hostUrl,
     });
 
+    const twilioConfigured = Boolean(
+      (process.env.TWILIO_ACCOUNT_SID || process.env.TWILIO_SID) &&
+      (process.env.TWILIO_AUTH_TOKEN || process.env.TWILIO_TOKEN) &&
+      (process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_NUMBER || process.env.TWILIO_FROM)
+    );
+
+    const providerNome = process.env.AWS_ACCESS_KEY_ID
+      ? 'AWS_SNS'
+      : process.env.SMS_API_URL
+      ? 'WEBHOOK_API'
+      : twilioConfigured
+      ? 'TWILIO'
+      : 'SIMULADO';
+
     return NextResponse.json({
       success: resultado.success,
       simulated: resultado.simulated || false,
       messageId: resultado.messageId || null,
       error: resultado.error || null,
-      provider: process.env.AWS_ACCESS_KEY_ID
-        ? 'AWS_SNS'
-        : process.env.SMS_API_URL
-        ? 'WEBHOOK_API'
-        : process.env.TWILIO_ACCOUNT_SID
-        ? 'TWILIO'
-        : 'SIMULADO (Nenhuma variável externa encontrada no servidor)',
+      provider: providerNome,
     });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
