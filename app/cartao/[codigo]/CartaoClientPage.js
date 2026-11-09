@@ -681,7 +681,7 @@ export default function CartaoClientPage() {
         {/* AVISO NO TOPO SOBRE REGRA DE USO DO SALDO */}
         {exibirAvisoSaldo && (
           <div className="bg-white/5 border border-white/10 text-blue-200/90 rounded-2xl py-2.5 px-4 mb-3 text-center text-xs font-semibold leading-relaxed">
-            ℹ️ Não há devolução de saldo ao final da festa, porém o saldo positivo deve ser utilizado durante todos os dias da festa.
+            ℹ️ {textoAvisoSaldo}
           </div>
         )}
         {false && !cartao.evento.permiteDevolucao && (

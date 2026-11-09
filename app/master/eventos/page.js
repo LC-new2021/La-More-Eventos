@@ -14,6 +14,8 @@ export default function MasterEventos() {
   const [taxa, setTaxa] = useState('5.0');
   const [permiteDevolucao, setPermiteDevolucao] = useState(false);
   const [permitirEdicaoGateway, setPermitirEdicaoGateway] = useState(false);
+  const [exibirAvisoSaldo, setExibirAvisoSaldo] = useState(true);
+  const [textoAvisoSaldo, setTextoAvisoSaldo] = useState('Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.');
   const [gatewayActive, setGatewayActive] = useState('NENHUM');
   const [chavePix, setChavePix] = useState('');
   const [tipoChavePix, setTipoChavePix] = useState('CPF');
@@ -83,6 +85,8 @@ export default function MasterEventos() {
     setTaxa('5.0');
     setPermiteDevolucao(false);
     setPermitirEdicaoGateway(false);
+    setExibirAvisoSaldo(true);
+    setTextoAvisoSaldo('Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.');
     setGatewayActive('NENHUM');
     setChavePix('');
     setTipoChavePix('CPF');
@@ -103,6 +107,8 @@ export default function MasterEventos() {
     setTaxa(evt.taxaMasterPercent?.toString() || '5.0');
     setPermiteDevolucao(evt.permiteDevolucao || false);
     setPermitirEdicaoGateway(evt.permitirEdicaoGateway || false);
+    setExibirAvisoSaldo(evt.exibirAvisoSaldo !== undefined ? evt.exibirAvisoSaldo : true);
+    setTextoAvisoSaldo(evt.textoAvisoSaldo || 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.');
     setGatewayActive(evt.gatewayActive || (evt.chavePix ? 'PIX_DIRETO' : 'NENHUM'));
     setChavePix(evt.chavePix || '');
     setTipoChavePix(evt.tipoChavePix || 'CPF');
@@ -163,6 +169,8 @@ export default function MasterEventos() {
           taxaMasterPercent: parseFloat(taxa),
           permiteDevolucao,
           permitirEdicaoGateway,
+          exibirAvisoSaldo,
+          textoAvisoSaldo: textoAvisoSaldo.trim() || 'Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa.',
           gatewayActive,
           chavePix: gatewayActive === 'NENHUM' ? null : chavePix,
           tipoChavePix,
@@ -567,7 +575,7 @@ export default function MasterEventos() {
                   <input
                     type="checkbox"
                     checked={permitirEdicaoGateway}
-                    onChange={(e) => setPermirirEdicaoGateway ? setPermitirEdicaoGateway(e.target.checked) : null}
+                    onChange={(e) => setPermitirEdicaoGateway(e.target.checked)}
                     className="w-5 h-5 rounded border-gray-300 text-[#1D3461] focus:ring-[#1D3461]"
                   />
                   <div>
@@ -575,6 +583,34 @@ export default function MasterEventos() {
                     <p className="text-xs text-gray-500 font-semibold">Se desativado, apenas o Master poderá configurar as chaves do Asaas/Mercado Pago.</p>
                   </div>
                 </label>
+
+                <div className="pt-2 border-t border-gray-200 space-y-2.5">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exibirAvisoSaldo}
+                      onChange={(e) => setExibirAvisoSaldo(e.target.checked)}
+                      className="w-5 h-5 rounded border-gray-300 text-[#1D3461] focus:ring-[#1D3461] shrink-0"
+                    />
+                    <div>
+                      <p className="font-bold text-gray-800 text-sm">Exibir aviso sobre regra de uso do saldo no Cartão Digital</p>
+                      <p className="text-xs text-gray-500 font-semibold">Permite incluir ou ocultar o aviso no cartão de cada festa e personalizar a mensagem de saldo.</p>
+                    </div>
+                  </label>
+
+                  {exibirAvisoSaldo && (
+                    <div>
+                      <label className="block text-gray-700 font-bold mb-1 text-xs">Texto do aviso no Cartão Digital (editável por festa)</label>
+                      <textarea
+                        rows={3}
+                        value={textoAvisoSaldo}
+                        onChange={(e) => setTextoAvisoSaldo(e.target.value)}
+                        placeholder="Não há devolução de saldo ao final da festa, porém o saldo positivo pode ser utilizado durante todos os dias da festa."
+                        className="w-full bg-white border-2 border-gray-200 focus:border-[#1D3461] outline-none rounded-xl px-3 py-2 text-xs font-semibold text-gray-900"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* CONFIGURAÇÃO DE RECEBIMENTO PIX / GATEWAY */}
