@@ -111,24 +111,13 @@ export default function BarApp() {
   }, [status]);
 
   useEffect(() => {
-    if (session) {
-      if (session.user?.eventoId) {
-        setEventoId(session.user.eventoId);
-      } else {
+    if (session && session.user) {
+      if (session.user.role === 'MASTER') {
         const stored = typeof window !== "undefined" ? localStorage.getItem("activeEventoId") : null;
-        if (stored) {
-          setEventoId(stored);
-        } else {
-          fetch("/api/eventos")
-            .then(r => r.json())
-            .then(data => {
-              if (Array.isArray(data) && data.length > 0) {
-                localStorage.setItem("activeEventoId", data[0].id);
-                setEventoId(data[0].id);
-              }
-            })
-            .catch(console.error);
-        }
+        setEventoId(stored || null);
+      } else {
+        // Strict event scoping: operators only operate on their own event
+        setEventoId(session.user.eventoId || null);
       }
     }
   }, [session]);
@@ -267,6 +256,7 @@ export default function BarApp() {
       await pararScanner();
     } catch {}
     try {
+      if (typeof window !== "undefined") { localStorage.removeItem("activeEventoId"); }
       await signOut({ redirect: false });
     } catch {}
     window.location.replace("/login");

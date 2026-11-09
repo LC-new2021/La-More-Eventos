@@ -60,6 +60,7 @@ export default function MasterLayout({ children }) {
           </div>
           <button
             onClick={async () => {
+              if (typeof window !== "undefined") { localStorage.removeItem("activeEventoId"); }
               await signOut({ redirect: false });
               window.location.href = "/login";
             }}

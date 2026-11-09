@@ -29,9 +29,9 @@ export default function OrgLayout({ children }) {
     : todosMenuItens;
 
   useEffect(() => {
-    if (session) {
+    if (session && session.user) {
       if (isMaster) {
-        const stored = localStorage.getItem("activeEventoId");
+        const stored = typeof window !== "undefined" ? localStorage.getItem("activeEventoId") : null;
         setEventoId(stored);
         
         // Buscar todos os eventos para a listagem do MASTER
@@ -41,30 +41,14 @@ export default function OrgLayout({ children }) {
             if (!data.error) {
               setEventos(data);
               if (!stored && data.length > 0) {
-                localStorage.setItem("activeEventoId", data[0].id);
+                if (typeof window !== "undefined") localStorage.setItem("activeEventoId", data[0].id);
                 setEventoId(data[0].id);
               }
             }
           });
       } else {
-        if (session.user.eventoId) {
-          setEventoId(session.user.eventoId);
-        } else {
-          const stored = localStorage.getItem("activeEventoId");
-          if (stored) {
-            setEventoId(stored);
-          } else {
-            fetch('/api/eventos')
-              .then(res => res.json())
-              .then(data => {
-                if (data && data.length > 0 && !data.error) {
-                  localStorage.setItem("activeEventoId", data[0].id);
-                  setEventoId(data[0].id);
-                }
-              })
-              .catch(console.error);
-          }
-        }
+        // Non-master: STRICTLY bound to session.user.eventoId. NEVER fall back to other events!
+        setEventoId(session.user.eventoId || null);
       }
     }
   }, [session, isMaster]);
@@ -172,7 +156,8 @@ export default function OrgLayout({ children }) {
           </div>
           <button
             onClick={async () => {
-              await signOut({ redirect: false });
+              if (typeof window !== "undefined") { localStorage.removeItem("activeEventoId"); }
+            await signOut({ redirect: false });
               window.location.href = "/login";
             }}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600/20 hover:bg-red-600/30 text-red-200 hover:text-white rounded-2xl font-bold text-sm transition-all cursor-pointer"

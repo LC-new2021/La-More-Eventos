@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [carregando, setCarregando] = useState(false);
 
   async function handleSubmit(e) {
+    if (typeof window !== "undefined") { localStorage.removeItem("activeEventoId"); }
     e.preventDefault();
     setErro("");
     setCarregando(true);

@@ -112,6 +112,11 @@ export default function MasterUsuarios() {
       ? `Você quer realmente confirmar as alterações no usuário "${nome.trim()}"?`
       : `Você quer realmente incluir o usuário "${nome.trim()}" (${role}) no sistema?`;
 
+    if (role !== 'MASTER' && !eventoId) {
+      alert('⚠️ Por favor, selecione obrigatoriamente o Evento Vinculado para este usuário.');
+      return;
+    }
+
     if (!window.confirm(msgConfirm)) return;
 
     setSalvando(true);
@@ -615,14 +620,17 @@ export default function MasterUsuarios() {
                 </div>
 
                 <div>
-                  <label className="block text-gray-500 font-bold mb-1 text-xs">Evento Vinculado</label>
+                  <label className="block text-gray-500 font-bold mb-1 text-xs">
+                    Evento Vinculado {role !== 'MASTER' && <span className="text-red-500">*</span>}
+                  </label>
                   <select
                     value={eventoId}
                     onChange={(e) => setEventoId(e.target.value)}
                     disabled={role === 'MASTER'}
+                    required={role !== 'MASTER'}
                     className="w-full bg-gray-50 border border-gray-200 focus:border-[#1D3461] focus:bg-white outline-none rounded-xl px-2.5 py-2 text-xs font-semibold text-gray-900 disabled:opacity-50 cursor-pointer"
                   >
-                    <option value="">Nenhum / Geral</option>
+                    <option value="">{role === 'MASTER' ? 'Nenhum / Geral (Acesso Global)' : 'Selecione o Evento Vinculado (Obrigatório)...'}</option>
                     {eventos.map((evt) => (
                       <option key={evt.id} value={evt.id}>
                         {evt.nome}

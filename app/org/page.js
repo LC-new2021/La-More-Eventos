@@ -7,14 +7,14 @@ export default function OrgDashboard() {
   const { data: session } = useSession();
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(true);
-  const [eventoId, setEventoId] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("activeEventoId") || null : null));
+  const [eventoId, setEventoId] = useState(null);
   
   const [mostrarQrModal, setMostrarQrModal] = useState(false);
 
   useEffect(() => {
-    if (session) {
+    if (session && session.user) {
       if (session.user.role === 'MASTER') {
-        const stored = localStorage.getItem("activeEventoId");
+        const stored = typeof window !== "undefined" ? localStorage.getItem("activeEventoId") : null;
         if (stored) {
           setEventoId(stored);
         } else {
@@ -24,30 +24,21 @@ export default function OrgDashboard() {
               if (data && data.length > 0) {
                 localStorage.setItem("activeEventoId", data[0].id);
                 setEventoId(data[0].id);
+              } else {
+                setCarregando(false);
               }
-            });
+            })
+            .catch(() => setCarregando(false));
         }
       } else {
+        // Non-master: STRICTLY bound to session.user.eventoId. NEVER load another event!
         if (session.user.eventoId) {
           setEventoId(session.user.eventoId);
         } else {
-          fetch("/api/eventos")
-            .then((res) => res.json())
-            .then((data) => {
-              if (data && data.length > 0) {
-                setEventoId(data[0].id);
-              }
-            });
+          setEventoId(null);
+          setCarregando(false);
         }
       }
-    } else {
-      fetch("/api/eventos")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.length > 0) {
-            setEventoId(data[0].id);
-          }
-        });
     }
   }, [session]);
 

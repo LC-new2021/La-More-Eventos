@@ -35,10 +35,21 @@ export default function OperadoresPage() {
 
   const carregarOperadores = async () => {
     try {
-      const storedEventoId = localStorage.getItem("activeEventoId");
+      let targetEventoId = null;
+      if (session?.user?.role === "MASTER") {
+        targetEventoId = typeof window !== "undefined" ? localStorage.getItem("activeEventoId") : null;
+      } else {
+        targetEventoId = session?.user?.eventoId || null;
+      }
+
       let url = "/api/usuarios";
-      if (session?.user?.role === "MASTER" && storedEventoId) {
-        url += `?eventoId=${storedEventoId}`;
+      if (targetEventoId) {
+        url += `?eventoId=${targetEventoId}`;
+      } else if (session?.user?.role !== "MASTER") {
+        // Non-master with no event has no operators
+        setOperadores([]);
+        setLoading(false);
+        return;
       }
       const res = await fetch(url);
       const data = await res.json();

@@ -35,7 +35,7 @@ export default function ClientesPage({ isMasterView = false }) {
   const [error, setError] = useState("");
   const [estornando, setEstornando] = useState(null);
 
-  const [eventoId, setEventoId] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("activeEventoId") || null : null));
+  const [eventoId, setEventoId] = useState(() => (typeof window !== "undefined" && isMasterView ? localStorage.getItem("activeEventoId") || null : null));
   const [eventos, setEventos] = useState([]);
 
   async function exportarClientesXLSX() {
@@ -133,17 +133,17 @@ export default function ClientesPage({ isMasterView = false }) {
   }
 
   useEffect(() => {
-    if (session) {
+    if (session && session.user) {
       if (session.user.role === "MASTER" || isMasterView) {
         fetch("/api/eventos")
           .then((res) => res.json())
           .then((data) => {
             if (data && data.length > 0) {
               setEventos(data);
-              const stored = localStorage.getItem("activeEventoId");
+              const stored = typeof window !== "undefined" ? localStorage.getItem("activeEventoId") : null;
               const existe = data.find((e) => e.id === stored);
               const idToSet = existe ? stored : data[0].id;
-              localStorage.setItem("activeEventoId", idToSet);
+              if (typeof window !== "undefined") localStorage.setItem("activeEventoId", idToSet);
               setEventoId(idToSet);
             } else {
               setLoading(false);
@@ -154,28 +154,12 @@ export default function ClientesPage({ isMasterView = false }) {
             setLoading(false);
           });
       } else {
+        // Non-master: STRICTLY bound to session.user.eventoId. NEVER read localStorage or other events!
         if (session.user.eventoId) {
           setEventoId(session.user.eventoId);
         } else {
-          const stored = localStorage.getItem("activeEventoId");
-          if (stored) {
-            setEventoId(stored);
-          } else {
-            fetch("/api/eventos")
-              .then((res) => res.json())
-              .then((data) => {
-                if (data && data.length > 0 && !data.error) {
-                  localStorage.setItem("activeEventoId", data[0].id);
-                  setEventoId(data[0].id);
-                } else {
-                  setLoading(false);
-                }
-              })
-              .catch((err) => {
-                console.error(err);
-                setLoading(false);
-              });
-          }
+          setEventoId(null);
+          setLoading(false);
         }
       }
     }

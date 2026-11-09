@@ -6,13 +6,27 @@ import { logSupportAction } from '@/lib/audit';
 
 export async function GET(req) {
   try {
+    const session = await getServerSession(authOptions);
     const { searchParams } = new URL(req.url);
-    const eventoId = searchParams.get('eventoId');
+    let eventoId = searchParams.get('eventoId');
     const includeInactive = searchParams.get('includeInactive') === 'true';
     const includeDeleted = searchParams.get('includeDeleted') === 'true';
 
+    // Strict multi-tenancy: Non-master users can ONLY access products of their assigned event
+    if (session && session.user && session.user.role !== 'MASTER') {
+      eventoId = session.user.eventoId;
+      if (!eventoId) {
+        return NextResponse.json([]);
+      }
+    }
+
+    // A query for products MUST have an eventoId. Never return products from all events mixed together!
+    if (!eventoId) {
+      return NextResponse.json([]);
+    }
+
     const where = {
-      ...(eventoId && { eventoId }),
+      eventoId,
       ...(!includeInactive && { ativo: true }),
     };
 

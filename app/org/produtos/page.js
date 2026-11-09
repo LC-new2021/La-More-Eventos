@@ -56,13 +56,13 @@ export default function ProdutosPage() {
     a.localeCompare(b)
   );
 
-  const [eventoId, setEventoId] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("activeEventoId") || null : null));
+  const [eventoId, setEventoId] = useState(null);
   const [eventoNome, setEventoNome] = useState("");
 
   useEffect(() => {
-    if (session) {
+    if (session && session.user) {
       if (session.user.role === "MASTER") {
-        const stored = localStorage.getItem("activeEventoId");
+        const stored = typeof window !== "undefined" ? localStorage.getItem("activeEventoId") : null;
         if (stored) {
           setEventoId(stored);
         } else {
@@ -72,27 +72,19 @@ export default function ProdutosPage() {
               if (data && data.length > 0) {
                 localStorage.setItem("activeEventoId", data[0].id);
                 setEventoId(data[0].id);
+              } else {
+                setLoading(false);
               }
-            });
+            })
+            .catch(() => setLoading(false));
         }
       } else {
+        // Non-master: STRICTLY bound to session.user.eventoId. NEVER read localStorage or other events!
         if (session.user.eventoId) {
           setEventoId(session.user.eventoId);
         } else {
-          const stored = localStorage.getItem("activeEventoId");
-          if (stored) {
-            setEventoId(stored);
-          } else {
-            fetch("/api/eventos")
-              .then((res) => res.json())
-              .then((data) => {
-                if (data && data.length > 0 && !data.error) {
-                  localStorage.setItem("activeEventoId", data[0].id);
-                  setEventoId(data[0].id);
-                }
-              })
-              .catch(console.error);
-          }
+          setEventoId(null);
+          setLoading(false);
         }
       }
     }

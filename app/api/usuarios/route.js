@@ -18,7 +18,8 @@ export async function GET(req) {
 
     // Enforce scoping for ORGANIZADOR and SUPORTE_OPERACIONAL
     if (['ORGANIZADOR', 'ORG', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
-      eventoId = session.user.eventoId || eventoId;
+      eventoId = session.user.eventoId;
+      if (!eventoId) return NextResponse.json([]);
     } else if (session.user.role !== 'MASTER') {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
     }
@@ -57,6 +58,10 @@ export async function POST(req) {
 
     if (!nome || !email || !senha || !role) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
+    }
+
+    if (role !== 'MASTER' && !eventoId) {
+      return NextResponse.json({ error: 'É obrigatório selecionar o evento ao qual este usuário pertence.' }, { status: 400 });
     }
 
     email = email.trim().toLowerCase();

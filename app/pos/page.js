@@ -187,23 +187,26 @@ export default function PosApp() {
   }, [status]);
 
   useEffect(() => {
-    if (session) {
-      const stored = typeof window !== "undefined" ? localStorage.getItem("activeEventoId") : null;
-      if (stored && !selectedEventoId) {
-        setFallbackEventoId(stored);
-      }
-      if (isMaster || !session.user?.eventoId) {
+    if (session && session.user) {
+      if (isMaster) {
+        const stored = typeof window !== "undefined" ? localStorage.getItem("activeEventoId") : null;
+        if (stored && !selectedEventoId) {
+          setFallbackEventoId(stored);
+        }
         fetch("/api/eventos")
           .then(r => r.json())
           .then(data => {
             if (Array.isArray(data) && !data.error) {
               setEventosMaster(data);
-              if (data.length > 0 && !stored && !session.user?.eventoId) {
+              if (data.length > 0 && !stored) {
                 setFallbackEventoId(data[0].id);
               }
             }
           })
           .catch(console.error);
+      } else {
+        // Non-master: strictly bound to session.user.eventoId
+        setFallbackEventoId(session.user.eventoId || null);
       }
     }
   }, [session, isMaster]);

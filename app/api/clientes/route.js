@@ -7,10 +7,20 @@ import { logSupportAction } from '@/lib/audit';
 
 // GET — busca por nome, CPF, celular ou código
 export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const q = searchParams.get('q') || '';
-  const eventoId = searchParams.get('eventoId');
   try {
+    const session = await getServerSession(authOptions);
+    const { searchParams } = new URL(req.url);
+    const q = searchParams.get('q') || '';
+    let eventoId = searchParams.get('eventoId');
+
+    // Strict multi-tenancy: Non-master users can ONLY view clients of their own event
+    if (session && session.user && session.user.role !== 'MASTER') {
+      eventoId = session.user.eventoId;
+      if (!eventoId) {
+        return NextResponse.json([]);
+      }
+    }
+
     if (!eventoId) {
       return NextResponse.json({ error: 'eventoId é obrigatório' }, { status: 400 });
     }
@@ -72,7 +82,11 @@ export async function POST(req) {
   try {
     const session = await getServerSession(authOptions);
     const body = await req.json();
-    const { nome, cpf, celular, email, eventoId, valorRecarga, pagamentos, cartaoExistente } = body;
+    let { nome, cpf, celular, email, eventoId, valorRecarga, pagamentos, cartaoExistente } = body;
+
+    if (session && session.user && session.user.role !== 'MASTER') {
+      eventoId = session.user.eventoId;
+    }
 
     if (!eventoId) {
       return NextResponse.json({ error: 'eventoId é obrigatório' }, { status: 400 });
