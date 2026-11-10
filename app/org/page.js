@@ -202,24 +202,64 @@ export default function OrgDashboard() {
       )}
 
       {dados && (
-        <div className={`mb-6 p-4 rounded-2xl border-2 flex items-center justify-between font-black text-sm ${
-          (dados.mercadoPagoUserId || dados.gatewayActive === 'MERCADO_PAGO')
-            ? 'bg-green-50 border-green-100 text-green-700' 
-            : 'bg-yellow-50 border-yellow-100 text-yellow-700'
-        }`}>
-          <div>
-            <span>🔌 Recebimento: </span>
-            <span>
-              {dados.gatewayActive === 'MERCADO_PAGO'
-                ? 'Mercado Pago Ativo (Processamento em tempo real)'
-                : dados.mercadoPagoUserId 
-                  ? `Split Ativo (Conta Mercado Pago vinculada - ID: ${dados.mercadoPagoUserId})` 
-                  : 'Configuração Padrão (Sem split ativo)'}
-            </span>
-          </div>
-          <span className="text-xs opacity-75 font-semibold">
-            {dados.gatewayActive === 'MERCADO_PAGO' ? 'VENDAS DIRETAS' : 'VINCULAÇÃO OPCIONAL VIA MASTER'}
-          </span>
+        <div className="mb-6">
+          {(!dados.gatewayActive || dados.gatewayActive === 'NENHUM') ? (
+            <div className="p-4 rounded-2xl border-2 border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-gray-700 font-bold text-sm shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📊</span>
+                <span>Modo Gerencial (Nenhum método de pagamento online integrado — Operação física / local)</span>
+              </div>
+              <span className="text-xs font-semibold text-gray-500 bg-white px-3 py-1 rounded-xl border border-gray-200 shrink-0 self-start sm:self-auto">
+                OPERAÇÃO FÍSICA / LOCAL
+              </span>
+            </div>
+          ) : dados.gatewayActive === 'PIX_DIRETO' ? (
+            <div className="p-4 rounded-2xl border-2 border-emerald-100 bg-emerald-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-emerald-800 font-bold text-sm shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚡</span>
+                <span>Recebimento: PIX Direto (Chave Própria PF / PJ)</span>
+              </div>
+              <span className="text-xs font-semibold text-emerald-700 bg-white px-3 py-1 rounded-xl border border-emerald-200 shrink-0 self-start sm:self-auto">
+                PIX DIRETO
+              </span>
+            </div>
+          ) : dados.gatewayActive === 'ASAAS' ? (
+            <div className="p-4 rounded-2xl border-2 border-blue-100 bg-blue-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-blue-800 font-bold text-sm shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚡</span>
+                <span>Recebimento: Gateway Asaas Ativo (PIX Dinâmico + Cartão)</span>
+              </div>
+              <span className="text-xs font-semibold text-blue-700 bg-white px-3 py-1 rounded-xl border border-blue-200 shrink-0 self-start sm:self-auto">
+                ASAAS GATEWAY
+              </span>
+            </div>
+          ) : dados.gatewayActive === 'PAGBANK' ? (
+            <div className="p-4 rounded-2xl border-2 border-amber-100 bg-amber-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-amber-800 font-bold text-sm shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">💳</span>
+                <span>Recebimento: PagBank Ativo</span>
+              </div>
+              <span className="text-xs font-semibold text-amber-700 bg-white px-3 py-1 rounded-xl border border-amber-200 shrink-0 self-start sm:self-auto">
+                PAGBANK
+              </span>
+            </div>
+          ) : dados.gatewayActive === 'MERCADO_PAGO' ? (
+            <div className={`p-4 rounded-2xl border-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-bold text-sm shadow-sm ${
+              dados.mercadoPagoUserId ? 'border-green-100 bg-green-50/70 text-green-800' : 'border-yellow-100 bg-yellow-50/70 text-yellow-800'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🔌</span>
+                <span>
+                  {dados.mercadoPagoUserId
+                    ? `Mercado Pago Conectado (ID: ${dados.mercadoPagoUserId})`
+                    : 'Mercado Pago Selecionado (Pendente de conexão no Master)'}
+                </span>
+              </div>
+              <span className="text-xs font-semibold bg-white px-3 py-1 rounded-xl border border-gray-200 shrink-0 self-start sm:self-auto">
+                MERCADO PAGO
+              </span>
+            </div>
+          ) : null}
         </div>
       )}
 

@@ -99,19 +99,35 @@ export async function PATCH(req, { params }) {
       if (body.taxaMasterPercent !== undefined) {
         updateData.taxaMasterPercent = parseFloat(body.taxaMasterPercent);
       }
-      if (body.gatewayActive !== undefined) updateData.gatewayActive = body.gatewayActive;
-      if (body.chavePix !== undefined) updateData.chavePix = body.chavePix || null;
-      if (body.tipoChavePix !== undefined) updateData.tipoChavePix = body.tipoChavePix || 'CPF';
-      if (body.titularPix !== undefined) updateData.titularPix = body.titularPix || null;
-      if (body.cidadePix !== undefined) updateData.cidadePix = body.cidadePix || 'BRASILIA';
-      if (body.asaasToken !== undefined) updateData.asaasToken = body.asaasToken;
-      if (body.asaasUrl !== undefined) updateData.asaasUrl = body.asaasUrl;
-      if (body.pagbankToken !== undefined) updateData.pagbankToken = body.pagbankToken;
-      if (body.stoneToken !== undefined) updateData.stoneToken = body.stoneToken;
-      if (body.mercadoPagoPublicKey !== undefined) updateData.mercadoPagoPublicKey = body.mercadoPagoPublicKey;
-      if (body.mercadoPagoAccessToken !== undefined) updateData.mercadoPagoAccessToken = body.mercadoPagoAccessToken;
-      if (body.mercadoPagoRefreshToken !== undefined) updateData.mercadoPagoRefreshToken = body.mercadoPagoRefreshToken;
-      if (body.mercadoPagoUserId !== undefined) updateData.mercadoPagoUserId = body.mercadoPagoUserId;
+      if (body.gatewayActive !== undefined) {
+        updateData.gatewayActive = body.gatewayActive;
+        if (body.gatewayActive === 'NENHUM') {
+          updateData.chavePix = null;
+          updateData.titularPix = null;
+          updateData.asaasToken = null;
+          updateData.asaasUrl = null;
+          updateData.pagbankToken = null;
+          updateData.stoneToken = null;
+          updateData.mercadoPagoPublicKey = null;
+          updateData.mercadoPagoAccessToken = null;
+          updateData.mercadoPagoRefreshToken = null;
+          updateData.mercadoPagoUserId = null;
+        }
+      }
+      if (body.gatewayActive !== 'NENHUM') {
+        if (body.chavePix !== undefined) updateData.chavePix = body.chavePix || null;
+        if (body.tipoChavePix !== undefined) updateData.tipoChavePix = body.tipoChavePix || 'CPF';
+        if (body.titularPix !== undefined) updateData.titularPix = body.titularPix || null;
+        if (body.cidadePix !== undefined) updateData.cidadePix = body.cidadePix || 'BRASILIA';
+        if (body.asaasToken !== undefined) updateData.asaasToken = body.asaasToken;
+        if (body.asaasUrl !== undefined) updateData.asaasUrl = body.asaasUrl;
+        if (body.pagbankToken !== undefined) updateData.pagbankToken = body.pagbankToken;
+        if (body.stoneToken !== undefined) updateData.stoneToken = body.stoneToken;
+        if (body.mercadoPagoPublicKey !== undefined) updateData.mercadoPagoPublicKey = body.mercadoPagoPublicKey;
+        if (body.mercadoPagoAccessToken !== undefined) updateData.mercadoPagoAccessToken = body.mercadoPagoAccessToken;
+        if (body.mercadoPagoRefreshToken !== undefined) updateData.mercadoPagoRefreshToken = body.mercadoPagoRefreshToken;
+        if (body.mercadoPagoUserId !== undefined) updateData.mercadoPagoUserId = body.mercadoPagoUserId;
+      }
       if (body.permiteDevolucao !== undefined) updateData.permiteDevolucao = body.permiteDevolucao;
       if (body.permitirEdicaoGateway !== undefined) updateData.permitirEdicaoGateway = body.permitirEdicaoGateway;
       if (body.exibirAvisoSaldo !== undefined || body.textoAvisoSaldo !== undefined) {

@@ -25,7 +25,7 @@ export async function GET(req) {
       }),
       prisma.evento.findUnique({
         where: { id: eventoId },
-        select: { mercadoPagoAccessToken: true, gatewayActive: true }
+        select: { mercadoPagoAccessToken: true, mercadoPagoUserId: true, gatewayActive: true, tipoChavePix: true, chavePix: true }
       })
     ]);
 
@@ -55,8 +55,10 @@ export async function GET(req) {
       totalPedidos: todasMovimentacoes.filter(m => m.tipo === 'DEBITO').length,
       movimentacoes: ultimasMovimentacoes.slice(0, 20),
       ranking,
-      mercadoPagoUserId: evento?.mercadoPagoAccessToken ? 'CONECTADO' : null,
-      gatewayActive: evento?.gatewayActive || null
+      gatewayActive: evento?.gatewayActive || 'NENHUM',
+      mercadoPagoUserId: (evento?.gatewayActive === 'MERCADO_PAGO' && (evento?.mercadoPagoUserId || evento?.mercadoPagoAccessToken))
+        ? (evento?.mercadoPagoUserId || 'CONECTADO')
+        : null
     });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

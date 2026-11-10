@@ -177,8 +177,9 @@ export default function MasterEventos() {
           titularPix: gatewayActive === 'NENHUM' ? null : titularPix,
           cidadePix: gatewayActive === 'NENHUM' ? 'BRASILIA' : cidadePix,
           asaasToken: gatewayActive === 'NENHUM' ? null : asaasToken,
-          mercadoPagoPublicKey: mpPublicKey,
-          mercadoPagoAccessToken: mpAccessToken,
+          mercadoPagoPublicKey: gatewayActive === 'NENHUM' ? null : mpPublicKey,
+          mercadoPagoAccessToken: gatewayActive === 'NENHUM' ? null : mpAccessToken,
+          mercadoPagoUserId: gatewayActive === 'NENHUM' ? null : (eventoParaEditar?.mercadoPagoUserId || null),
           bilheteriaEventoId: bilheteriaEventoId || null,
         })
       });
@@ -404,31 +405,49 @@ export default function MasterEventos() {
                   </div>
                 </div>
 
-                <div className={`mt-3 p-3.5 rounded-2xl border-2 flex items-center justify-between text-xs font-black mb-4 ${
-                  evt.mercadoPagoUserId 
-                    ? 'bg-green-50 border-green-100 text-green-700' 
-                    : 'bg-gray-50 border-gray-100 text-gray-500'
-                }`}>
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span>🔌 MP Split:</span>
-                    <span className="truncate">{evt.mercadoPagoUserId ? `Conectado (ID: ${evt.mercadoPagoUserId})` : 'Não Configurado'}</span>
+                {evt.gatewayActive === 'MERCADO_PAGO' ? (
+                  <div className={`mt-3 p-3 rounded-xl border flex items-center justify-between text-xs font-bold mb-3 ${
+                    evt.mercadoPagoUserId 
+                      ? 'bg-green-50 border-green-200 text-green-700' 
+                      : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                  }`}>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span>🔌 MP Split:</span>
+                      <span className="truncate">{evt.mercadoPagoUserId ? `Conectado (ID: ${evt.mercadoPagoUserId})` : 'Pendente Conexão'}</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const clientId = process.env.NEXT_PUBLIC_MERCADOPAGO_CLIENT_ID;
+                        if (!clientId || clientId === '1234567890') {
+                          alert('Configure a variável NEXT_PUBLIC_MERCADOPAGO_CLIENT_ID no painel do Railway para vincular o Mercado Pago.');
+                          return;
+                        }
+                        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                        const redirectUri = encodeURIComponent(`${origin}/api/auth/mercadopago/callback`);
+                        const url = `https://auth.mercadopago.com.br/authorization?client_id=${clientId}&response_type=code&platform_id=mp&state=${evt.id}&redirect_uri=${redirectUri}`;
+                        window.location.href = url;
+                      }}
+                      className="px-2.5 py-1 rounded-lg font-bold transition-all shadow-sm shrink-0 bg-[#1D3461] hover:bg-[#112244] text-white cursor-pointer"
+                    >
+                      {evt.mercadoPagoUserId ? 'Reconectar' : 'Vincular'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      const clientId = process.env.NEXT_PUBLIC_MERCADOPAGO_CLIENT_ID || '1234567890';
-                      const redirectUri = encodeURIComponent(process.env.NEXT_PUBLIC_MERCADOPAGO_REDIRECT_URI || 'http://localhost:3000/api/auth/mercadopago/callback');
-                      const url = `https://auth.mercadopago.com.br/authorization?client_id=${clientId}&response_type=code&platform_id=mp&state=${evt.id}&redirect_uri=${redirectUri}`;
-                      window.location.href = url;
-                    }}
-                    className={`px-3 py-1.5 rounded-xl font-bold transition-all shadow-sm shrink-0 ${
-                      evt.mercadoPagoUserId 
-                        ? 'bg-green-600 hover:bg-green-700 text-white' 
-                        : 'bg-[#1D3461] hover:bg-[#112244] text-white'
-                    }`}
-                  >
-                    {evt.mercadoPagoUserId ? 'Reconectar' : 'Vincular'}
-                  </button>
-                </div>
+                ) : evt.gatewayActive === 'PIX_DIRETO' ? (
+                  <div className="mt-3 p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 text-emerald-800 text-xs font-bold flex items-center justify-between mb-3">
+                    <span className="flex items-center gap-1"><span>⚡</span> PIX Direto ({evt.tipoChavePix || 'CPF'})</span>
+                    <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-emerald-200 truncate max-w-[140px]">{evt.chavePix || 'Chave cadastrada'}</span>
+                  </div>
+                ) : evt.gatewayActive === 'ASAAS' ? (
+                  <div className="mt-3 p-2.5 rounded-xl border border-blue-200 bg-blue-50/60 text-blue-800 text-xs font-bold flex items-center justify-between mb-3">
+                    <span className="flex items-center gap-1"><span>⚡</span> Asaas Gateway</span>
+                    <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-blue-200">API Ativa</span>
+                  </div>
+                ) : (
+                  <div className="mt-3 p-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 text-xs font-bold flex items-center justify-between mb-3">
+                    <span className="flex items-center gap-1"><span>🚫</span> Modo Gerencial</span>
+                    <span className="text-[10px] bg-white px-2 py-0.5 rounded border border-gray-200">Sem gateway online</span>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
@@ -764,13 +783,7 @@ export default function MasterEventos() {
                 />
               </div>
 
-              {!eventoParaEditar && (
-                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-xs font-semibold text-gray-500 leading-normal">
-                  💡 A vinculação da conta Mercado Pago do produtor via OAuth (Split) estará disponível após a criação do evento, ao editar seus detalhes.
-                </div>
-              )}
-
-              {eventoParaEditar && (
+              {eventoParaEditar && gatewayActive === 'MERCADO_PAGO' && (
                 <div className="bg-blue-50 border-2 border-blue-100 rounded-2xl p-4 text-center mt-2">
                   <p className="text-blue-900 font-black text-sm mb-1">🔌 Mercado Pago Connect (Split)</p>
                   <p className="text-xs text-blue-700 mb-3 leading-tight">
@@ -781,12 +794,17 @@ export default function MasterEventos() {
                   <button
                     type="button"
                     onClick={() => {
-                      const clientId = process.env.NEXT_PUBLIC_MERCADOPAGO_CLIENT_ID || '1234567890';
-                      const redirectUri = encodeURIComponent(process.env.NEXT_PUBLIC_MERCADOPAGO_REDIRECT_URI || 'http://localhost:3000/api/auth/mercadopago/callback');
+                      const clientId = process.env.NEXT_PUBLIC_MERCADOPAGO_CLIENT_ID;
+                      if (!clientId || clientId === '1234567890') {
+                        alert('Configure a variável NEXT_PUBLIC_MERCADOPAGO_CLIENT_ID no painel do Railway para vincular o Mercado Pago.');
+                        return;
+                      }
+                      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                      const redirectUri = encodeURIComponent(`${origin}/api/auth/mercadopago/callback`);
                       const url = `https://auth.mercadopago.com.br/authorization?client_id=${clientId}&response_type=code&platform_id=mp&state=${eventoParaEditar.id}&redirect_uri=${redirectUri}`;
                       window.location.href = url;
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all shadow"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all shadow cursor-pointer"
                   >
                     {eventoParaEditar.mercadoPagoUserId ? "Reconectar Conta" : "Conectar Conta do Produtor"}
                   </button>
