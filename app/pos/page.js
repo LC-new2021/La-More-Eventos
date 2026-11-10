@@ -339,7 +339,7 @@ export default function PosApp() {
     setCartaoEncontrado(null);
     setErro("");
     try {
-      const res = await fetch(`/api/clientes?q=${encodeURIComponent(termoBusca)}&eventoId=${eventoId}`);
+      const res = await fetch(`/api/clientes?q=${encodeURIComponent(termoBusca)}&eventoId=${eventoId}&_t=${Date.now()}`, { cache: "no-store" });
       const data = await res.json();
       setResultadosBusca(Array.isArray(data) ? data : []);
     } catch { setErro("Erro ao buscar cliente"); }
@@ -586,7 +586,7 @@ export default function PosApp() {
         if (rawCelular && rawCelular.length >= 10) queryParams.set("celular", rawCelular);
         if (eventoId) queryParams.set("eventoId", eventoId);
 
-        const res = await fetch(`/api/clientes/consultar?${queryParams.toString()}`);
+        const res = await fetch(`/api/clientes/consultar?${queryParams.toString()}&_t=${Date.now()}`, { cache: "no-store" });
         const data = await res.json();
 
         if (data.found && data.cliente) {

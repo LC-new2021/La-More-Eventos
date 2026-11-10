@@ -143,7 +143,7 @@ export default function BarApp() {
   async function carregarTotalFesta() {
     if (!eventoId) return;
     try {
-      const res = await fetch(`/api/clientes?eventoId=${eventoId}&q=`);
+      const res = await fetch(`/api/clientes?eventoId=${eventoId}&q=&_t=${Date.now()}`, { cache: "no-store" });
       const totalHeader = res.headers.get("X-Total-Count");
       if (totalHeader) {
         setTotalFesta(parseInt(totalHeader));
@@ -161,7 +161,7 @@ export default function BarApp() {
     setBuscando(true);
     setErro("");
     try {
-      const res = await fetch(`/api/clientes?q=${encodeURIComponent(termoBusca)}&eventoId=${eventoId}`);
+      const res = await fetch(`/api/clientes?q=${encodeURIComponent(termoBusca)}&eventoId=${eventoId}&_t=${Date.now()}`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) {
         setErro(data.error || "Erro ao buscar clientes.");
@@ -273,7 +273,7 @@ export default function BarApp() {
     setErro("");
     setCarregando(true);
     try {
-      const res = await fetch(`/api/cartao/${codigo}`);
+      const res = await fetch(`/api/cartao/${codigo}?_t=${Date.now()}`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) { setErro(data.error || "Cartão inválido"); setCarregando(false); return; }
       setCartao(data);
@@ -299,11 +299,34 @@ export default function BarApp() {
       if (!res.ok) {
         setResultado({ ok: false, motivo: data.error, saldoAtual: data.saldo });
       } else {
-        setResultado({ ok: true, saldoAtual: data.saldoAtual, produto: quantidade > 1 ? `${quantidade}x ${data.produto}` : data.produto });
-        setCartao(prev => ({ ...prev, saldo: data.saldoAtual }));
+        const novoSaldo = typeof data.saldoAtual === "number" ? data.saldoAtual : (cartao.saldo - (data.valorTotal || (precoFinal * quantidade)));
+        const valorDebitado = data.valorTotal || (precoFinal * quantidade);
+        
+        setResultado({ 
+          ok: true, 
+          saldoAtual: novoSaldo, 
+          valorTotal: valorDebitado,
+          produto: quantidade > 1 ? `${quantidade}x ${data.produto}` : data.produto 
+        });
+
+        // Atualização imediata do saldo do cliente no painel do operador do bar
+        setCartao(prev => prev ? ({ ...prev, saldo: novoSaldo }) : null);
+
+        // Atualiza na listagem de clientes em memória se houver busca ativa
+        setResultadosBusca(prev => prev.map(item => 
+          (item.id === cartao.id || item.codigo === cartao.codigo) 
+            ? { ...item, saldo: novoSaldo } 
+            : item
+        ));
       }
       setEtapa("resultado");
-      setTimeout(() => { setEtapa("scanner"); setProdutoSel(null); setQuantidade(1); setResultado(null); setScannerAtivo(false); }, 3500);
+      setTimeout(() => { 
+        setEtapa(prev => prev === "resultado" ? "scanner" : prev); 
+        setProdutoSel(null); 
+        setQuantidade(1); 
+        setResultado(null); 
+        setScannerAtivo(false); 
+      }, 4000);
     } catch { setErro("Erro de conexão"); }
     finally { setCarregando(false); }
   }
@@ -321,9 +344,42 @@ export default function BarApp() {
         <p className="text-2xl sm:text-3xl text-white/90 font-bold mb-2">{cartao?.cliente?.nome}</p>
         <p className="text-xl sm:text-2xl text-white/80 font-semibold mb-4">{resultado?.produto || resultado?.motivo}</p>
         {resultado?.ok && (
-          <div className="bg-white/20 rounded-3xl px-8 py-4 inline-block">
-            <p className="text-white font-black text-2xl sm:text-3xl">- R$ {produtoSel?.preco?.toFixed(2).replace(".",",")}</p>
-            <p className="text-white/80 font-bold mt-1">Saldo: R$ {resultado?.saldoAtual?.toFixed(2).replace(".",",")}</p>
+          <div className="space-y-4">
+            <div className="bg-white/20 rounded-3xl px-8 py-4 inline-block shadow-lg border border-white/20">
+              <p className="text-white font-black text-3xl sm:text-4xl">
+                - R$ {(resultado?.valorTotal ?? (produtoSel?.preco * quantidade ?? 0)).toFixed(2).replace(".", ",")}
+              </p>
+              <p className="text-yellow-300 font-black text-lg sm:text-xl mt-1">
+                Saldo Restante: R$ {(resultado?.saldoAtual ?? cartao?.saldo ?? 0).toFixed(2).replace(".", ",")}
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-2.5 justify-center max-w-sm mx-auto pt-2">
+              <button 
+                onClick={() => { 
+                  setEtapa("produtos"); 
+                  setProdutoSel(null); 
+                  setQuantidade(1); 
+                  setResultado(null); 
+                }}
+                className="bg-white text-[#1D3461] hover:bg-blue-50 font-black px-5 py-3 rounded-2xl shadow-md text-sm sm:text-base cursor-pointer transition-all"
+              >
+                + Mais Itens para Este Cliente
+              </button>
+              <button 
+                onClick={() => { 
+                  setCartao(null); 
+                  setEtapa("scanner"); 
+                  setProdutoSel(null); 
+                  setQuantidade(1); 
+                  setResultado(null); 
+                  setScannerAtivo(false); 
+                }}
+                className="bg-black/30 hover:bg-black/40 text-white font-bold px-5 py-3 rounded-2xl text-sm sm:text-base cursor-pointer transition-all"
+              >
+                Finalizar / Próximo Cliente →
+              </button>
+            </div>
           </div>
         )}
       </div>
