@@ -60,15 +60,12 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
     }
 
-    if (role !== 'MASTER' && !eventoId) {
-      return NextResponse.json({ error: 'É obrigatório selecionar o evento ao qual este usuário pertence.' }, { status: 400 });
-    }
-
     email = email.trim().toLowerCase();
     nome = nome.trim();
     if (role === 'CLIENTE' || role === 'SUPORTE') role = 'SUPORTE_OPERACIONAL';
 
-    // Enforce scoping for ORGANIZADOR and SUPORTE_OPERACIONAL
+    // Enforce scoping for ORGANIZADOR and SUPORTE_OPERACIONAL:
+    // Vincula AUTOMATICAMENTE ao evento ao qual ele pertence!
     if (['ORGANIZADOR', 'ORG', 'SUPORTE_OPERACIONAL', 'CLIENTE', 'SUPORTE'].includes(session.user.role)) {
       eventoId = session.user.eventoId || eventoId;
       // Organizers and support can create POS/Caixa, Bar, Tesouraria, and Support operators
@@ -77,6 +74,20 @@ export async function POST(req) {
       }
     } else if (session.user.role !== 'MASTER') {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 403 });
+    }
+
+    // Se o usuário a ser criado não for MASTER e não tiver eventoId definido:
+    if (role !== 'MASTER' && !eventoId) {
+      // Se for MASTER logado, auto-vincula ao primeiro evento ativo para não travar
+      const ultimoEvento = await prisma.evento.findFirst({
+        where: { status: { not: 'FINALIZADO' } },
+        orderBy: { criadoEm: 'desc' },
+      });
+      if (ultimoEvento) {
+        eventoId = ultimoEvento.id;
+      } else {
+        return NextResponse.json({ error: 'É obrigatório selecionar o evento ao qual este usuário pertence.' }, { status: 400 });
+      }
     }
 
     const existing = await prisma.usuario.findUnique({ where: { email } });

@@ -93,17 +93,18 @@ export default function OperadoresPage() {
     setSalvando(true);
     setError("");
 
+    // Determina o evento ativo: session.user.eventoId (para Suporte/Produtor) ou activeEventoId (para Master)
+    const targetEventoId = session?.user?.role === "MASTER"
+      ? (typeof window !== "undefined" ? localStorage.getItem("activeEventoId") : null)
+      : session?.user?.eventoId;
+
     const payload = {
       nome: nome.trim(),
       email: email.trim().toLowerCase(),
       role,
+      ...(targetEventoId && { eventoId: targetEventoId }),
     };
     if (senha) payload.senha = senha.trim();
-
-    const storedEventoId = localStorage.getItem("activeEventoId");
-    if (session?.user?.role === "MASTER" && storedEventoId) {
-      payload.eventoId = storedEventoId;
-    }
 
     const url = operadorEditando ? `/api/usuarios/${operadorEditando.id}` : "/api/usuarios";
     const method = operadorEditando ? "PATCH" : "POST";

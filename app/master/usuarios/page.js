@@ -67,7 +67,7 @@ export default function MasterUsuarios() {
     setSenha('');
     setMostrarSenha(false);
     setRole('OPERADOR_BAR');
-    setEventoId(filtroEvento || '');
+    setEventoId(filtroEvento || (eventos.length > 0 ? eventos[0].id : ''));
     setRazaoSocial('');
     setCnpj('');
     setIe('');
@@ -112,9 +112,15 @@ export default function MasterUsuarios() {
       ? `Você quer realmente confirmar as alterações no usuário "${nome.trim()}"?`
       : `Você quer realmente incluir o usuário "${nome.trim()}" (${role}) no sistema?`;
 
-    if (role !== 'MASTER' && !eventoId) {
-      alert('⚠️ Por favor, selecione obrigatoriamente o Evento Vinculado para este usuário.');
-      return;
+    let targetEventoId = eventoId;
+    if (role !== 'MASTER' && !targetEventoId) {
+      if (eventos.length > 0) {
+        targetEventoId = eventos[0].id;
+        setEventoId(eventos[0].id);
+      } else {
+        alert('⚠️ Por favor, selecione obrigatoriamente o Evento Vinculado para este usuário.');
+        return;
+      }
     }
 
     if (!window.confirm(msgConfirm)) return;
@@ -126,7 +132,7 @@ export default function MasterUsuarios() {
       nome: nome.trim(),
       email: email.trim().toLowerCase(),
       role,
-      eventoId: role === 'MASTER' ? null : (eventoId || null),
+      eventoId: role === 'MASTER' ? null : (targetEventoId || eventoId || null),
       razaoSocial,
       cnpj,
       ie,

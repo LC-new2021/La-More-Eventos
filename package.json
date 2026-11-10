@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node prisma/build.js && prisma generate && next build",
-    "start": "node prisma/build.js && (prisma db push --accept-data-loss || true) && (node prisma/seed.js || true) && next start",
+    "build": "node prisma/build.js && (npx prisma db push --accept-data-loss || true) && npx prisma generate && next build",
+    "start": "node prisma/build.js && (npx prisma db push --accept-data-loss || true) && (node prisma/seed.js || true) && next start",
     "lint": "eslint",
     "seed": "node --experimental-vm-modules prisma/seed.js",
     "db:push": "prisma db push",

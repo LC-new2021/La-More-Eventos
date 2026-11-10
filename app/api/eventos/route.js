@@ -33,12 +33,34 @@ function parseEventDate(dateStr) {
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const eventos = await prisma.evento.findMany({
-      orderBy: { criadoEm: 'desc' },
-      include: {
-        _count: { select: { cartoes: true, produtos: true, usuarios: true } },
-      },
-    });
+    let eventos;
+    try {
+      eventos = await prisma.evento.findMany({
+        orderBy: { criadoEm: 'desc' },
+        include: {
+          _count: { select: { cartoes: true, produtos: true, usuarios: true } },
+        },
+      });
+    } catch (errDb) {
+      console.warn('Fallback para busca essencial de eventos:', errDb.message);
+      eventos = await prisma.evento.findMany({
+        orderBy: { criadoEm: 'desc' },
+        select: {
+          id: true,
+          nome: true,
+          data: true,
+          local: true,
+          status: true,
+          taxaMasterPercent: true,
+          gatewayActive: true,
+          modoOperacao: true,
+          permiteDevolucao: true,
+          permitirEdicaoGateway: true,
+          criadoEm: true,
+          atualizadoEm: true,
+        },
+      });
+    }
 
     const isAuthorized = session && ['MASTER', 'ORGANIZADOR'].includes(session.user.role);
 
