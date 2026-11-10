@@ -761,6 +761,7 @@ export default function MasterEventos() {
                     <label className="block text-gray-500 font-bold mb-1 text-sm">Mercado Pago Access Token</label>
                     <input
                       type="password"
+                      autoComplete="new-password"
                       value={mpAccessToken}
                       onChange={(e) => setMpAccessToken(e.target.value)}
                       className="w-full bg-gray-50 border-2 border-gray-100 focus:border-[#1D3461] focus:bg-white outline-none rounded-2xl px-4 py-3 font-semibold transition-all text-gray-900 placeholder-gray-400"

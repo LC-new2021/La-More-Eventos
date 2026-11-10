@@ -552,7 +552,10 @@ export default function MasterUsuarios() {
             <h3 className="text-xl font-black text-[#1D3461] mb-4 flex items-center gap-2 sticky top-0 bg-white pb-2 z-10 border-b border-gray-100">
               <span>👥</span> {usuarioParaEditar ? 'Editar Usuário' : 'Novo Usuário'}
             </h3>
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} autoComplete="off" className="space-y-3">
+              {/* Decoy para impedir que o navegador/Chrome preencha automaticamente as credenciais salvas do usuário atual */}
+              <input type="text" name="prevent_autofill_email" className="sr-only" tabIndex={-1} autoComplete="off" aria-hidden="true" />
+              <input type="password" name="prevent_autofill_pwd" className="sr-only" tabIndex={-1} autoComplete="new-password" aria-hidden="true" />
               <div>
                 <label className="block text-gray-500 font-bold mb-1 text-xs">Nome Completo</label>
                 <input
@@ -569,8 +572,16 @@ export default function MasterUsuarios() {
                 <label className="block text-gray-500 font-bold mb-1 text-xs">E-mail (Login de Acesso)</label>
                 <input
                   type="email"
+                  name="novo_usuario_email_custom"
+                  id="novo_usuario_email_custom"
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck="false"
                   required
                   value={email}
+                  readOnly
+                  onFocus={(e) => { e.currentTarget.readOnly = false; }}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-gray-50 border border-gray-200 focus:border-[#1D3461] focus:bg-white outline-none rounded-xl px-3 py-2 text-xs font-semibold text-gray-900 placeholder-gray-400"
                   placeholder="Ex: joao@lamore.com"
@@ -584,8 +595,13 @@ export default function MasterUsuarios() {
                 <div className="relative">
                   <input
                     type={mostrarSenha ? 'text' : 'password'}
+                    name="novo_usuario_senha_custom"
+                    id="novo_usuario_senha_custom"
+                    autoComplete="new-password"
                     required={!usuarioParaEditar}
                     value={senha}
+                    readOnly
+                    onFocus={(e) => { e.currentTarget.readOnly = false; }}
                     onChange={(e) => setSenha(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-200 focus:border-[#1D3461] focus:bg-white outline-none rounded-xl px-3 py-2 pr-10 text-xs font-semibold text-gray-900 placeholder-gray-400"
                     placeholder="••••••••"

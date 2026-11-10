@@ -424,7 +424,10 @@ export default function OperadoresPage() {
             <h3 className="text-xl font-black text-[#1D3461] mb-4 pb-2 border-b border-gray-100">
               {operadorEditando ? "✏️ Editar Operador" : "➕ Novo Operador"}
             </h3>
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} autoComplete="off" className="space-y-3">
+              {/* Decoy para impedir que o navegador/Chrome preencha automaticamente as credenciais salvas do usuário atual */}
+              <input type="text" name="prevent_autofill_email_op" className="sr-only" tabIndex={-1} autoComplete="off" aria-hidden="true" />
+              <input type="password" name="prevent_autofill_pwd_op" className="sr-only" tabIndex={-1} autoComplete="new-password" aria-hidden="true" />
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">
                   Nome do Operador
@@ -445,8 +448,16 @@ export default function OperadoresPage() {
                 </label>
                 <input
                   type="email"
+                  name="novo_operador_email_custom"
+                  id="novo_operador_email_custom"
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck="false"
                   required
                   value={email}
+                  readOnly
+                  onFocus={(e) => { e.currentTarget.readOnly = false; }}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="operador@lamore.com"
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
@@ -460,8 +471,13 @@ export default function OperadoresPage() {
                 <div className="relative">
                   <input
                     type={mostrarSenha ? "text" : "password"}
+                    name="novo_operador_senha_custom"
+                    id="novo_operador_senha_custom"
+                    autoComplete="new-password"
                     required={!operadorEditando}
                     value={senha}
+                    readOnly
+                    onFocus={(e) => { e.currentTarget.readOnly = false; }}
                     onChange={(e) => setSenha(e.target.value)}
                     placeholder="••••••••"
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 pr-10 text-xs font-semibold text-gray-900 focus:outline-none focus:border-[#1D3461]"
