@@ -10,15 +10,18 @@ const perfis = {
   CAIXA: { href: "/pos", titulo: "Caixa de Entrada (POS / Vendas)", desc: "Cadastro de clientes, venda de créditos e QR Code.", emoji: "💳", cor: "bg-green-50", textoCor: "text-green-600", bgCor: "bg-green-100" },
   TESOURARIA: { href: "/pos", titulo: "Tesouraria (Acesso Multi)", desc: "Cadastro de clientes, vendas em dinheiro, cartão e Pix.", emoji: "💵", cor: "bg-purple-50", textoCor: "text-purple-600", bgCor: "bg-purple-100" },
   OPERADOR_BAR: { href: "/bar", titulo: "Operador de Bar", desc: "Escanear QR, selecionar produto e confirmar débito.", emoji: "🍺", cor: "bg-orange-50", textoCor: "text-orange-600", bgCor: "bg-orange-100" },
+  CAIXA_VOLANTE: { href: "/pos", titulo: "Caixa Volante (Vendas / Recargas)", desc: "Venda móvel de créditos, cadastro de clientes e consulta de saldo.", emoji: "📱", cor: "bg-emerald-50", textoCor: "text-emerald-600", bgCor: "bg-emerald-100" },
 };
 
 perfis.CLIENTE = perfis.SUPORTE_OPERACIONAL;
 perfis.SUPORTE = perfis.SUPORTE_OPERACIONAL;
+perfis.BAR = perfis.OPERADOR_BAR;
 
 const perfisMaster = [
   { roleKey: "ORGANIZADOR", ...perfis.ORGANIZADOR },
   { roleKey: "SUPORTE_OPERACIONAL", ...perfis.SUPORTE_OPERACIONAL },
   { roleKey: "CAIXA", ...perfis.CAIXA },
+  { roleKey: "CAIXA_VOLANTE", ...perfis.CAIXA_VOLANTE },
   { roleKey: "TESOURARIA", ...perfis.TESOURARIA },
   { roleKey: "OPERADOR_BAR", ...perfis.OPERADOR_BAR },
 ];
@@ -86,6 +89,7 @@ export default function AcessosPage() {
                   role === "ORGANIZADOR" ? "🎯 Produtor / Organizador" :
                   isSupport ? "🛠️ Suporte Operacional" :
                   role === "CAIXA" ? "💳 Operador de Caixa" :
+                  role === "CAIXA_VOLANTE" ? "📱 Caixa Volante" :
                   role === "TESOURARIA" ? "💵 Tesouraria" :
                   role === "OPERADOR_BAR" ? "🍺 Operador de Bar" : role
                 }

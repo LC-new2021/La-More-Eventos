@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { signIn, signOut } from "next-auth/react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -10,17 +10,31 @@ export default function LoginPage() {
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(false);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("activeEventoId");
+    }
+  }, []);
+
   async function handleSubmit(e) {
     if (typeof window !== "undefined") { localStorage.removeItem("activeEventoId"); }
     e.preventDefault();
     setErro("");
     setCarregando(true);
 
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanSenha = senha.trim();
+
+    // Limpa qualquer sessão residual ativa no navegador antes de autenticar o novo usuário
+    try {
+      await signOut({ redirect: false });
+    } catch {}
+
     let res = null;
     try {
       res = await signIn("credentials", {
-        email,
-        password: senha,
+        email: cleanEmail,
+        password: cleanSenha,
         redirect: false,
       });
     } catch (err) {
@@ -33,32 +47,20 @@ export default function LoginPage() {
       return;
     }
 
-    // Aguarda um curto tempo para garantir a gravação do cookie
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Busca a sessão e redireciona diretamente no domínio atual
+    // Busca o destino exato e infalível com base no e-mail do usuário autenticado
     try {
-      const sessaoRes = await fetch("/api/auth/session", { cache: "no-store" });
-      const sessao = sessaoRes.ok ? await sessaoRes.json() : null;
-      const role = sessao?.user?.role;
+      const destRes = await fetch("/api/auth/destino", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      const destData = await destRes.json();
+      const destino = destData?.destino || "/acessos";
 
-      if (!role) {
-        setErro("Email ou senha incorretos.");
-        setCarregando(false);
-        return;
-      }
-
-      if (role === "MASTER") {
-        window.location.href = "/master";
-      } else if (role === "CAIXA" || role === "CAIXA_VOLANTE" || role === "TESOURARIA") {
-        window.location.href = "/pos";
-      } else if (role === "OPERADOR_BAR") {
-        window.location.href = "/bar";
-      } else {
-        window.location.href = "/org";
-      }
-    } catch (e) {
-      window.location.href = "/login";
+      // Redirecionamento completo para carregar a nova sessão sem resíduos de cache
+      window.location.replace(destino);
+    } catch {
+      window.location.replace("/acessos");
     }
   }
 

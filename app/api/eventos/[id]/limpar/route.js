@@ -27,7 +27,7 @@ export async function DELETE(req, { params }) {
       where: {
         eventoId: id,
         role: {
-          in: ['CAIXA', 'OPERADOR_BAR', 'TESOURARIA'],
+          in: ['CAIXA', 'CAIXA_VOLANTE', 'OPERADOR_BAR', 'TESOURARIA'],
         },
       },
     });
